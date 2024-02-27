@@ -23,6 +23,9 @@ devDependencies:
   lucide-svelte:
     specifier: ^0.341.0
     version: 0.341.0(svelte@4.2.12)
+  nanoid:
+    specifier: ^5.0.6
+    version: 5.0.6
   postcss:
     specifier: ^8.4.32
     version: 8.4.35
@@ -1397,6 +1400,12 @@ packages:
   /nanoid@3.3.7:
     resolution: {integrity: sha512-eSRppjcPIatRIMC1U6UngP8XFcz8MQWGQdt1MTBQ7NaAmvXDfvNxbvWV3x2y6CdEUciCSsDHDQZbhYaB8QEo2g==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
+    dev: true
+
+  /nanoid@5.0.6:
+    resolution: {integrity: sha512-rRq0eMHoGZxlvaFOUdK1Ev83Bd1IgzzR+WJ3IbDJ7QOSdAxYjlurSPqFs9s4lJg29RT6nPwizFtJhQS6V5xgiA==}
+    engines: {node: ^18 || >=20}
     hasBin: true
     dev: true
 

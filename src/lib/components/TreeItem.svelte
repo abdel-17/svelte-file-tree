@@ -12,27 +12,31 @@
 <script lang="ts">
 	import type { Tree } from "$lib/helpers/tree.js";
 	import ChevronRight from "lucide-svelte/icons/chevron-right";
+	import { getTreeContext } from "./TreeView.svelte";
 
-	export let expandedIds: Set<string>;
-	export let selectedIds: Set<string>;
-	export let focusableId: string | null;
-	export let nodes: Tree<string>[];
 	export let node: Tree<string>;
 	export let index: number;
 
-	$: expanded = expandedIds.has(node.id);
-	$: selected = selectedIds.has(node.id);
+	const { idPrefix, nodes, expandedIds, selectedIds, focusableId } =
+		getTreeContext();
+
+	$: expanded = $expandedIds.has(node.id);
+	$: selected = $selectedIds.has(node.id);
 	$: leaf = node.children.length === 0;
-	$: focusable = focusableId !== null ? focusableId === node.id : index === 0;
+	$: focusable = $focusableId !== null ? $focusableId === node.id : index === 0;
 
 	function expand() {
-		expandedIds.add(node.id);
-		expanded = expanded;
+		expandedIds.update(($expandedIds) => {
+			$expandedIds.add(node.id);
+			return $expandedIds;
+		});
 	}
 
 	function collapse() {
-		expandedIds.delete(node.id);
-		expanded = expanded;
+		expandedIds.update(($expandedIds) => {
+			$expandedIds.delete(node.id);
+			return $expandedIds;
+		});
 	}
 
 	function toggleExpansion() {
@@ -44,29 +48,33 @@
 	}
 
 	function setSelected() {
-		selectedIds.clear();
-		selectedIds.add(node.id);
-		selected = selected;
+		selectedIds.update(($selectedIds) => {
+			$selectedIds.clear();
+			$selectedIds.add(node.id);
+			return $selectedIds;
+		});
 	}
 
 	function toggleSelection() {
-		if (selected) {
-			selectedIds.delete(node.id);
-		} else {
-			selectedIds.add(node.id);
-		}
-		selected = selected;
+		selectedIds.update(($selectedIds) => {
+			if ($selectedIds.has(node.id)) {
+				$selectedIds.delete(node.id);
+			} else {
+				$selectedIds.add(node.id);
+			}
+			return $selectedIds;
+		});
 	}
 
-	function getTreeItemId(node: Tree<string>) {
-		return `treeitem-${node.id}`;
+	function getTreeItemId(idPrefix: string, node: Tree<string>) {
+		return `${idPrefix}-${node.id}`;
 	}
 
 	function getTreeItem(node: Tree<string> | undefined) {
 		if (node === undefined) {
 			return null;
 		}
-		const id = getTreeItemId(node);
+		const id = getTreeItemId(idPrefix, node);
 		return document.getElementById(id);
 	}
 
@@ -89,15 +97,11 @@
 				break;
 			}
 			case kbd.ARROW_DOWN: {
-				getTreeItem(nodes[index + 1])?.focus();
+				getTreeItem($nodes[index + 1])?.focus();
 				break;
 			}
 			case kbd.ARROW_UP: {
-				getTreeItem(nodes[index - 1])?.focus();
-				break;
-			}
-			case kbd.ENTER: {
-				toggleExpansion();
+				getTreeItem($nodes[index - 1])?.focus();
 				break;
 			}
 			case kbd.SPACE: {
@@ -115,7 +119,7 @@
 </script>
 
 <div
-	id={getTreeItemId(node)}
+	id={getTreeItemId(idPrefix, node)}
 	role="treeitem"
 	aria-level={node.level}
 	aria-setsize={node.parent?.children.length ?? 1}
@@ -134,8 +138,11 @@
 	on:keydown={handleKeyDown}
 	on:focus={() => {
 		// Only one tree item should be focusable at a time.
-		focusableId = node.id;
+		$focusableId = node.id;
 	}}
+	on:click
+	on:keydown
+	on:focus
 >
 	<button
 		tabindex={-1}
@@ -157,5 +164,7 @@
 			class="transition-transform duration-300 group-focus:text-blue-700 group-aria-expanded:rotate-90"
 		/>
 	</button>
-	<span class="align-middle">{node.value}</span>
+	<span class="align-middle">
+		<slot />
+	</span>
 </div>
