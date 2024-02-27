@@ -128,6 +128,7 @@
 	aria-selected={selected}
 	tabindex={focusable ? 0 : -1}
 	class="group transition-colors focus:outline focus:outline-2 focus:outline-blue-700 aria-selected:bg-blue-100"
+	style:margin-inline-start="{2 * (node.level - 1)}rem"
 	on:click={(e) => {
 		if (e.metaKey) {
 			toggleSelection();
