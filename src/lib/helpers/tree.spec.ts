@@ -51,8 +51,6 @@ describe("Tree", () => {
 				index: node.index,
 				parent: node.parent?.value,
 				children: node.children.map((child) => child.value),
-				previousSibling: node.previousSibling?.value,
-				nextSibling: node.nextSibling?.value,
 			};
 		});
 
@@ -64,8 +62,6 @@ describe("Tree", () => {
 				index: 0,
 				parent: undefined,
 				children: ["Section 1", "Section 2", "Section 3"],
-				previousSibling: undefined,
-				nextSibling: undefined,
 			},
 			{
 				value: "Section 1",
@@ -74,8 +70,6 @@ describe("Tree", () => {
 				index: 0,
 				parent: "Sections",
 				children: ["Section 1.1"],
-				previousSibling: undefined,
-				nextSibling: "Section 2",
 			},
 			{
 				value: "Section 1.1",
@@ -84,8 +78,6 @@ describe("Tree", () => {
 				index: 0,
 				parent: "Section 1",
 				children: ["Section 1.1.1", "Section 1.1.2", "Section 1.1.3"],
-				previousSibling: undefined,
-				nextSibling: undefined,
 			},
 			{
 				value: "Section 1.1.1",
@@ -94,8 +86,6 @@ describe("Tree", () => {
 				index: 0,
 				parent: "Section 1.1",
 				children: [],
-				previousSibling: undefined,
-				nextSibling: "Section 1.1.2",
 			},
 			{
 				value: "Section 1.1.2",
@@ -104,8 +94,6 @@ describe("Tree", () => {
 				index: 1,
 				parent: "Section 1.1",
 				children: [],
-				previousSibling: "Section 1.1.1",
-				nextSibling: "Section 1.1.3",
 			},
 			{
 				value: "Section 1.1.3",
@@ -114,8 +102,6 @@ describe("Tree", () => {
 				index: 2,
 				parent: "Section 1.1",
 				children: [],
-				previousSibling: "Section 1.1.2",
-				nextSibling: undefined,
 			},
 			{
 				value: "Section 2",
@@ -124,8 +110,6 @@ describe("Tree", () => {
 				index: 1,
 				parent: "Sections",
 				children: ["Section 2.1", "Section 2.2"],
-				previousSibling: "Section 1",
-				nextSibling: "Section 3",
 			},
 			{
 				value: "Section 2.1",
@@ -134,8 +118,6 @@ describe("Tree", () => {
 				index: 0,
 				parent: "Section 2",
 				children: [],
-				previousSibling: undefined,
-				nextSibling: "Section 2.2",
 			},
 			{
 				value: "Section 2.2",
@@ -144,8 +126,6 @@ describe("Tree", () => {
 				index: 1,
 				parent: "Section 2",
 				children: [],
-				previousSibling: "Section 2.1",
-				nextSibling: undefined,
 			},
 			{
 				value: "Section 3",
@@ -154,8 +134,6 @@ describe("Tree", () => {
 				index: 2,
 				parent: "Sections",
 				children: [],
-				previousSibling: "Section 2",
-				nextSibling: undefined,
 			},
 		]);
 	});

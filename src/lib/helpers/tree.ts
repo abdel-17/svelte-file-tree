@@ -73,14 +73,6 @@ export class Tree<Value> implements Iterable<Tree<Value>> {
 		return this.#children;
 	}
 
-	get previousSibling(): Tree<Value> | undefined {
-		return this.#parent?.children[this.#index - 1];
-	}
-
-	get nextSibling(): Tree<Value> | undefined {
-		return this.#parent?.children[this.#index + 1];
-	}
-
 	[Symbol.iterator](): Generator<Tree<Value>> {
 		return this.#iter();
 	}
