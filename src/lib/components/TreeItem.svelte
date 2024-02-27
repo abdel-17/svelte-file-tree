@@ -66,7 +66,7 @@
 		});
 	}
 
-	function getTreeItemId(idPrefix: string, node: Tree<string>) {
+	function getTreeItemId(node: Tree<string>) {
 		return `${idPrefix}-${node.id}`;
 	}
 
@@ -74,7 +74,7 @@
 		if (node === undefined) {
 			return null;
 		}
-		const id = getTreeItemId(idPrefix, node);
+		const id = getTreeItemId(node);
 		return document.getElementById(id);
 	}
 
@@ -119,7 +119,7 @@
 </script>
 
 <div
-	id={getTreeItemId(idPrefix, node)}
+	id={getTreeItemId(node)}
 	role="treeitem"
 	aria-level={node.level}
 	aria-setsize={node.parent?.children.length ?? 1}
