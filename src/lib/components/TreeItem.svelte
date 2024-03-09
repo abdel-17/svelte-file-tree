@@ -1,6 +1,6 @@
 <script lang="ts" context="module">
-	type TreeItemContext = {
-		id: Writable<string>;
+	export type TreeItemContext = {
+		item: Readable<TreeNode<any>>;
 	};
 
 	const contextKey = Symbol();
@@ -15,7 +15,7 @@
 	import type { TreeNode } from "$lib/helpers/tree.js";
 	import { getContext, setContext } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { writable, type Writable } from "svelte/store";
+	import { writable, type Readable } from "svelte/store";
 	import { getTreeContext } from "./TreeView.svelte";
 
 	interface $$Props extends HTMLAttributes<HTMLDivElement> {
@@ -24,127 +24,127 @@
 
 	export let item: $$Props["item"];
 
-	const { getItemId, expandedIds, selectedIds, focusableId } = getTreeContext();
+	const context = {
+		item: writable(item),
+	} satisfies TreeItemContext;
 
-	$: id = getItemId(item);
-	$: expanded = $expandedIds.has(id);
-	$: selected = $selectedIds.has(id);
+	$: context.item.set(item);
+
+	setContext(contextKey, context);
+
+	const { expandedIds, selectedIds, focusableId } = getTreeContext();
+
+	$: expanded = $expandedIds.has(item.id);
+	$: selected = $selectedIds.has(item.id);
 	$: leaf = item.children.length === 0;
 	$: hidden = (() => {
-		let node = item;
-		while (node.parent !== undefined) {
-			node = node.parent;
-			const expanded = $expandedIds.has(getItemId(node));
+		let parent = item.parent;
+		while (parent !== undefined) {
+			const expanded = $expandedIds.has(parent.id);
 			if (!expanded) {
 				return true;
 			}
+			parent = parent.parent;
 		}
 		return false;
 	})();
 
 	// Initially, the first item in the tree is focusable.
 	$: if ($focusableId === null) {
-		$focusableId = id;
+		$focusableId = item.id;
 	}
-
-	const context: TreeItemContext = setContext(contextKey, {
-		id: writable(id),
-	});
-
-	$: context.id.set(id);
 
 	function getTreeItem(node: TreeNode<Value> | undefined) {
 		if (node === undefined) {
 			return null;
 		}
-		return document.getElementById(getItemId(node));
+		return document.getElementById(node.id);
 	}
 
-	function handleClick(event: MouseEvent) {
-		if (event.defaultPrevented) {
-			return;
+	function getPreviousTreeItem() {
+		let previous = item.previousSibling;
+		if (previous === undefined) {
+			return getTreeItem(item.parent);
 		}
 
-		if (event.metaKey) {
-			selectedIds.toggle(id);
-		} else {
-			selectedIds.clear();
-			selectedIds.add(id);
+		// If the previous sibling is expanded, navigate to
+		// the last visible item in its subtree.
+		let previousId = previous.id;
+		while (previous.children.length > 0 && $expandedIds.has(previousId)) {
+			previous = previous.children.at(-1)!;
+			previousId = previous.id;
 		}
+
+		return document.getElementById(previousId);
 	}
 
-	// Prevent the blur event from firing when focus is shifted
-	// using the arrow up and arrow down keys.
-	let preventBlur = false;
+	function getNextTreeItem() {
+		if (!leaf && expanded) {
+			return getTreeItem(item.children[0]);
+		}
 
-	function handleKeyDown(
-		event: KeyboardEvent & { currentTarget: HTMLElement },
-	) {
+		if (item.nextSibling !== undefined) {
+			return getTreeItem(item.nextSibling);
+		}
+
+		// Navigate to the first parent having a next sibling.
+		let node = item;
+		while (node.parent !== undefined) {
+			node = node.parent;
+			if (node.nextSibling !== undefined) {
+				break;
+			}
+		}
+
+		return getTreeItem(node.nextSibling);
+	}
+
+	let clearSelectionOnBlur = true;
+
+	function handleKeyDown(event: KeyboardEvent) {
 		if (event.defaultPrevented) {
 			return;
 		}
 
 		switch (event.key) {
 			case keys.ARROW_UP: {
-				let previous = event.currentTarget.previousElementSibling;
-				while (previous !== null) {
-					if (
-						previous instanceof HTMLElement &&
-						previous.hasAttribute("data-tree-item") &&
-						getComputedStyle(previous).display !== "none"
-					) {
-						if (event.shiftKey) {
-							preventBlur = true;
-						} else {
-							selectedIds.clear();
-						}
-						previous.focus();
-						break;
+				const previous = getPreviousTreeItem();
+				if (previous !== null) {
+					if (event.shiftKey) {
+						clearSelectionOnBlur = false;
 					}
-					previous = previous.previousElementSibling;
+					previous.focus();
 				}
 				break;
 			}
 			case keys.ARROW_DOWN: {
-				let next = event.currentTarget.nextElementSibling;
-				while (next !== null) {
-					if (
-						next instanceof HTMLElement &&
-						next.hasAttribute("data-tree-item") &&
-						getComputedStyle(next).display !== "none"
-					) {
-						if (event.shiftKey) {
-							preventBlur = true;
-						} else {
-							selectedIds.clear();
-						}
-						next.focus();
-						break;
+				const next = getNextTreeItem();
+				if (next !== null) {
+					if (event.shiftKey) {
+						clearSelectionOnBlur = false;
 					}
-					next = next.nextElementSibling;
+					next.focus();
 				}
 				break;
 			}
 			case keys.ARROW_RIGHT: {
 				if (!leaf && !expanded) {
-					expandedIds.add(id);
+					expandedIds.add(item.id);
 				} else {
-					const el = getTreeItem(item.children[0]);
-					if (el !== null) {
-						selectedIds.clear();
-						el.focus();
+					const child = getTreeItem(item.children[0]);
+					if (child !== null) {
+						child.focus();
 					}
 				}
 				break;
 			}
 			case keys.ARROW_LEFT: {
 				if (!leaf && expanded) {
-					expandedIds.delete(id);
+					expandedIds.delete(item.id);
 				} else {
-					const el = getTreeItem(item.parent);
-					if (el !== null) {
-						selectedIds.clear();
-						el.focus();
+					const parent = getTreeItem(item.parent);
+					if (parent !== null) {
+						parent.focus();
 					}
 				}
 				break;
@@ -158,48 +158,58 @@
 		event.stopPropagation();
 	}
 
+	function handlePointerDown(event: PointerEvent) {
+		if (event.defaultPrevented) {
+			return;
+		}
+
+		if (event.metaKey) {
+			clearSelectionOnBlur = false;
+			selectedIds.toggle(item.id);
+		}
+	}
+
 	function handleFocus(event: FocusEvent) {
 		if (event.defaultPrevented) {
 			return;
 		}
 
-		$focusableId = id;
-		selectedIds.add(id);
+		// Only one tree item can be focusable at a time.
+		$focusableId = item.id;
+
+		// Selection follows focus.
+		selectedIds.add(item.id);
 	}
 
 	function handleBlur(event: FocusEvent) {
-		if (event.defaultPrevented) {
-			return;
+		if (!event.defaultPrevented && clearSelectionOnBlur) {
+			selectedIds.clear();
 		}
 
-		if (preventBlur) {
-			preventBlur = false;
-			return;
-		}
-
-		selectedIds.delete(id);
+		// Reset back to the default behavior.
+		clearSelectionOnBlur = true;
 	}
 </script>
 
 <div
-	{id}
+	id={item.id}
 	role="treeitem"
 	aria-setsize={item.setSize}
 	aria-posinset={item.positionInSet}
 	aria-level={item.level}
 	aria-expanded={!leaf ? expanded : undefined}
 	aria-selected={selected}
-	tabindex={$focusableId === id ? 0 : -1}
+	tabindex={$focusableId === item.id ? 0 : -1}
 	class:hidden
 	data-tree-item
 	{...$$restProps}
-	on:click
-	on:click={handleClick}
 	on:keydown
-	on:keydown={handleKeyDown}
+	on:pointerdown
 	on:focus
-	on:focus={handleFocus}
 	on:blur
+	on:keydown={handleKeyDown}
+	on:pointerdown={handlePointerDown}
+	on:focus={handleFocus}
 	on:blur={handleBlur}
 >
 	<slot />

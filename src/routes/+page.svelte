@@ -6,7 +6,7 @@
 </script>
 
 <main class="p-8">
-	<TreeView tree={data.tree} getItemId={(item) => item.value} let:item>
+	<TreeView tree={data.tree} getItemId={(value) => value} let:item>
 		<TreeItem
 			{item}
 			class="group flex cursor-default gap-2 p-2 focus:outline focus:outline-2 focus:outline-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800"

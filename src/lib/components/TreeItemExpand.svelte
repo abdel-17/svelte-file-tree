@@ -6,14 +6,14 @@
 	type $$Props = HTMLAttributes<HTMLDivElement>;
 
 	const { expandedIds } = getTreeContext();
-	const { id } = getTreeItemContext();
+	const { item } = getTreeItemContext();
 
 	function handleClick(event: MouseEvent) {
 		if (event.defaultPrevented) {
 			return;
 		}
 
-		expandedIds.toggle($id);
+		expandedIds.toggle($item.id);
 		event.stopPropagation();
 	}
 </script>

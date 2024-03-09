@@ -1,58 +1,64 @@
-export type Tree<T> = {
+export type TreeList<T> = ReadonlyArray<{
 	readonly value: T;
-	readonly children?: ReadonlyArray<Tree<T>>;
-};
+	readonly children?: TreeList<T>;
+}>;
 
 export type TreeNode<T> = {
-	parent?: TreeNode<T>;
+	id: string;
 	value: T;
 	setSize: number;
 	positionInSet: number;
 	level: number;
+	parent?: TreeNode<T>;
+	previousSibling?: TreeNode<T>;
+	nextSibling?: TreeNode<T>;
 	children: TreeNode<T>[];
 };
 
 function flattenTreeTo<T>(
 	target: TreeNode<T>[],
-	item: Tree<T>,
-	setSize: number,
-	positionInSet: number,
-	level: number,
+	tree: TreeList<T>,
+	getItemId: (value: T) => string,
+	level: number = 1,
 	parent?: TreeNode<T>,
-): TreeNode<T> {
-	const { value, children = [] } = item;
+): TreeNode<T>[] {
+	const nodes: TreeNode<T>[] = Array(tree.length);
 
-	const node: TreeNode<T> = {
-		parent,
-		value,
-		setSize,
-		positionInSet,
-		level,
-		children: Array(children.length),
-	};
+	let previousSibling: TreeNode<T> | undefined;
+	for (let i = 0; i < tree.length; ++i) {
+		const { value, children = [] } = tree[i]!;
 
-	target.push(node);
+		const node: TreeNode<T> = {
+			id: getItemId(value),
+			value,
+			setSize: tree.length,
+			positionInSet: i + 1,
+			level,
+			parent,
+			children: [],
+		};
 
-	for (let i = 0; i < children.length; ++i) {
-		node.children[i] = flattenTreeTo(
-			target,
-			children[i]!,
-			children.length,
-			i + 1,
-			level + 1,
-			node,
-		);
+		target.push(node);
+		nodes[i] = node;
+
+		node.children = flattenTreeTo(target, children, getItemId, level + 1, node);
+
+		if (previousSibling !== undefined) {
+			previousSibling.nextSibling = node;
+			node.previousSibling = previousSibling;
+		}
+
+		previousSibling = node;
 	}
 
-	return node;
+	return nodes;
 }
 
 export function flattenTree<T>(
-	...roots: ReadonlyArray<Tree<T>>
+	tree: TreeList<T>,
+	getItemId: (value: T) => string,
 ): TreeNode<T>[] {
 	const result: TreeNode<T>[] = [];
-	for (let i = 0; i < roots.length; ++i) {
-		flattenTreeTo(result, roots[i]!, roots.length, i + 1, 1);
-	}
+	flattenTreeTo(result, tree, getItemId);
 	return result;
 }

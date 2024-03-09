@@ -1,8 +1,8 @@
-import type { Writable } from "svelte/store";
+import type { StoresValues, Writable } from "svelte/store";
 
-export function withChangeListener<TValue, TStore extends Writable<TValue>>(
+export function withChangeListener<TStore extends Writable<any>>(
 	store: TStore,
-	onChange: (value: TValue) => void,
+	onChange: (value: StoresValues<TStore>) => void,
 ) {
 	return {
 		...store,
@@ -17,5 +17,5 @@ export function withChangeListener<TValue, TStore extends Writable<TValue>>(
 				return value;
 			});
 		},
-	} satisfies Writable<TValue>;
+	} satisfies Writable<StoresValues<TStore>>;
 }
