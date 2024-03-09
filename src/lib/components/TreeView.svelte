@@ -2,6 +2,7 @@
 	export type TreeContext = {
 		expandedIds: WritableSet<string>;
 		selectedIds: WritableSet<string>;
+		items: Readable<TreeNode<unknown>[]>;
 		focusableId: Writable<string | null>;
 	};
 
@@ -13,12 +14,16 @@
 </script>
 
 <script lang="ts" generics="Value" strictEvents>
-	import { flattenTree, type TreeList } from "$lib/helpers/tree.js";
+	import {
+		flattenTree,
+		type TreeList,
+		type TreeNode,
+	} from "$lib/helpers/tree.js";
 	import { withChangeListener } from "$lib/helpers/with-change-listener.js";
 	import { writableSet, type WritableSet } from "$lib/helpers/writable-set.js";
 	import { getContext, setContext } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { writable, type Writable } from "svelte/store";
+	import { writable, type Readable, type Writable } from "svelte/store";
 
 	interface $$Props extends HTMLAttributes<HTMLDivElement> {
 		tree: TreeList<Value>;
@@ -41,11 +46,13 @@
 		selectedIds: withChangeListener(writableSet(selectedIds), (value) => {
 			selectedIds = value;
 		}),
+		items: writable(items),
 		focusableId: writable(null),
 	} satisfies TreeContext;
 
 	$: context.expandedIds.set(expandedIds);
 	$: context.selectedIds.set(selectedIds);
+	$: context.items.set(items);
 
 	setContext(contextKey, context);
 </script>

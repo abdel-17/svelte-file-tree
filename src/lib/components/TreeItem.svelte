@@ -1,6 +1,6 @@
 <script lang="ts" context="module">
 	export type TreeItemContext = {
-		item: Readable<TreeNode<any>>;
+		item: Readable<TreeNode<unknown>>;
 	};
 
 	const contextKey = Symbol();
@@ -32,7 +32,7 @@
 
 	setContext(contextKey, context);
 
-	const { expandedIds, selectedIds, focusableId } = getTreeContext();
+	const { expandedIds, selectedIds, items, focusableId } = getTreeContext();
 
 	$: expanded = $expandedIds.has(item.id);
 	$: selected = $selectedIds.has(item.id);
@@ -54,7 +54,7 @@
 		$focusableId = item.id;
 	}
 
-	function getTreeItem(node: TreeNode<Value> | undefined) {
+	function getTreeItem(node: TreeNode<unknown> | undefined) {
 		if (node === undefined) {
 			return null;
 		}
@@ -69,13 +69,11 @@
 
 		// If the previous sibling is expanded, navigate to
 		// the last visible item in its subtree.
-		let previousId = previous.id;
-		while (previous.children.length > 0 && $expandedIds.has(previousId)) {
+		while (previous.children.length > 0 && $expandedIds.has(previous.id)) {
 			previous = previous.children.at(-1)!;
-			previousId = previous.id;
 		}
 
-		return document.getElementById(previousId);
+		return document.getElementById(previous.id);
 	}
 
 	function getNextTreeItem() {
@@ -97,6 +95,15 @@
 		}
 
 		return getTreeItem(node.nextSibling);
+	}
+
+	function getLastTreeItem() {
+		// Navigate to the first expanded ancestor of the last item.
+		let node = $items.at(-1);
+		while (node?.parent !== undefined && !$expandedIds.has(node.parent.id)) {
+			node = node.parent;
+		}
+		return getTreeItem(node);
 	}
 
 	let clearSelectionOnBlur = true;
@@ -131,10 +138,7 @@
 				if (!leaf && !expanded) {
 					expandedIds.add(item.id);
 				} else {
-					const child = getTreeItem(item.children[0]);
-					if (child !== null) {
-						child.focus();
-					}
+					getTreeItem(item.children[0])?.focus();
 				}
 				break;
 			}
@@ -142,11 +146,16 @@
 				if (!leaf && expanded) {
 					expandedIds.delete(item.id);
 				} else {
-					const parent = getTreeItem(item.parent);
-					if (parent !== null) {
-						parent.focus();
-					}
+					getTreeItem(item.parent)?.focus();
 				}
+				break;
+			}
+			case keys.HOME: {
+				getTreeItem($items[0])?.focus();
+				break;
+			}
+			case keys.END: {
+				getLastTreeItem()?.focus();
 				break;
 			}
 			default: {

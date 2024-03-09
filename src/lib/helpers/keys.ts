@@ -5,4 +5,6 @@ export const keys = {
 	ARROW_UP: "ArrowUp",
 	ENTER: "Enter",
 	SPACE: " ",
+	HOME: "Home",
+	END: "End",
 };
