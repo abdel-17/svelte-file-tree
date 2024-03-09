@@ -4,6 +4,7 @@
 		selectedIds: WritableSet<string>;
 		items: Readable<TreeNode<unknown>[]>;
 		focusableId: Writable<string | null>;
+		clearSelectionOnBlur: Writable<boolean>;
 	};
 
 	const contextKey = Symbol();
@@ -48,6 +49,7 @@
 		}),
 		items: writable(items),
 		focusableId: writable(null),
+		clearSelectionOnBlur: writable(true),
 	} satisfies TreeContext;
 
 	$: context.expandedIds.set(expandedIds);
@@ -58,7 +60,5 @@
 </script>
 
 <div role="tree" aria-multiselectable="true" data-tree-view {...$$restProps}>
-	{#each items as item, index (item.id)}
-		<slot {item} {index} />
-	{/each}
+	<slot {items} />
 </div>

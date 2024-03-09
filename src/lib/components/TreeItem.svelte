@@ -32,7 +32,8 @@
 
 	setContext(contextKey, context);
 
-	const { expandedIds, selectedIds, items, focusableId } = getTreeContext();
+	const { expandedIds, selectedIds, items, focusableId, clearSelectionOnBlur } =
+		getTreeContext();
 
 	$: expanded = $expandedIds.has(item.id);
 	$: selected = $selectedIds.has(item.id);
@@ -61,10 +62,10 @@
 		return document.getElementById(node.id);
 	}
 
-	function getPreviousTreeItem() {
-		let previous = item.previousSibling;
+	function getPreviousTreeItem(node: TreeNode<unknown>) {
+		let previous = node.previousSibling;
 		if (previous === undefined) {
-			return getTreeItem(item.parent);
+			return getTreeItem(node.parent);
 		}
 
 		// If the previous sibling is expanded, navigate to
@@ -76,17 +77,16 @@
 		return document.getElementById(previous.id);
 	}
 
-	function getNextTreeItem() {
+	function getNextTreeItem(node: TreeNode<unknown>) {
 		if (!leaf && expanded) {
-			return getTreeItem(item.children[0]);
+			return getTreeItem(node.children[0]);
 		}
 
-		if (item.nextSibling !== undefined) {
-			return getTreeItem(item.nextSibling);
+		if (node.nextSibling !== undefined) {
+			return getTreeItem(node.nextSibling);
 		}
 
 		// Navigate to the first parent having a next sibling.
-		let node = item;
 		while (node.parent !== undefined) {
 			node = node.parent;
 			if (node.nextSibling !== undefined) {
@@ -106,8 +106,6 @@
 		return getTreeItem(node);
 	}
 
-	let clearSelectionOnBlur = true;
-
 	function handleKeyDown(event: KeyboardEvent) {
 		if (event.defaultPrevented) {
 			return;
@@ -115,20 +113,20 @@
 
 		switch (event.key) {
 			case keys.ARROW_UP: {
-				const previous = getPreviousTreeItem();
+				const previous = getPreviousTreeItem(item);
 				if (previous !== null) {
 					if (event.shiftKey) {
-						clearSelectionOnBlur = false;
+						$clearSelectionOnBlur = false;
 					}
 					previous.focus();
 				}
 				break;
 			}
 			case keys.ARROW_DOWN: {
-				const next = getNextTreeItem();
+				const next = getNextTreeItem(item);
 				if (next !== null) {
 					if (event.shiftKey) {
-						clearSelectionOnBlur = false;
+						$clearSelectionOnBlur = false;
 					}
 					next.focus();
 				}
@@ -173,7 +171,7 @@
 		}
 
 		if (event.metaKey) {
-			clearSelectionOnBlur = false;
+			$clearSelectionOnBlur = false;
 			selectedIds.toggle(item.id);
 		}
 	}
@@ -191,12 +189,12 @@
 	}
 
 	function handleBlur(event: FocusEvent) {
-		if (!event.defaultPrevented && clearSelectionOnBlur) {
+		if (!event.defaultPrevented && $clearSelectionOnBlur) {
 			selectedIds.clear();
 		}
 
 		// Reset back to the default behavior.
-		clearSelectionOnBlur = true;
+		$clearSelectionOnBlur = true;
 	}
 </script>
 
