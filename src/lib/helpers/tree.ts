@@ -1,94 +1,58 @@
-export type TreeItem<Value> = {
-	readonly value: Value;
-	readonly children?: ReadonlyArray<TreeItem<Value>>;
+export type Tree<T> = {
+	readonly value: T;
+	readonly children?: ReadonlyArray<Tree<T>>;
 };
 
-export class Tree<Value> implements Iterable<Tree<Value>> {
-	value: Value;
-	#id: string;
-	#level: number;
-	#index: number;
-	#parent: Tree<Value> | undefined;
-	#children: Tree<Value>[];
+export type TreeNode<T> = {
+	parent?: TreeNode<T>;
+	value: T;
+	setSize: number;
+	positionInSet: number;
+	level: number;
+	children: TreeNode<T>[];
+};
 
-	private constructor(
-		value: Value,
-		id: string,
-		level: number,
-		index: number,
-		parent: Tree<Value> | undefined,
-		children: Tree<Value>[],
-	) {
-		this.value = value;
-		this.#level = level;
-		this.#id = id;
-		this.#index = index;
-		this.#parent = parent;
-		this.#children = children;
-	}
+function flattenTreeTo<T>(
+	target: TreeNode<T>[],
+	item: Tree<T>,
+	setSize: number,
+	positionInSet: number,
+	level: number,
+	parent?: TreeNode<T>,
+): TreeNode<T> {
+	const { value, children = [] } = item;
 
-	static from<Value>(root: TreeItem<Value>): Tree<Value> {
-		return Tree.#from(root);
-	}
+	const node: TreeNode<T> = {
+		parent,
+		value,
+		setSize,
+		positionInSet,
+		level,
+		children: Array(children.length),
+	};
 
-	static #from<Value>(
-		item: TreeItem<Value>,
-		index: number = 0,
-		parent?: Tree<Value>,
-	): Tree<Value> {
-		const { value, children = [] } = item;
-		const tree = new Tree(
-			value,
-			parent !== undefined ? `${parent.id}.${index + 1}` : `${index + 1}`,
-			parent !== undefined ? parent.level + 1 : 1,
-			index,
-			parent,
-			Array(children.length),
+	target.push(node);
+
+	for (let i = 0; i < children.length; ++i) {
+		node.children[i] = flattenTreeTo(
+			target,
+			children[i]!,
+			children.length,
+			i + 1,
+			level + 1,
+			node,
 		);
-
-		for (let i = 0; i < children.length; ++i) {
-			tree.#children[i] = Tree.#from(children[i]!, i, tree);
-		}
-
-		return tree;
 	}
 
-	get level(): number {
-		return this.#level;
-	}
+	return node;
+}
 
-	get id(): string {
-		return this.#id;
+export function flattenTree<T>(
+	...roots: ReadonlyArray<Tree<T>>
+): TreeNode<T>[] {
+	const result: TreeNode<T>[] = [];
+	for (let i = 0; i < roots.length; ++i) {
+		flattenTreeTo(result, roots[i]!, roots.length, i + 1, 1);
 	}
-
-	get index(): number {
-		return this.#index;
-	}
-
-	get parent(): Tree<Value> | undefined {
-		return this.#parent;
-	}
-
-	get children(): ReadonlyArray<Tree<Value>> {
-		return this.#children;
-	}
-
-	[Symbol.iterator](): Generator<Tree<Value>> {
-		return this.#iter();
-	}
-
-	filter(predicate: (node: Tree<Value>) => boolean): Generator<Tree<Value>> {
-		return this.#iter(predicate);
-	}
-
-	*#iter(predicate?: (node: Tree<Value>) => boolean): Generator<Tree<Value>> {
-		if (predicate !== undefined && !predicate(this)) {
-			return;
-		}
-
-		yield this;
-		for (const child of this.children) {
-			yield* child.#iter(predicate);
-		}
-	}
+	return result;
 }

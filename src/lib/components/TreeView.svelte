@@ -1,9 +1,8 @@
 <script lang="ts" context="module">
 	type TreeContext = {
-		idPrefix: string;
-		nodes: Writable<Tree<string>[]>;
-		expandedIds: Writable<Set<string>>;
-		selectedIds: Writable<Set<string>>;
+		getItemId: (node: TreeNode<any>) => string;
+		expandedIds: WritableSet<string>;
+		selectedIds: WritableSet<string>;
 		focusableId: Writable<string | null>;
 	};
 
@@ -14,40 +13,47 @@
 	}
 </script>
 
-<script lang="ts">
+<script lang="ts" strictEvents>
+	import { flattenTree, type Tree, type TreeNode } from "$lib/helpers/tree.js";
 	import { withChangeListener } from "$lib/helpers/with-change-listener.js";
-	import { Tree } from "$lib/helpers/tree.js";
-	import { nanoid } from "nanoid/non-secure";
+	import { writableSet, type WritableSet } from "$lib/helpers/writable-set.js";
 	import { getContext, setContext } from "svelte";
+	import type { HTMLAttributes } from "svelte/elements";
 	import { writable, type Writable } from "svelte/store";
 
-	export let tree: Tree<string>;
+	type Value = $$Generic;
+
+	interface $$Props extends HTMLAttributes<HTMLDivElement> {
+		tree: Tree<Value> | Tree<Value>[];
+		getItemId: (item: TreeNode<Value>) => string;
+		expandedIds?: Set<string>;
+		selectedIds?: Set<string>;
+	}
+
+	export let tree: $$Props["tree"];
+	export let getItemId: $$Props["getItemId"];
 	export let expandedIds = new Set<string>();
 	export let selectedIds = new Set<string>();
 
-	$: nodes = Array.from(
-		tree.filter(
-			(node) => node.parent === undefined || expandedIds.has(node.parent.id),
-		),
-	);
+	$: items = Array.isArray(tree) ? flattenTree(...tree) : flattenTree(tree);
 
 	const context: TreeContext = setContext(contextKey, {
-		idPrefix: nanoid(),
-		nodes: writable(nodes),
-		expandedIds: withChangeListener(writable(expandedIds), (value) => {
+		getItemId,
+		expandedIds: withChangeListener(writableSet(expandedIds), (value) => {
 			expandedIds = value;
 		}),
-		selectedIds: withChangeListener(writable(selectedIds), (value) => {
+		selectedIds: withChangeListener(writableSet(selectedIds), (value) => {
 			selectedIds = value;
 		}),
 		focusableId: writable(null),
 	});
 
-	$: context.nodes.set(nodes);
 	$: context.expandedIds.set(expandedIds);
 	$: context.selectedIds.set(selectedIds);
 </script>
 
-<div role="tree" aria-multiselectable="true">
-	<slot {nodes} />
+<div role="tree" aria-multiselectable="true" data-tree-view {...$$restProps}>
+	{#each items as item (context.getItemId(item))}
+		<slot {item} />
+	{/each}
 </div>

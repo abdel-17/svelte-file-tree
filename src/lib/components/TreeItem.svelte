@@ -1,111 +1,152 @@
 <script lang="ts" context="module">
-	const kbd = {
-		ARROW_LEFT: "ArrowLeft",
-		ARROW_RIGHT: "ArrowRight",
-		ARROW_DOWN: "ArrowDown",
-		ARROW_UP: "ArrowUp",
-		ENTER: "Enter",
-		SPACE: " ",
+	type TreeItemContext = {
+		id: Writable<string>;
 	};
+
+	const contextKey = Symbol();
+
+	export function getTreeItemContext(): TreeItemContext {
+		return getContext(contextKey);
+	}
 </script>
 
-<script lang="ts">
-	import type { Tree } from "$lib/helpers/tree.js";
-	import ChevronRight from "lucide-svelte/icons/chevron-right";
+<script lang="ts" generics="Value" strictEvents>
+	import { keys } from "$lib/helpers/keys.js";
+	import type { TreeNode } from "$lib/helpers/tree.js";
+	import { getContext, setContext } from "svelte";
+	import type { HTMLAttributes } from "svelte/elements";
+	import { writable, type Writable } from "svelte/store";
 	import { getTreeContext } from "./TreeView.svelte";
 
-	export let node: Tree<string>;
-	export let index: number;
-
-	const { idPrefix, nodes, expandedIds, selectedIds, focusableId } =
-		getTreeContext();
-
-	$: expanded = $expandedIds.has(node.id);
-	$: selected = $selectedIds.has(node.id);
-	$: leaf = node.children.length === 0;
-	$: focusable = $focusableId !== null ? $focusableId === node.id : index === 0;
-
-	function expand() {
-		expandedIds.update(($expandedIds) => {
-			$expandedIds.add(node.id);
-			return $expandedIds;
-		});
+	interface $$Props extends HTMLAttributes<HTMLDivElement> {
+		item: TreeNode<Value>;
 	}
 
-	function collapse() {
-		expandedIds.update(($expandedIds) => {
-			$expandedIds.delete(node.id);
-			return $expandedIds;
-		});
-	}
+	export let item: $$Props["item"];
 
-	function toggleExpansion() {
-		if (expanded) {
-			collapse();
-		} else {
-			expand();
-		}
-	}
+	const { getItemId, expandedIds, selectedIds, focusableId } = getTreeContext();
 
-	function setSelected() {
-		selectedIds.update(($selectedIds) => {
-			$selectedIds.clear();
-			$selectedIds.add(node.id);
-			return $selectedIds;
-		});
-	}
-
-	function toggleSelection() {
-		selectedIds.update(($selectedIds) => {
-			if ($selectedIds.has(node.id)) {
-				$selectedIds.delete(node.id);
-			} else {
-				$selectedIds.add(node.id);
+	$: id = getItemId(item);
+	$: expanded = $expandedIds.has(id);
+	$: selected = $selectedIds.has(id);
+	$: leaf = item.children.length === 0;
+	$: hidden = (() => {
+		let node = item;
+		while (node.parent !== undefined) {
+			node = node.parent;
+			const expanded = $expandedIds.has(getItemId(node));
+			if (!expanded) {
+				return true;
 			}
-			return $selectedIds;
-		});
+		}
+		return false;
+	})();
+
+	// Initially, the first item in the tree is focusable.
+	$: if ($focusableId === null) {
+		$focusableId = id;
 	}
 
-	function getTreeItemId(node: Tree<string>) {
-		return `${idPrefix}-${node.id}`;
-	}
+	const context: TreeItemContext = setContext(contextKey, {
+		id: writable(id),
+	});
 
-	function getTreeItem(node: Tree<string> | undefined) {
+	$: context.id.set(id);
+
+	function getTreeItem(node: TreeNode<Value> | undefined) {
 		if (node === undefined) {
 			return null;
 		}
-		const id = getTreeItemId(node);
-		return document.getElementById(id);
+		return document.getElementById(getItemId(node));
 	}
 
-	function handleKeyDown(e: KeyboardEvent & { currentTarget: HTMLDivElement }) {
-		switch (e.key) {
-			case kbd.ARROW_RIGHT: {
+	function handleClick(event: MouseEvent) {
+		if (event.defaultPrevented) {
+			return;
+		}
+
+		if (event.metaKey) {
+			selectedIds.toggle(id);
+		} else {
+			selectedIds.clear();
+			selectedIds.add(id);
+		}
+	}
+
+	// Prevent the blur event from firing when focus is shifted
+	// using the arrow up and arrow down keys.
+	let preventBlur = false;
+
+	function handleKeyDown(
+		event: KeyboardEvent & { currentTarget: HTMLElement },
+	) {
+		if (event.defaultPrevented) {
+			return;
+		}
+
+		switch (event.key) {
+			case keys.ARROW_UP: {
+				let previous = event.currentTarget.previousElementSibling;
+				while (previous !== null) {
+					if (
+						previous instanceof HTMLElement &&
+						previous.hasAttribute("data-tree-item") &&
+						getComputedStyle(previous).display !== "none"
+					) {
+						if (event.shiftKey) {
+							preventBlur = true;
+						} else {
+							selectedIds.clear();
+						}
+						previous.focus();
+						break;
+					}
+					previous = previous.previousElementSibling;
+				}
+				break;
+			}
+			case keys.ARROW_DOWN: {
+				let next = event.currentTarget.nextElementSibling;
+				while (next !== null) {
+					if (
+						next instanceof HTMLElement &&
+						next.hasAttribute("data-tree-item") &&
+						getComputedStyle(next).display !== "none"
+					) {
+						if (event.shiftKey) {
+							preventBlur = true;
+						} else {
+							selectedIds.clear();
+						}
+						next.focus();
+						break;
+					}
+					next = next.nextElementSibling;
+				}
+				break;
+			}
+			case keys.ARROW_RIGHT: {
 				if (!leaf && !expanded) {
-					expand();
+					expandedIds.add(id);
 				} else {
-					getTreeItem(node.children[0])?.focus();
+					const el = getTreeItem(item.children[0]);
+					if (el !== null) {
+						selectedIds.clear();
+						el.focus();
+					}
 				}
 				break;
 			}
-			case kbd.ARROW_LEFT: {
+			case keys.ARROW_LEFT: {
 				if (!leaf && expanded) {
-					collapse();
+					expandedIds.delete(id);
 				} else {
-					getTreeItem(node.parent)?.focus();
+					const el = getTreeItem(item.parent);
+					if (el !== null) {
+						selectedIds.clear();
+						el.focus();
+					}
 				}
-				break;
-			}
-			case kbd.ARROW_DOWN: {
-				getTreeItem($nodes[index + 1])?.focus();
-				break;
-			}
-			case kbd.ARROW_UP: {
-				getTreeItem($nodes[index - 1])?.focus();
-				break;
-			}
-			case kbd.SPACE: {
-				toggleSelection();
 				break;
 			}
 			default: {
@@ -113,59 +154,59 @@
 			}
 		}
 
-		e.preventDefault();
-		e.stopPropagation();
+		event.preventDefault();
+		event.stopPropagation();
+	}
+
+	function handleFocus(event: FocusEvent) {
+		if (event.defaultPrevented) {
+			return;
+		}
+
+		$focusableId = id;
+		selectedIds.add(id);
+	}
+
+	function handleBlur(event: FocusEvent) {
+		if (event.defaultPrevented) {
+			return;
+		}
+
+		if (preventBlur) {
+			preventBlur = false;
+			return;
+		}
+
+		selectedIds.delete(id);
 	}
 </script>
 
 <div
-	id={getTreeItemId(node)}
+	{id}
 	role="treeitem"
-	aria-level={node.level}
-	aria-setsize={node.parent?.children.length ?? 1}
-	aria-posinset={node.index + 1}
-	aria-expanded={leaf ? undefined : expanded}
+	aria-setsize={item.setSize}
+	aria-posinset={item.positionInSet}
+	aria-level={item.level}
+	aria-expanded={!leaf ? expanded : undefined}
 	aria-selected={selected}
-	tabindex={focusable ? 0 : -1}
-	class="group transition-colors focus:outline focus:outline-2 focus:outline-blue-700 aria-selected:bg-blue-100"
-	style:margin-inline-start="{2 * (node.level - 1)}rem"
-	on:click={(e) => {
-		if (e.metaKey) {
-			toggleSelection();
-		} else {
-			setSelected();
-		}
-	}}
-	on:keydown={handleKeyDown}
-	on:focus={() => {
-		// Only one tree item should be focusable at a time.
-		$focusableId = node.id;
-	}}
+	tabindex={$focusableId === id ? 0 : -1}
+	class:hidden
+	data-tree-item
+	{...$$restProps}
 	on:click
+	on:click={handleClick}
 	on:keydown
+	on:keydown={handleKeyDown}
 	on:focus
+	on:focus={handleFocus}
+	on:blur
+	on:blur={handleBlur}
 >
-	<button
-		tabindex={-1}
-		class:invisible={leaf}
-		class="inline-flex h-8 w-8 items-center justify-center align-middle"
-		on:click={(e) => {
-			toggleExpansion();
-			e.currentTarget.parentElement?.focus();
-			e.stopPropagation();
-		}}
-		on:pointerdown={(e) => {
-			// Prevent the tree item from losing focus.
-			e.preventDefault();
-		}}
-	>
-		<ChevronRight
-			size={16}
-			strokeWidth={2.5}
-			class="transition-transform duration-300 group-focus:text-blue-700 group-aria-expanded:rotate-90"
-		/>
-	</button>
-	<span class="align-middle">
-		<slot />
-	</span>
+	<slot />
 </div>
+
+<style>
+	.hidden {
+		display: none;
+	}
+</style>

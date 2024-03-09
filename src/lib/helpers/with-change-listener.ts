@@ -1,21 +1,21 @@
 import type { Writable } from "svelte/store";
 
-export function withChangeListener<T>(
-	store: Writable<T>,
-	onChange: (value: T) => void,
-): Writable<T> {
+export function withChangeListener<TValue, TStore extends Writable<TValue>>(
+	store: TStore,
+	onChange: (value: TValue) => void,
+) {
 	return {
-		subscribe: store.subscribe,
-		set(value: T) {
+		...store,
+		set(value) {
 			onChange(value);
 			store.set(value);
 		},
-		update(updater: (value: T) => T) {
+		update(updater) {
 			store.update((current) => {
 				const value = updater(current);
 				onChange(value);
 				return value;
 			});
 		},
-	};
+	} satisfies Writable<TValue>;
 }
