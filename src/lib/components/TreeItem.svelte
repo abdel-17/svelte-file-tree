@@ -55,38 +55,35 @@
 		$focusableId = item.id;
 	}
 
-	function getItemElement<T>(node: TreeNode<T>) {
-		return document.getElementById(node.id);
-	}
-
-	function getItemElementOrNull<T>(node: TreeNode<T> | undefined) {
+	function getItemElement<T>(node: TreeNode<T> | undefined) {
 		if (node === undefined) {
 			return null;
 		}
-		return getItemElement(node);
+		return document.getElementById(node.id);
 	}
 
-	function getPreviousItemElement() {
-		let previous = item.previousSibling;
+	function getPreviousItem<T>(item: TreeNode<T>) {
+		const previous = item.previousSibling;
 		if (previous === undefined) {
-			return getItemElementOrNull(item.parent);
+			return item.parent;
 		}
 
 		// If the previous sibling is expanded, navigate to
 		// the last visible item in its subtree.
-		while (previous.children.length > 0 && $expandedIds.has(previous.id)) {
-			previous = previous.children.at(-1)!;
+		let node = previous;
+		while (node.children.length > 0 && $expandedIds.has(node.id)) {
+			node = node.children.at(-1)!;
 		}
-		return getItemElement(previous);
+		return node;
 	}
 
-	function getNextItemElement() {
+	function getNextItem<T>(item: TreeNode<T>) {
 		if (!leaf && expanded) {
-			return getItemElement(item.children[0]!);
+			return item.children[0]!;
 		}
 
 		if (item.nextSibling !== undefined) {
-			return getItemElement(item.nextSibling);
+			return item.nextSibling;
 		}
 
 		// Navigate to the first parent having a next sibling.
@@ -97,11 +94,7 @@
 				break;
 			}
 		}
-		return getItemElementOrNull(node.nextSibling);
-	}
-
-	function getFirstItemElement() {
-		return getItemElementOrNull($items[0]);
+		return node.nextSibling;
 	}
 
 	function getLastItemElement() {
@@ -110,22 +103,10 @@
 		while (node?.parent !== undefined && !$expandedIds.has(node.parent.id)) {
 			node = node.parent;
 		}
-		return getItemElementOrNull(node);
+		return getItemElement(node);
 	}
 
-	function isTreeItemElement(element: unknown): element is HTMLElement {
-		return (
-			element instanceof HTMLElement && element.hasAttribute("data-tree-item")
-		);
-	}
-
-	function getHeightWithoutPadding(element: HTMLElement) {
-		const { paddingTop, paddingBottom } = getComputedStyle(element);
-		const { clientHeight } = element;
-		return clientHeight - parseFloat(paddingTop) - parseFloat(paddingBottom);
-	}
-
-	type HTMLElementEvent<E> = E & { currentTarget: HTMLElement };
+	type HTMLElementEvent<Event> = Event & { currentTarget: HTMLElement };
 
 	function handleKeyDown(event: HTMLElementEvent<KeyboardEvent>) {
 		if (event.defaultPrevented) {
@@ -134,7 +115,7 @@
 
 		switch (event.key) {
 			case keys.ARROW_UP: {
-				const previous = getPreviousItemElement();
+				const previous = getItemElement(getPreviousItem(item));
 				if (previous !== null) {
 					if (event.shiftKey) {
 						$clearSelectionOnBlur = false;
@@ -144,7 +125,7 @@
 				break;
 			}
 			case keys.ARROW_DOWN: {
-				const next = getNextItemElement();
+				const next = getItemElement(getNextItem(item));
 				if (next !== null) {
 					if (event.shiftKey) {
 						$clearSelectionOnBlur = false;
@@ -157,7 +138,7 @@
 				if (!leaf && expanded) {
 					expandedIds.delete(item.id);
 				} else {
-					getItemElementOrNull(item.parent)?.focus();
+					getItemElement(item.parent)?.focus();
 				}
 				break;
 			}
@@ -165,12 +146,12 @@
 				if (!leaf && !expanded) {
 					expandedIds.add(item.id);
 				} else {
-					getItemElementOrNull(item.children[0])?.focus();
+					getItemElement(item.children[0])?.focus();
 				}
 				break;
 			}
 			case keys.HOME: {
-				getFirstItemElement()?.focus();
+				getItemElement($items[0])?.focus();
 				break;
 			}
 			case keys.END: {
@@ -193,44 +174,32 @@
 
 	function handlePageUpOrDownKey(event: HTMLElementEvent<KeyboardEvent>) {
 		const treeElement = event.currentTarget.closest("[data-tree-view]");
-		if (!(treeElement instanceof HTMLElement)) {
+		if (treeElement === null) {
 			return;
 		}
 
-		let remainingHeight = getHeightWithoutPadding(treeElement);
-		let current = event.currentTarget;
+		const goBack = event.key === keys.PAGE_UP;
+		const { clientHeight: treeHeight } = treeElement;
+		const { top: itemTop } = event.currentTarget.getBoundingClientRect();
+
+		let node = item;
 		let found: HTMLElement | null = null;
-
-		while (remainingHeight > 0) {
-			let next = null;
-			switch (event.key) {
-				case keys.PAGE_UP: {
-					next = current.previousElementSibling;
-					break;
-				}
-				case keys.PAGE_DOWN: {
-					next = current.nextElementSibling;
-				}
-			}
-
-			if (next === null) {
+		while (true) {
+			const next = goBack ? getPreviousItem(node) : getNextItem(node);
+			const nextElement = getItemElement(next);
+			if (next === undefined || nextElement === null) {
 				break;
 			}
 
-			if (!isTreeItemElement(next)) {
-				// This implementation expects all direct children
-				// of the tree to be tree items.
-				return;
-			}
+			node = next;
+			found = nextElement;
 
-			current = next;
-
-			if (!current.hidden) {
-				remainingHeight -= current.offsetHeight;
-				found = current;
+			const { top: nextTop } = nextElement.getBoundingClientRect();
+			const distance = Math.abs(nextTop - itemTop);
+			if (distance >= treeHeight) {
+				break;
 			}
 		}
-
 		found?.focus();
 	}
 
