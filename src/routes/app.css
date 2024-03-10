@@ -11,6 +11,7 @@ body {
 	border-radius: 0.25rem;
 	border: 1px solid currentColor;
 	padding: 1rem;
+	scroll-padding: 1rem;
 }
 
 .tree-item {
