@@ -16,19 +16,19 @@ export function writableSet<T>(
 		set,
 		update,
 		add(value) {
-			update((set) => {
+			this.update((set) => {
 				set.add(value);
 				return set;
 			});
 		},
 		delete(value) {
-			update((set) => {
+			this.update((set) => {
 				set.delete(value);
 				return set;
 			});
 		},
 		toggle(value) {
-			update((set) => {
+			this.update((set) => {
 				if (set.has(value)) {
 					set.delete(value);
 				} else {
@@ -38,7 +38,7 @@ export function writableSet<T>(
 			});
 		},
 		clear() {
-			update((set) => {
+			this.update((set) => {
 				set.clear();
 				return set;
 			});

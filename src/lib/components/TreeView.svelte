@@ -19,12 +19,12 @@
 </script>
 
 <script lang="ts" generics="Value" strictEvents>
+	import { onChange } from "$lib/helpers/on-change.js";
 	import {
 		flattenTree,
 		type TreeList,
 		type TreeNode,
 	} from "$lib/helpers/tree.js";
-	import { withChangeListener } from "$lib/helpers/with-change-listener.js";
 	import { writableSet, type WritableSet } from "$lib/helpers/writable-set.js";
 	import { getContext, setContext } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
@@ -45,10 +45,10 @@
 	$: items = flattenTree(tree, getItemId);
 
 	const context = {
-		expandedIds: withChangeListener(writableSet(expandedIds), (value) => {
+		expandedIds: onChange(writableSet(expandedIds), (value) => {
 			expandedIds = value;
 		}),
-		selectedIds: withChangeListener(writableSet(selectedIds), (value) => {
+		selectedIds: onChange(writableSet(selectedIds), (value) => {
 			selectedIds = value;
 		}),
 		items: writable(items),
