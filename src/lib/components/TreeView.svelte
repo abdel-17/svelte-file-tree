@@ -62,21 +62,28 @@
 	$: context.selectedIds.set(selectedIds);
 	$: context.items.set(items);
 	$: context.visibleIds.update((visibleIds) => {
-		visibleIds.clear();
-
-		let node = items[0];
-		while (node !== undefined) {
-			addVisibleIdsTo(visibleIds, node, expandedIds);
-			node = node.nextSibling;
-		}
-
+		updateVisibleIds(visibleIds, expandedIds, items);
 		return visibleIds;
 	});
 
+	function updateVisibleIds(
+		target: Set<string>,
+		expandedIds: Set<string>,
+		items: TreeNode<Value>[],
+	) {
+		target.clear();
+
+		let node = items[0];
+		while (node !== undefined) {
+			addVisibleIdsTo(target, expandedIds, node);
+			node = node.nextSibling;
+		}
+	}
+
 	function addVisibleIdsTo(
 		target: Set<string>,
-		node: TreeNode<Value>,
 		expandedIds: Set<string>,
+		node: TreeNode<Value>,
 	) {
 		target.add(node.id);
 
@@ -85,7 +92,7 @@
 		}
 
 		for (const child of node.children) {
-			addVisibleIdsTo(target, child, expandedIds);
+			addVisibleIdsTo(target, expandedIds, child);
 		}
 	}
 

@@ -23,11 +23,8 @@ function flattenTreeTo<T>(
 	parent?: TreeNode<T>,
 ): TreeNode<T>[] {
 	const nodes: TreeNode<T>[] = Array(tree.length);
-
-	let previousSibling: TreeNode<T> | undefined;
 	for (let i = 0; i < tree.length; ++i) {
 		const { value, children = [] } = tree[i]!;
-
 		const node: TreeNode<T> = {
 			id: getItemId(value),
 			value,
@@ -38,19 +35,17 @@ function flattenTreeTo<T>(
 			children: [],
 		};
 
-		target.push(node);
 		nodes[i] = node;
+		target.push(node);
 
 		node.children = flattenTreeTo(target, children, getItemId, level + 1, node);
 
-		if (previousSibling !== undefined) {
-			previousSibling.nextSibling = node;
-			node.previousSibling = previousSibling;
+		const previousNode = nodes[i - 1];
+		if (previousNode !== undefined) {
+			previousNode.nextSibling = node;
+			node.previousSibling = previousNode;
 		}
-
-		previousSibling = node;
 	}
-
 	return nodes;
 }
 
