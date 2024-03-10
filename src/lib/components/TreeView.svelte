@@ -10,7 +10,11 @@
 	const contextKey = Symbol();
 
 	export function getTreeContext(): TreeContext {
-		return getContext(contextKey);
+		const context: TreeContext | undefined = getContext(contextKey);
+		if (context === undefined) {
+			throw new Error("Must be used within a <TreeView>");
+		}
+		return context;
 	}
 </script>
 

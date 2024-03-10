@@ -6,7 +6,11 @@
 	const contextKey = Symbol();
 
 	export function getTreeItemContext(): TreeItemContext {
-		return getContext(contextKey);
+		const context: TreeItemContext | undefined = getContext(contextKey);
+		if (context === undefined) {
+			throw new Error("Must be used within a <TreeItem>");
+		}
+		return context;
 	}
 </script>
 
@@ -55,17 +59,21 @@
 		$focusableId = item.id;
 	}
 
-	function getTreeItem(node: TreeNode<unknown> | undefined) {
-		if (node === undefined) {
-			return null;
-		}
+	function getItemElement<T>(node: TreeNode<T>) {
 		return document.getElementById(node.id);
 	}
 
-	function getPreviousTreeItem(node: TreeNode<unknown>) {
-		let previous = node.previousSibling;
+	function getItemElementOrNull<T>(node: TreeNode<T> | undefined) {
+		if (node === undefined) {
+			return null;
+		}
+		return getItemElement(node);
+	}
+
+	function getPreviousItemElement() {
+		let previous = item.previousSibling;
 		if (previous === undefined) {
-			return getTreeItem(node.parent);
+			return getItemElementOrNull(item.parent);
 		}
 
 		// If the previous sibling is expanded, navigate to
@@ -73,47 +81,64 @@
 		while (previous.children.length > 0 && $expandedIds.has(previous.id)) {
 			previous = previous.children.at(-1)!;
 		}
-
-		return document.getElementById(previous.id);
+		return getItemElement(previous);
 	}
 
-	function getNextTreeItem(node: TreeNode<unknown>) {
+	function getNextItemElement() {
 		if (!leaf && expanded) {
-			return getTreeItem(node.children[0]);
+			return getItemElement(item.children[0]!);
 		}
 
-		if (node.nextSibling !== undefined) {
-			return getTreeItem(node.nextSibling);
+		if (item.nextSibling !== undefined) {
+			return getItemElement(item.nextSibling);
 		}
 
 		// Navigate to the first parent having a next sibling.
+		let node = item;
 		while (node.parent !== undefined) {
 			node = node.parent;
 			if (node.nextSibling !== undefined) {
 				break;
 			}
 		}
-
-		return getTreeItem(node.nextSibling);
+		return getItemElementOrNull(node.nextSibling);
 	}
 
-	function getLastTreeItem() {
+	function getFirstItemElement() {
+		return getItemElement($items[0]!);
+	}
+
+	function getLastItemElement() {
 		// Navigate to the first expanded ancestor of the last item.
-		let node = $items.at(-1);
-		while (node?.parent !== undefined && !$expandedIds.has(node.parent.id)) {
+		let node = $items.at(-1)!;
+		while (node.parent !== undefined && !$expandedIds.has(node.parent.id)) {
 			node = node.parent;
 		}
-		return getTreeItem(node);
+		return getItemElement(node);
 	}
 
-	function handleKeyDown(event: KeyboardEvent) {
+	function isTreeItemElement(element: unknown): element is HTMLElement {
+		return (
+			element instanceof HTMLElement && element.hasAttribute("data-tree-item")
+		);
+	}
+
+	function getHeightWithoutPadding(element: HTMLElement) {
+		const { paddingTop, paddingBottom } = getComputedStyle(element);
+		const { clientHeight } = element;
+		return clientHeight - parseFloat(paddingTop) - parseFloat(paddingBottom);
+	}
+
+	type HTMLElementEvent<E> = E & { currentTarget: HTMLElement };
+
+	function handleKeyDown(event: HTMLElementEvent<KeyboardEvent>) {
 		if (event.defaultPrevented) {
 			return;
 		}
 
 		switch (event.key) {
 			case keys.ARROW_UP: {
-				const previous = getPreviousTreeItem(item);
+				const previous = getPreviousItemElement();
 				if (previous !== null) {
 					if (event.shiftKey) {
 						$clearSelectionOnBlur = false;
@@ -123,7 +148,7 @@
 				break;
 			}
 			case keys.ARROW_DOWN: {
-				const next = getNextTreeItem(item);
+				const next = getNextItemElement();
 				if (next !== null) {
 					if (event.shiftKey) {
 						$clearSelectionOnBlur = false;
@@ -132,28 +157,33 @@
 				}
 				break;
 			}
-			case keys.ARROW_RIGHT: {
-				if (!leaf && !expanded) {
-					expandedIds.add(item.id);
-				} else {
-					getTreeItem(item.children[0])?.focus();
-				}
-				break;
-			}
 			case keys.ARROW_LEFT: {
 				if (!leaf && expanded) {
 					expandedIds.delete(item.id);
 				} else {
-					getTreeItem(item.parent)?.focus();
+					getItemElementOrNull(item.parent)?.focus();
+				}
+				break;
+			}
+			case keys.ARROW_RIGHT: {
+				if (!leaf && !expanded) {
+					expandedIds.add(item.id);
+				} else {
+					getItemElementOrNull(item.children[0])?.focus();
 				}
 				break;
 			}
 			case keys.HOME: {
-				getTreeItem($items[0])?.focus();
+				getFirstItemElement()?.focus();
 				break;
 			}
 			case keys.END: {
-				getLastTreeItem()?.focus();
+				getLastItemElement()?.focus();
+				break;
+			}
+			case keys.PAGE_UP:
+			case keys.PAGE_DOWN: {
+				handlePageUpOrDownKey(event);
 				break;
 			}
 			default: {
@@ -163,6 +193,49 @@
 
 		event.preventDefault();
 		event.stopPropagation();
+	}
+
+	function handlePageUpOrDownKey(event: HTMLElementEvent<KeyboardEvent>) {
+		const treeElement = event.currentTarget.closest("[data-tree-view]");
+		if (!(treeElement instanceof HTMLElement)) {
+			return;
+		}
+
+		let remainingHeight = getHeightWithoutPadding(treeElement);
+		let current = event.currentTarget;
+		let found: HTMLElement | null = null;
+
+		while (remainingHeight > 0) {
+			let next = null;
+			switch (event.key) {
+				case keys.PAGE_UP: {
+					next = current.previousElementSibling;
+					break;
+				}
+				case keys.PAGE_DOWN: {
+					next = current.nextElementSibling;
+				}
+			}
+
+			if (next === null) {
+				break;
+			}
+
+			if (!isTreeItemElement(next)) {
+				// This implementation expects all direct children
+				// of the tree to be tree items.
+				return;
+			}
+
+			current = next;
+
+			if (!current.hidden) {
+				remainingHeight -= current.offsetHeight;
+				found = current;
+			}
+		}
+
+		found?.focus();
 	}
 
 	function handlePointerDown(event: PointerEvent) {
@@ -201,13 +274,13 @@
 <div
 	id={item.id}
 	role="treeitem"
+	hidden={hidden ? true : undefined}
 	aria-setsize={item.setSize}
 	aria-posinset={item.positionInSet}
 	aria-level={item.level}
 	aria-expanded={!leaf ? expanded : undefined}
 	aria-selected={selected}
 	tabindex={$focusableId === item.id ? 0 : -1}
-	class:hidden
 	data-tree-item
 	{...$$restProps}
 	on:keydown
@@ -223,7 +296,7 @@
 </div>
 
 <style>
-	.hidden {
+	[data-tree-item][hidden] {
 		display: none;
 	}
 </style>
