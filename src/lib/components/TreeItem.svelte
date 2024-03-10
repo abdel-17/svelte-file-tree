@@ -105,16 +105,16 @@
 	}
 
 	function getFirstItemElement() {
-		return getItemElement($items[0]!);
+		return getItemElementOrNull($items[0]);
 	}
 
 	function getLastItemElement() {
 		// Navigate to the first expanded ancestor of the last item.
-		let node = $items.at(-1)!;
-		while (node.parent !== undefined && !$expandedIds.has(node.parent.id)) {
+		let node = $items.at(-1);
+		while (node?.parent !== undefined && !$expandedIds.has(node.parent.id)) {
 			node = node.parent;
 		}
-		return getItemElement(node);
+		return getItemElementOrNull(node);
 	}
 
 	function isTreeItemElement(element: unknown): element is HTMLElement {
