@@ -1,46 +1,44 @@
 import { writable, type Writable } from "svelte/store";
 
 export interface WritableSet<T> extends Writable<Set<T>> {
-	add: (value: T) => void;
-	delete: (value: T) => void;
-	toggle: (value: T) => void;
+	add: (element: T) => void;
+	delete: (element: T) => void;
+	toggle: (element: T) => void;
 	clear: () => void;
 }
 
 export function writableSet<T>(
 	initialValue: Set<T> = new Set(),
 ): WritableSet<T> {
-	const { subscribe, set, update } = writable(initialValue);
+	const store = writable(initialValue);
 	return {
-		subscribe,
-		set,
-		update,
-		add(value) {
-			this.update((set) => {
-				set.add(value);
-				return set;
+		...store,
+		add(element) {
+			this.update((value) => {
+				value.add(element);
+				return value;
 			});
 		},
-		delete(value) {
-			this.update((set) => {
-				set.delete(value);
-				return set;
+		delete(element) {
+			this.update((value) => {
+				value.delete(element);
+				return value;
 			});
 		},
-		toggle(value) {
-			this.update((set) => {
-				if (set.has(value)) {
-					set.delete(value);
+		toggle(element) {
+			this.update((value) => {
+				if (value.has(element)) {
+					value.delete(element);
 				} else {
-					set.add(value);
+					value.add(element);
 				}
-				return set;
+				return value;
 			});
 		},
 		clear() {
-			this.update((set) => {
-				set.clear();
-				return set;
+			this.update((value) => {
+				value.clear();
+				return value;
 			});
 		},
 	};

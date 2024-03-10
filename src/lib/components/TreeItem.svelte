@@ -36,23 +36,19 @@
 
 	setContext(contextKey, context);
 
-	const { expandedIds, selectedIds, items, focusableId, clearSelectionOnBlur } =
-		getTreeContext();
+	const {
+		expandedIds,
+		selectedIds,
+		visibleIds,
+		items,
+		focusableId,
+		clearSelectionOnBlur,
+	} = getTreeContext();
 
 	$: expanded = $expandedIds.has(item.id);
 	$: selected = $selectedIds.has(item.id);
 	$: leaf = item.children.length === 0;
-	$: hidden = (() => {
-		let parent = item.parent;
-		while (parent !== undefined) {
-			const expanded = $expandedIds.has(parent.id);
-			if (!expanded) {
-				return true;
-			}
-			parent = parent.parent;
-		}
-		return false;
-	})();
+	$: hidden = !$visibleIds.has(item.id);
 
 	// Initially, the first item in the tree is focusable.
 	$: if ($focusableId === null) {

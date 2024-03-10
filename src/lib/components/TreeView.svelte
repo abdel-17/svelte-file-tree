@@ -2,6 +2,7 @@
 	export type TreeContext = {
 		expandedIds: WritableSet<string>;
 		selectedIds: WritableSet<string>;
+		visibleIds: Readable<Set<string>>;
 		items: Readable<TreeNode<unknown>[]>;
 		focusableId: Writable<string | null>;
 		clearSelectionOnBlur: Writable<boolean>;
@@ -51,6 +52,7 @@
 		selectedIds: onChange(writableSet(selectedIds), (value) => {
 			selectedIds = value;
 		}),
+		visibleIds: writable(new Set()),
 		items: writable(items),
 		focusableId: writable(null),
 		clearSelectionOnBlur: writable(true),
@@ -59,6 +61,33 @@
 	$: context.expandedIds.set(expandedIds);
 	$: context.selectedIds.set(selectedIds);
 	$: context.items.set(items);
+	$: context.visibleIds.update((visibleIds) => {
+		visibleIds.clear();
+
+		let node = items[0];
+		while (node !== undefined) {
+			addVisibleIdsTo(visibleIds, node, expandedIds);
+			node = node.nextSibling;
+		}
+
+		return visibleIds;
+	});
+
+	function addVisibleIdsTo(
+		target: Set<string>,
+		node: TreeNode<Value>,
+		expandedIds: Set<string>,
+	) {
+		target.add(node.id);
+
+		if (!expandedIds.has(node.id)) {
+			return;
+		}
+
+		for (const child of node.children) {
+			addVisibleIdsTo(target, child, expandedIds);
+		}
+	}
 
 	setContext(contextKey, context);
 </script>

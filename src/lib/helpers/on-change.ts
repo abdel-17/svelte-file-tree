@@ -3,7 +3,7 @@ import type { StoresValues, Writable } from "svelte/store";
 export function onChange<TStore extends Writable<any>>(
 	store: TStore,
 	onChange: (value: StoresValues<TStore>) => void,
-) {
+): TStore {
 	return {
 		...store,
 		set(value) {
@@ -17,5 +17,5 @@ export function onChange<TStore extends Writable<any>>(
 				return value;
 			});
 		},
-	} satisfies Writable<StoresValues<TStore>>;
+	};
 }
