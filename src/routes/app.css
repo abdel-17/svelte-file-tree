@@ -5,6 +5,7 @@ body {
 .tree-view {
 	margin-left: auto;
 	margin-right: auto;
+	height: 400px;
 	width: 800px;
 	overflow-y: auto;
 	border-radius: 0.25rem;
