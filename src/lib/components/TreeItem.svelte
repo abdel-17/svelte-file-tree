@@ -16,7 +16,7 @@
 
 <script lang="ts" generics="Value" strictEvents>
 	import { keys } from "$lib/helpers/keys.js";
-	import { isMac } from "$lib/helpers/platform.js";
+	import { isCmdOrCtrlKey } from "$lib/helpers/platform.js";
 	import type { TreeNode } from "$lib/helpers/tree.js";
 	import { getContext, setContext } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
@@ -44,6 +44,7 @@
 		items,
 		focusableId,
 		clearSelectionOnBlur,
+		selectOnFocus,
 	} = getTreeContext();
 
 	$: expanded = $expandedIds.has(item.id);
@@ -56,11 +57,11 @@
 		$focusableId = item.id;
 	}
 
-	function getItemElement<T>(node: TreeNode<T> | undefined) {
-		if (node === undefined) {
+	function getItemElement<T>(item: TreeNode<T> | undefined) {
+		if (item === undefined) {
 			return null;
 		}
-		return document.getElementById(node.id);
+		return document.getElementById(item.id);
 	}
 
 	function getPreviousItem<T>(item: TreeNode<T>) {
@@ -116,23 +117,11 @@
 
 		switch (event.key) {
 			case keys.ARROW_UP: {
-				const previous = getItemElement(getPreviousItem(item));
-				if (previous !== null) {
-					if (event.shiftKey) {
-						$clearSelectionOnBlur = false;
-					}
-					previous.focus();
-				}
+				handleArrowUpOrDownKey(event, getPreviousItem(item));
 				break;
 			}
 			case keys.ARROW_DOWN: {
-				const next = getItemElement(getNextItem(item));
-				if (next !== null) {
-					if (event.shiftKey) {
-						$clearSelectionOnBlur = false;
-					}
-					next.focus();
-				}
+				handleArrowUpOrDownKey(event, getNextItem(item));
 				break;
 			}
 			case keys.ARROW_LEFT: {
@@ -164,6 +153,10 @@
 				handlePageUpOrDownKey(event);
 				break;
 			}
+			case keys.SPACE: {
+				selectedIds.toggle(item.id);
+				break;
+			}
 			default: {
 				return;
 			}
@@ -171,6 +164,25 @@
 
 		event.preventDefault();
 		event.stopPropagation();
+	}
+
+	function handleArrowUpOrDownKey(
+		event: HTMLElementEvent<KeyboardEvent>,
+		nextItem: TreeNode<Value> | undefined,
+	) {
+		const nextElement = getItemElement(nextItem);
+		if (nextElement === null) {
+			return;
+		}
+
+		if (event.shiftKey) {
+			$clearSelectionOnBlur = false;
+		} else if (isCmdOrCtrlKey(event)) {
+			$clearSelectionOnBlur = false;
+			$selectOnFocus = false;
+		}
+
+		nextElement.focus();
 	}
 
 	function handlePageUpOrDownKey(event: HTMLElementEvent<KeyboardEvent>) {
@@ -209,32 +221,29 @@
 			return;
 		}
 
-		const preventClearSelection = isMac() ? event.metaKey : event.ctrlKey;
-		if (preventClearSelection) {
+		if (isCmdOrCtrlKey(event)) {
 			$clearSelectionOnBlur = false;
 			selectedIds.toggle(item.id);
 		}
 	}
 
-	function handlePointerUp(event: PointerEvent) {
-		if (event.defaultPrevented) {
-			return;
-		}
-
-		// Reset the changes made by the pointer down event.
+	function handlePointerUp() {
+		// Reset the changes made by the `pointerdown` event.
 		$clearSelectionOnBlur = true;
 	}
 
 	function handleFocus(event: FocusEvent) {
-		if (event.defaultPrevented) {
-			return;
+		if (!event.defaultPrevented) {
+			// Only one tree item can be focusable at a time.
+			$focusableId = item.id;
+
+			if ($selectOnFocus) {
+				selectedIds.add(item.id);
+			}
 		}
 
-		// Only one tree item can be focusable at a time.
-		$focusableId = item.id;
-
-		// Selection follows focus.
-		selectedIds.add(item.id);
+		// Reset back to the default behavior.
+		$selectOnFocus = true;
 	}
 
 	function handleBlur(event: FocusEvent) {

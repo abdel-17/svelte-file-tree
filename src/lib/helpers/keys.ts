@@ -7,4 +7,5 @@ export const keys = {
 	END: "End",
 	PAGE_UP: "PageUp",
 	PAGE_DOWN: "PageDown",
+	SPACE: " ",
 } as const;

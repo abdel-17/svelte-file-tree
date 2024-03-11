@@ -6,6 +6,7 @@
 		items: Readable<TreeNode<unknown>[]>;
 		focusableId: Writable<string | null>;
 		clearSelectionOnBlur: Writable<boolean>;
+		selectOnFocus: Writable<boolean>;
 	};
 
 	const contextKey = Symbol();
@@ -56,6 +57,7 @@
 		items: writable(items),
 		focusableId: writable(null),
 		clearSelectionOnBlur: writable(true),
+		selectOnFocus: writable(true),
 	} satisfies TreeContext;
 
 	$: context.expandedIds.set(expandedIds);
