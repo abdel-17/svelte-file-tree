@@ -16,6 +16,7 @@
 
 <script lang="ts" generics="Value" strictEvents>
 	import { keys } from "$lib/helpers/keys.js";
+	import { isMac } from "$lib/helpers/platform.js";
 	import type { TreeNode } from "$lib/helpers/tree.js";
 	import { getContext, setContext } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
@@ -208,10 +209,20 @@
 			return;
 		}
 
-		if (event.metaKey) {
+		const preventClearSelection = isMac() ? event.metaKey : event.ctrlKey;
+		if (preventClearSelection) {
 			$clearSelectionOnBlur = false;
 			selectedIds.toggle(item.id);
 		}
+	}
+
+	function handlePointerUp(event: PointerEvent) {
+		if (event.defaultPrevented) {
+			return;
+		}
+
+		// Reset the changes made by the pointer down event.
+		$clearSelectionOnBlur = true;
 	}
 
 	function handleFocus(event: FocusEvent) {
@@ -250,10 +261,12 @@
 	{...$$restProps}
 	on:keydown
 	on:pointerdown
+	on:pointerup
 	on:focus
 	on:blur
 	on:keydown={handleKeyDown}
 	on:pointerdown={handlePointerDown}
+	on:pointerup={handlePointerUp}
 	on:focus={handleFocus}
 	on:blur={handleBlur}
 >
