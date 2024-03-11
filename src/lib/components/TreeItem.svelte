@@ -16,7 +16,7 @@
 
 <script lang="ts" generics="Value" strictEvents>
 	import { keys } from "$lib/helpers/keys.js";
-	import { isCmdOrCtrlKey } from "$lib/helpers/platform.js";
+	import { isMac } from "$lib/helpers/platform.js";
 	import type { TreeNode } from "$lib/helpers/tree.js";
 	import { getContext, setContext } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
@@ -108,6 +108,16 @@
 		return getItemElement(node);
 	}
 
+	function isCtrlKey(event: KeyboardEvent | PointerEvent) {
+		if (isMac()) {
+			// "Ctrl + Up/Down/Space" are default OS shortcuts.
+			// "Command + Space" is the default shortcut for Spotlight.
+			// Use the Option key as an alternative.
+			return event.altKey;
+		}
+		return event.ctrlKey;
+	}
+
 	type HTMLElementEvent<Event> = Event & { currentTarget: HTMLElement };
 
 	function handleKeyDown(event: HTMLElementEvent<KeyboardEvent>) {
@@ -153,7 +163,9 @@
 				handlePageUpOrDownKey(event);
 				break;
 			}
-			case keys.SPACE: {
+			// "Alt + Space" inserts a non-breaking space.
+			case keys.SPACE:
+			case keys.NON_BREAKING_SPACE: {
 				selectedIds.toggle(item.id);
 				break;
 			}
@@ -177,7 +189,9 @@
 
 		if (event.shiftKey) {
 			$clearSelectionOnBlur = false;
-		} else if (isCmdOrCtrlKey(event)) {
+		}
+
+		if (isCtrlKey(event)) {
 			$clearSelectionOnBlur = false;
 			$selectOnFocus = false;
 		}
@@ -221,7 +235,7 @@
 			return;
 		}
 
-		if (isCmdOrCtrlKey(event)) {
+		if (isCtrlKey(event)) {
 			$clearSelectionOnBlur = false;
 			selectedIds.toggle(item.id);
 		}
