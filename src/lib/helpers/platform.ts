@@ -6,6 +6,9 @@ export function getPlatform() {
 	return navigator.platform;
 }
 
+/**
+ * Returns `true` if the platform is macOS, otherwise `false`.
+ */
 export function isMac() {
 	return /mac/i.test(getPlatform());
 }
