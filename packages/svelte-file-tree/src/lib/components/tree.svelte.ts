@@ -138,7 +138,7 @@ export class TreeNode<Value> {
 		if (this.#parent === undefined) {
 			return this.#tree.roots;
 		}
-		return this.#parent.#children;
+		return this.#parent.children;
 	});
 
 	readonly previous: TreeNode<Value> | undefined = $derived.by(() => {
