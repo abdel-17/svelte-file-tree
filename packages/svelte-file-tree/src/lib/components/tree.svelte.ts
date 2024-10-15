@@ -16,10 +16,7 @@ export class Tree<Value> {
 	#props: TreeProps<Value>;
 	#selectedIds: SvelteSet<string>;
 	#expandedIds: SvelteSet<string>;
-	_tabbableId: string | undefined = $state();
 	_element: HTMLElement | undefined = $state();
-	_shouldSelectOnNextFocus: boolean = true;
-	_shouldClearSelectionOnNextBlur: boolean = true;
 
 	constructor(props: TreeProps<Value>) {
 		this.#props = props;
@@ -118,13 +115,6 @@ export class TreeNode<Value> {
 			return true;
 		}
 		return this.#parent.expanded && this.#parent.visible;
-	});
-
-	readonly tabindex: 0 | -1 = $derived.by(() => {
-		if (this.#tree._tabbableId === this.#id) {
-			return 0;
-		}
-		return -1;
 	});
 
 	readonly depth: number = $derived.by(() => {

@@ -1,11 +1,12 @@
 <script lang="ts" generics="Value">
-	import type { Snippet } from "svelte";
+	import { getContext, hasContext, type Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
 	import {
 		composeHandlers,
 		isModifierKey,
 		NON_BREAKING_SPACE,
 	} from "$lib/helpers.js";
+	import { TreeViewContext } from "./TreeView.svelte";
 	import type { TreeNode } from "./tree.svelte.js";
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
@@ -23,9 +24,14 @@
 		...props
 	}: Props = $props();
 
+	if (!hasContext(TreeViewContext.key)) {
+		throw new Error("<TreeItem> must be used within a <TreeView> component.");
+	}
+	const treeContext: TreeViewContext = getContext(TreeViewContext.key);
+
 	// The first node in the tree should be initially tabbable with the keyboard.
-	if (item.tree._tabbableId === undefined) {
-		item.tree._tabbableId = item.id;
+	if (treeContext.tabbableId === undefined) {
+		treeContext.tabbableId = item.id;
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
@@ -60,12 +66,12 @@
 				}
 
 				if (event.shiftKey) {
-					item.tree._shouldClearSelectionOnNextBlur = false;
+					treeContext.shouldClearSelectionOnNextBlur = false;
 				}
 
 				if (isModifierKey(event)) {
-					item.tree._shouldClearSelectionOnNextBlur = false;
-					item.tree._shouldSelectOnNextFocus = false;
+					treeContext.shouldClearSelectionOnNextBlur = false;
+					treeContext.shouldSelectOnNextFocus = false;
 				}
 
 				target.element.focus();
@@ -119,27 +125,27 @@
 		if (item.element !== document.activeElement) {
 			// If another tree item is focused, preserve selection
 			// when focus moves from that item to this one.
-			item.tree._shouldClearSelectionOnNextBlur = false;
+			treeContext.shouldClearSelectionOnNextBlur = false;
 		}
 	}
 
 	function handleFocus() {
-		item.tree._tabbableId = item.id;
+		treeContext.tabbableId = item.id;
 
-		if (item.tree._shouldSelectOnNextFocus) {
+		if (treeContext.shouldSelectOnNextFocus) {
 			item.select();
 		} else {
 			// Reset back to the default behavior
-			item.tree._shouldSelectOnNextFocus = true;
+			treeContext.shouldSelectOnNextFocus = true;
 		}
 	}
 
 	function handleBlur() {
-		if (item.tree._shouldClearSelectionOnNextBlur) {
+		if (treeContext.shouldClearSelectionOnNextBlur) {
 			item.tree.selectedIds.clear();
 		} else {
 			// Reset back to the default behavior
-			item.tree._shouldClearSelectionOnNextBlur = true;
+			treeContext.shouldClearSelectionOnNextBlur = true;
 		}
 	}
 </script>
@@ -154,7 +160,7 @@
 	aria-setsize={item.level.length}
 	aria-expanded={item.children.length !== 0 ? item.expanded : undefined}
 	aria-selected={item.selected}
-	tabindex={item.tabindex}
+	tabindex={item.id === treeContext.tabbableId ? 0 : -1}
 	data-tree-item
 	onkeydown={composeHandlers(handleKeyDown, onkeydown)}
 	onpointerdown={composeHandlers(handlePointerDown, onpointerdown)}
