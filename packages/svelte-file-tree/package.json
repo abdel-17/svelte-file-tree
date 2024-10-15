@@ -7,6 +7,8 @@
 		"prepublishOnly": "pnpm run package",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
 		"test": "vitest --run",
 		"test:watch": "vitest"
 	},
@@ -33,6 +35,8 @@
 		"@sveltejs/kit": "^2.7.1",
 		"@sveltejs/package": "^2.3.5",
 		"@sveltejs/vite-plugin-svelte": "4.0.0-next.8",
+		"prettier": "^3.3.3",
+		"prettier-plugin-svelte": "^3.2.7",
 		"publint": "^0.2.11",
 		"svelte": "5.0.0-next.265",
 		"svelte-check": "^4.0.5",
