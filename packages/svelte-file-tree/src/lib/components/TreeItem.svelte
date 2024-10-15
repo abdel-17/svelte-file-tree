@@ -65,9 +65,9 @@
 
 				if (isModifierKey(event)) {
 					item.tree._shouldClearSelectionOnNextBlur = false;
-				} else {
-					target.select();
+					item.tree._shouldSelectOnNextFocus = false;
 				}
+
 				target.element.focus();
 
 				break;
