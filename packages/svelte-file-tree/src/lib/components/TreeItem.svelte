@@ -152,7 +152,7 @@
 	aria-level={item.depth + 1}
 	aria-posinset={item.index + 1}
 	aria-setsize={item.level.length}
-	aria-expanded={item.expanded}
+	aria-expanded={item.children.length !== 0 ? item.expanded : undefined}
 	aria-selected={item.selected}
 	tabindex={item.tabindex}
 	data-tree-item
