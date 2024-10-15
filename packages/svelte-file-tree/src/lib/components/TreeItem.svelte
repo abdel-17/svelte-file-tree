@@ -57,8 +57,8 @@
 			case keys.ARROW_DOWN:
 			case keys.ARROW_UP: {
 				const down = event.key === keys.ARROW_DOWN;
-				const target = down ? item.next : item.previous;
-				if (target === undefined) {
+				const next = down ? item.next : item.previous;
+				if (next === undefined) {
 					break;
 				}
 
@@ -71,7 +71,7 @@
 					treeContext.shouldSelectOnNextFocus = false;
 				}
 
-				target.element.focus();
+				next.element.focus();
 
 				break;
 			}
@@ -101,7 +101,35 @@
 			}
 			case keys.PAGE_DOWN:
 			case keys.PAGE_UP: {
-				// TODO:
+				const down = event.key === keys.PAGE_DOWN;
+				const scrollDistance = Math.min(
+					item.tree.element.clientHeight,
+					window.innerHeight,
+				);
+				const { top } = item.element.getBoundingClientRect();
+
+				let current = item;
+				let found = false;
+				while (true) {
+					const next = down ? current.next : current.previous;
+					if (next === undefined) {
+						break;
+					}
+
+					current = next;
+					found = true;
+
+					const rect = current.element.getBoundingClientRect();
+					const distance = Math.abs(rect.top - top);
+					if (distance >= scrollDistance) {
+						break;
+					}
+				}
+
+				if (found) {
+					current.element.focus();
+				}
+
 				break;
 			}
 			default: {
@@ -158,7 +186,7 @@
 	aria-expanded={item.children.length !== 0 ? item.expanded : undefined}
 	aria-selected={item.selected}
 	tabindex={item.id === treeContext.tabbableId ? 0 : -1}
-	data-tree-item
+	data-tree-item=""
 	onkeydown={composeHandlers(handleKeyDown, onkeydown)}
 	onpointerdown={composeHandlers(handlePointerDown, onpointerdown)}
 	onfocus={composeHandlers(handleFocus, onfocus)}

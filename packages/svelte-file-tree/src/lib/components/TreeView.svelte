@@ -29,6 +29,7 @@
 	bind:this={tree._element}
 	role="tree"
 	aria-multiselectable="true"
+	data-tree-view=""
 >
 	{#each tree as item (item.id)}
 		{@render children(item)}
