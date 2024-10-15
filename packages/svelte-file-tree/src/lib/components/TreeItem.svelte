@@ -1,11 +1,7 @@
 <script lang="ts" generics="Value">
 	import { getContext, hasContext, type Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
-	import {
-		composeHandlers,
-		isModifierKey,
-		NON_BREAKING_SPACE,
-	} from "$lib/helpers.js";
+	import { composeHandlers, isModifierKey, keys } from "$lib/helpers.js";
 	import { TreeViewContext } from "./TreeView.svelte";
 	import type { TreeNode } from "./tree.svelte.js";
 
@@ -36,7 +32,7 @@
 
 	function handleKeyDown(event: KeyboardEvent) {
 		switch (event.key) {
-			case "ArrowRight": {
+			case keys.ARROW_RIGHT: {
 				if (item.children.length === 0) {
 					break;
 				}
@@ -49,7 +45,7 @@
 
 				break;
 			}
-			case "ArrowLeft": {
+			case keys.ARROW_LEFT: {
 				if (item.expanded && item.children.length !== 0) {
 					item.collapse();
 				} else if (item.parent !== undefined) {
@@ -58,9 +54,10 @@
 
 				break;
 			}
-			case "ArrowDown":
-			case "ArrowUp": {
-				const target = event.key === "ArrowDown" ? item.next : item.previous;
+			case keys.ARROW_DOWN:
+			case keys.ARROW_UP: {
+				const down = event.key === keys.ARROW_DOWN;
+				const target = down ? item.next : item.previous;
 				if (target === undefined) {
 					break;
 				}
@@ -78,11 +75,11 @@
 
 				break;
 			}
-			case "Home": {
+			case keys.HOME: {
 				item.tree.roots[0]!.element.focus();
 				break;
 			}
-			case "End": {
+			case keys.END: {
 				let current = item.tree.roots.at(-1)!;
 				while (current.expanded && current.children.length !== 0) {
 					current = current.children.at(-1)!;
@@ -91,8 +88,8 @@
 
 				break;
 			}
-			case "Space":
-			case NON_BREAKING_SPACE: {
+			case keys.SPACE:
+			case keys.NON_BREAKING_SPACE: {
 				// Option + Space inserts a non-breaking space. Since Option is the
 				// modifier key on macOS, we need to handle non-breaking spaces as well
 				// to detect the use of the modifier key.
@@ -102,8 +99,8 @@
 
 				break;
 			}
-			case "PageDown":
-			case "PageUp": {
+			case keys.PAGE_DOWN:
+			case keys.PAGE_UP: {
 				// TODO:
 				break;
 			}
