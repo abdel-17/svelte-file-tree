@@ -5,7 +5,7 @@
 		#elementId: () => string | null | undefined;
 		tabbableId: string | undefined = $state();
 		shouldSelectOnNextFocus = true;
-		shouldClearSelectionOnNextBlur = true;
+		shouldClearSelectionOnNextFocusOut = true;
 
 		constructor(elementId: () => string | null | undefined) {
 			this.#elementId = elementId;

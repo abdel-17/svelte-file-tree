@@ -23,7 +23,6 @@
 		| "aria-setsize"
 		| "aria-expanded"
 		| "aria-selected"
-		| "aria-checked"
 		| "tabindex"
 		| "children"
 	>;
@@ -43,7 +42,7 @@
 		onkeydown,
 		onpointerdown,
 		onfocus,
-		onblur,
+		onfocusout,
 		...props
 	}: Props = $props();
 
@@ -102,11 +101,11 @@
 				}
 
 				if (event.shiftKey) {
-					treeContext.shouldClearSelectionOnNextBlur = false;
+					treeContext.shouldClearSelectionOnNextFocusOut = false;
 				}
 
 				if (isModifierKey(event)) {
-					treeContext.shouldClearSelectionOnNextBlur = false;
+					treeContext.shouldClearSelectionOnNextFocusOut = false;
 					treeContext.shouldSelectOnNextFocus = false;
 				}
 
@@ -186,6 +185,9 @@
 					event.currentTarget.focus();
 				} else {
 					itemContext.editing = true;
+
+					// Prevent the tree item from losing selection when the input is focused.
+					treeContext.shouldClearSelectionOnNextFocusOut = false;
 				}
 
 				break;
@@ -218,7 +220,7 @@
 		if (event.currentTarget !== document.activeElement) {
 			// If another tree item is focused, preserve selection
 			// when focus moves from that item to this one.
-			treeContext.shouldClearSelectionOnNextBlur = false;
+			treeContext.shouldClearSelectionOnNextFocusOut = false;
 		}
 	};
 
@@ -233,12 +235,14 @@
 		}
 	};
 
-	const handleBlur: EventHandler<FocusEvent, HTMLDivElement> = () => {
-		if (treeContext.shouldClearSelectionOnNextBlur) {
+	// Use `focusout` instead of `blur` to handle focus changes within the tree,
+	// like the input element in `TreeItemInput`.
+	const handleFocusOut: EventHandler<FocusEvent, HTMLDivElement> = () => {
+		if (treeContext.shouldClearSelectionOnNextFocusOut) {
 			node.tree.selectedIds.clear();
 		} else {
 			// Reset back to the default behavior
-			treeContext.shouldClearSelectionOnNextBlur = true;
+			treeContext.shouldClearSelectionOnNextFocusOut = true;
 		}
 	};
 </script>
@@ -259,7 +263,7 @@
 	onkeydown={composeHandlers(handleKeyDown, onkeydown)}
 	onpointerdown={composeHandlers(handlePointerDown, onpointerdown)}
 	onfocus={composeHandlers(handleFocus, onfocus)}
-	onblur={composeHandlers(handleBlur, onblur)}
+	onfocusout={composeHandlers(handleFocusOut, onfocusout)}
 >
 	{@render children({ editing: itemContext.editing })}
 </div>
