@@ -1,4 +1,7 @@
 node_modules
 
+# Generated Files
+/.svelte-kit
+
 # OS Files
 .DS_Store

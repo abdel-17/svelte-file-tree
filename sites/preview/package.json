@@ -1,0 +1,31 @@
+{
+	"name": "preview",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"format": "prettier --write .",
+		"format:check": "prettier --check ."
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-auto": "^3.2.5",
+		"@sveltejs/kit": "^2.7.1",
+		"@sveltejs/vite-plugin-svelte": "4.0.0-next.8",
+		"@tailwindcss/vite": "4.0.0-alpha.26",
+		"lucide-svelte": "^0.452.0",
+		"prettier": "^3.3.3",
+		"prettier-plugin-svelte": "^3.2.7",
+		"prettier-plugin-tailwindcss": "^0.6.8",
+		"svelte": "5.0.0-next.265",
+		"svelte-check": "^4.0.5",
+		"svelte-file-tree": "workspace:^",
+		"tailwindcss": "4.0.0-alpha.26",
+		"typescript": "^5.6.3",
+		"vite": "^5.4.9"
+	}
+}
