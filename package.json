@@ -3,6 +3,7 @@
 	"version": "0.0.1",
 	"private": true,
 	"scripts": {
+		"check": "pnpm -r check",
 		"format": "pnpm -r format",
 		"format:check": "pnpm -r format:check"
 	},

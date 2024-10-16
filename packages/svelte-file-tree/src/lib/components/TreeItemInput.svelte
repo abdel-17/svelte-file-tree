@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { getContext, hasContext } from "svelte";
-	import type { HTMLInputAttributes } from "svelte/elements";
+	import type { EventHandler, HTMLInputAttributes } from "svelte/elements";
 	import { composeHandlers, keys } from "$lib/helpers.js";
 	import { TreeItemContext } from "./TreeItem.svelte";
 
 	interface Props extends HTMLInputAttributes {
+		ref?: HTMLInputElement;
 		onCommit?: (value: string) => void;
 	}
 
 	let {
+		ref = $bindable(),
 		onCommit,
 		value = $bindable(),
 		onkeydown,
@@ -24,31 +26,36 @@
 	const itemContext: TreeItemContext = getContext(TreeItemContext.key);
 
 	const originalValue = value;
-	let cancelled = false;
 
-	function handleKeyDown(event: KeyboardEvent) {
-		if (event.key === keys.ESCAPE) {
-			cancelled = true;
-			value = originalValue;
-		}
+	function focus(element: HTMLInputElement) {
+		element.focus();
 	}
 
-	function handleBlur() {
-		if (!cancelled && value !== originalValue) {
+	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (
+		event,
+	) => {
+		if (event.key === keys.ESCAPE) {
+			value = originalValue;
+		}
+	};
+
+	const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
+		if (onCommit !== undefined && value !== originalValue) {
 			// Use the value from the input directly because the bound value
 			// may not be a string, depending on the `type` attribute.
-			onCommit?.(itemContext.input!.value);
+			onCommit(event.currentTarget.value);
 		}
 
 		itemContext.editing = false;
-	}
+	};
 </script>
 
 <input
 	{...props}
-	bind:this={itemContext.input}
+	bind:this={ref}
 	bind:value
 	data-tree-item-input=""
+	use:focus
 	onkeydown={composeHandlers(handleKeyDown, onkeydown)}
 	onblur={composeHandlers(handleBlur, onblur)}
 />

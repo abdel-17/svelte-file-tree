@@ -9,12 +9,12 @@
 </script>
 
 <TreeView {tree} class="m-8 border">
-	{#snippet children(item)}
+	{#snippet item(node)}
 		<TreeItem
-			{item}
+			{node}
 			editable
-			data-leaf={item.children.length === 0 ? "" : undefined}
-			style="--depth: {item.depth}"
+			data-leaf={node.children.length === 0 ? "" : undefined}
+			style="--depth: {node.depth}"
 			class="group ms-[calc(var(--spacing-4)*var(--depth))] flex gap-2 p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 aria-selected:bg-blue-100 aria-selected:text-blue-900"
 		>
 			{#snippet children({ editing })}
@@ -23,13 +23,13 @@
 				/>
 				{#if editing}
 					<TreeItemInput
-						bind:value={item.value}
+						bind:value={node.value}
 						onCommit={(value) => {
-							console.log("oncommit", value);
+							console.log("onCommit", value);
 						}}
 					/>
 				{:else}
-					<span>{item.value}</span>
+					<span>{node.value}</span>
 				{/if}
 			{/snippet}
 		</TreeItem>

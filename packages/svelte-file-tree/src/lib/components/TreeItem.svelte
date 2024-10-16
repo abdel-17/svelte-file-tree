@@ -1,39 +1,45 @@
 <script lang="ts" module>
 	export class TreeItemContext {
 		editing = $state(false);
-		input: HTMLInputElement | undefined = $state();
 
 		static key = Symbol("TreeItemContext");
 	}
 </script>
 
 <script lang="ts" generics="Value">
-	import {
-		flushSync,
-		getContext,
-		hasContext,
-		setContext,
-		type Snippet,
-	} from "svelte";
-	import type { HTMLAttributes } from "svelte/elements";
+	import { getContext, hasContext, setContext, type Snippet } from "svelte";
+	import type { EventHandler, HTMLAttributes } from "svelte/elements";
 	import { composeHandlers, isModifierKey, keys } from "$lib/helpers.js";
 	import { TreeViewContext } from "./TreeView.svelte";
 	import type { TreeNode } from "./tree.svelte.js";
 
-	type ChildrenProps = {
-		editing: boolean;
-	};
+	type BaseProps = Omit<
+		HTMLAttributes<HTMLDivElement>,
+		| "id"
+		| "role"
+		| "hidden"
+		| "aria-level"
+		| "aria-posinset"
+		| "aria-setsize"
+		| "aria-expanded"
+		| "aria-selected"
+		| "aria-checked"
+		| "tabindex"
+		| "children"
+	>;
 
-	interface Props extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
-		item: TreeNode<Value>;
-		children: Snippet<[ChildrenProps]>;
+	interface Props extends BaseProps {
+		node: TreeNode<Value>;
+		children: Snippet<[{ editing: boolean }]>;
 		editable?: boolean;
+		ref?: HTMLDivElement;
 	}
 
-	const {
-		item,
+	let {
+		node,
 		children,
 		editable = false,
+		ref = $bindable(),
 		onkeydown,
 		onpointerdown,
 		onfocus,
@@ -48,7 +54,7 @@
 
 	// The first node in the tree should be initially tabbable with the keyboard.
 	if (treeContext.tabbableId === undefined) {
-		treeContext.tabbableId = item.id;
+		treeContext.tabbableId = node.id;
 	}
 
 	const itemContext = new TreeItemContext();
@@ -60,22 +66,29 @@
 		}
 	});
 
-	function handleKeyDown(event: KeyboardEvent) {
+	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (
+		event,
+	) => {
 		switch (event.key) {
 			case keys.ARROW_RIGHT: {
-				if (!item.expanded && item.children.length !== 0) {
-					item.expand();
+				if (node.children.length === 0) {
+					break;
+				}
+
+				if (!node.expanded) {
+					node.expand();
 				} else {
-					item.children[0]?.element.focus();
+					const firstChild = node.children[0]!;
+					treeContext.findItemElement(firstChild.id).focus();
 				}
 
 				break;
 			}
 			case keys.ARROW_LEFT: {
-				if (item.expanded && item.children.length !== 0) {
-					item.collapse();
-				} else {
-					item.parent?.element.focus();
+				if (node.expanded && node.children.length !== 0) {
+					node.collapse();
+				} else if (node.parent !== undefined) {
+					treeContext.findItemElement(node.parent.id).focus();
 				}
 
 				break;
@@ -83,7 +96,7 @@
 			case keys.ARROW_DOWN:
 			case keys.ARROW_UP: {
 				const down = event.key === keys.ARROW_DOWN;
-				const next = down ? item.next : item.previous;
+				const next = down ? node.next : node.previous;
 				if (next === undefined) {
 					break;
 				}
@@ -97,20 +110,22 @@
 					treeContext.shouldSelectOnNextFocus = false;
 				}
 
-				next.element.focus();
+				treeContext.findItemElement(next.id).focus();
 
 				break;
 			}
 			case keys.HOME: {
-				item.tree.roots[0]!.element.focus();
+				const first = node.tree.roots[0]!;
+				treeContext.findItemElement(first.id).focus();
+
 				break;
 			}
 			case keys.END: {
-				let current = item.tree.roots.at(-1)!;
-				while (current.expanded && current.children.length !== 0) {
-					current = current.children.at(-1)!;
+				let last = node.tree.roots.at(-1)!;
+				while (last.expanded && last.children.length !== 0) {
+					last = last.children.at(-1)!;
 				}
-				current.element.focus();
+				treeContext.findItemElement(last.id).focus();
 
 				break;
 			}
@@ -120,7 +135,7 @@
 				// modifier key on macOS, we need to handle non-breaking spaces as well
 				// to detect the use of the modifier key.
 				if (isModifierKey(event)) {
-					item.toggleSelection();
+					node.toggleSelection();
 				}
 
 				break;
@@ -128,14 +143,20 @@
 			case keys.PAGE_DOWN:
 			case keys.PAGE_UP: {
 				const down = event.key === keys.PAGE_DOWN;
-				const scrollDistance = Math.min(
-					item.tree.element.clientHeight,
+				const next = down ? node.next : node.previous;
+				if (next === undefined) {
+					break;
+				}
+
+				const treeElement = treeContext.findElement();
+				const maxScrollDistance = Math.min(
+					treeElement.clientHeight,
 					window.innerHeight,
 				);
-				const { top } = item.element.getBoundingClientRect();
+				const itemRect = event.currentTarget.getBoundingClientRect();
 
-				let current = item;
-				let found = false;
+				let current = next;
+				let currentElement = treeContext.findItemElement(current.id);
 				while (true) {
 					const next = down ? current.next : current.previous;
 					if (next === undefined) {
@@ -143,18 +164,15 @@
 					}
 
 					current = next;
-					found = true;
+					currentElement = treeContext.findItemElement(current.id);
 
-					const rect = current.element.getBoundingClientRect();
-					const distance = Math.abs(rect.top - top);
-					if (distance >= scrollDistance) {
+					const currentRect = currentElement.getBoundingClientRect();
+					const distance = Math.abs(currentRect.top - itemRect.top);
+					if (distance >= maxScrollDistance) {
 						break;
 					}
 				}
-
-				if (found) {
-					current.element.focus();
-				}
+				currentElement.focus();
 
 				break;
 			}
@@ -165,12 +183,9 @@
 
 				if (itemContext.editing) {
 					itemContext.editing = false;
-					item.element.focus();
+					event.currentTarget.focus();
 				} else {
-					flushSync(() => {
-						itemContext.editing = true;
-					});
-					itemContext.input?.focus();
+					itemContext.editing = true;
 				}
 
 				break;
@@ -178,7 +193,7 @@
 			case keys.ESCAPE: {
 				if (itemContext.editing) {
 					itemContext.editing = false;
-					item.element.focus();
+					event.currentTarget.focus();
 				}
 
 				break;
@@ -189,54 +204,57 @@
 		}
 
 		event.preventDefault();
-	}
+	};
 
-	function handlePointerDown(event: PointerEvent) {
+	const handlePointerDown: EventHandler<PointerEvent, HTMLDivElement> = (
+		event,
+	) => {
 		if (event.button !== 0 || !isModifierKey(event)) {
 			return;
 		}
 
-		item.toggleSelection();
+		node.toggleSelection();
 
-		if (item.element !== document.activeElement) {
+		if (event.currentTarget !== document.activeElement) {
 			// If another tree item is focused, preserve selection
 			// when focus moves from that item to this one.
 			treeContext.shouldClearSelectionOnNextBlur = false;
 		}
-	}
+	};
 
-	function handleFocus() {
-		treeContext.tabbableId = item.id;
+	const handleFocus: EventHandler<FocusEvent, HTMLDivElement> = () => {
+		treeContext.tabbableId = node.id;
 
 		if (treeContext.shouldSelectOnNextFocus) {
-			item.select();
+			node.select();
 		} else {
 			// Reset back to the default behavior
 			treeContext.shouldSelectOnNextFocus = true;
 		}
-	}
+	};
 
-	function handleBlur() {
+	const handleBlur: EventHandler<FocusEvent, HTMLDivElement> = () => {
 		if (treeContext.shouldClearSelectionOnNextBlur) {
-			item.tree.selectedIds.clear();
+			node.tree.selectedIds.clear();
 		} else {
 			// Reset back to the default behavior
 			treeContext.shouldClearSelectionOnNextBlur = true;
 		}
-	}
+	};
 </script>
 
 <div
 	{...props}
-	bind:this={item._element}
+	bind:this={ref}
+	id={treeContext.getItemElementId(node.id)}
 	role="treeitem"
-	hidden={!item.visible ? true : undefined}
-	aria-level={item.depth + 1}
-	aria-posinset={item.index + 1}
-	aria-setsize={item.level.length}
-	aria-expanded={item.children.length !== 0 ? item.expanded : undefined}
-	aria-selected={item.selected}
-	tabindex={item.id === treeContext.tabbableId ? 0 : -1}
+	hidden={!node.visible ? true : undefined}
+	aria-level={node.depth + 1}
+	aria-posinset={node.index + 1}
+	aria-setsize={node.level.length}
+	aria-expanded={node.children.length !== 0 ? node.expanded : undefined}
+	aria-selected={node.selected}
+	tabindex={node.id === treeContext.tabbableId ? 0 : -1}
 	data-tree-item=""
 	onkeydown={composeHandlers(handleKeyDown, onkeydown)}
 	onpointerdown={composeHandlers(handlePointerDown, onpointerdown)}

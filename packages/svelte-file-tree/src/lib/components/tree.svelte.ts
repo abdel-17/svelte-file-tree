@@ -16,7 +16,6 @@ export class Tree<Value> {
 	#props: TreeProps<Value>;
 	#selectedIds: SvelteSet<string>;
 	#expandedIds: SvelteSet<string>;
-	_element: HTMLElement | undefined = $state();
 
 	constructor(props: TreeProps<Value>) {
 		this.#props = props;
@@ -30,13 +29,6 @@ export class Tree<Value> {
 
 	get expandedIds(): SvelteSet<string> {
 		return this.#expandedIds;
-	}
-
-	get element(): HTMLElement {
-		if (this._element === undefined) {
-			throw new Error("Tree is not mounted in the DOM");
-		}
-		return this._element;
 	}
 
 	readonly roots: ReadonlyArray<TreeNode<Value>> = $derived.by(() =>
@@ -57,7 +49,6 @@ export class TreeNode<Value> {
 	#parent: TreeNode<Value> | undefined = $state();
 	#children: Array<TreeNode<Value>> = $state()!;
 	value: Value = $state()!;
-	_element: HTMLElement | undefined = $state();
 
 	constructor(
 		tree: Tree<Value>,
@@ -93,13 +84,6 @@ export class TreeNode<Value> {
 
 	get children(): ReadonlyArray<TreeNode<Value>> {
 		return this.#children;
-	}
-
-	get element(): HTMLElement {
-		if (this._element === undefined) {
-			throw new Error("Tree node is not mounted in the DOM");
-		}
-		return this._element;
 	}
 
 	readonly selected: boolean = $derived.by(() =>

@@ -1,8 +1,35 @@
 <script lang="ts" module>
+	import { findElementById } from "$lib/helpers.js";
+
 	export class TreeViewContext {
+		#elementId: () => string | null | undefined;
 		tabbableId: string | undefined = $state();
 		shouldSelectOnNextFocus = true;
 		shouldClearSelectionOnNextBlur = true;
+
+		constructor(elementId: () => string | null | undefined) {
+			this.#elementId = elementId;
+		}
+
+		readonly elementId: string = $derived.by(() => {
+			const elementId = this.#elementId();
+			if (elementId == null) {
+				return crypto.randomUUID();
+			}
+			return elementId;
+		});
+
+		findElement(): HTMLElement {
+			return findElementById(this.elementId);
+		}
+
+		getItemElementId(itemId: string): string {
+			return `${this.elementId}:${itemId}`;
+		}
+
+		findItemElement(itemId: string): HTMLElement {
+			return findElementById(this.getItemElementId(itemId));
+		}
 
 		static key = Symbol("TreeViewContext");
 	}
@@ -13,25 +40,32 @@
 	import type { HTMLAttributes } from "svelte/elements";
 	import type { Tree, TreeNode } from "./tree.svelte.js";
 
-	interface Props extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+	type BaseProps = Omit<
+		HTMLAttributes<HTMLDivElement>,
+		"role" | "aria-multiselectable" | "children"
+	>;
+
+	interface Props extends BaseProps {
 		tree: Tree<Value>;
-		children: Snippet<[TreeNode<Value>]>;
+		item: Snippet<[TreeNode<Value>]>;
+		ref?: HTMLDivElement;
 	}
 
-	const { tree, children, ...props }: Props = $props();
+	let { tree, item, ref = $bindable(), id, ...props }: Props = $props();
 
-	const context = new TreeViewContext();
+	const context = new TreeViewContext(() => id);
 	setContext(TreeViewContext.key, context);
 </script>
 
 <div
 	{...props}
-	bind:this={tree._element}
+	bind:this={ref}
+	id={context.elementId}
 	role="tree"
 	aria-multiselectable="true"
 	data-tree-view=""
 >
-	{#each tree as item (item.id)}
-		{@render children(item)}
+	{#each tree as node (node.id)}
+		{@render item(node)}
 	{/each}
 </div>
