@@ -23,12 +23,12 @@
 			return findElementById(this.elementId);
 		}
 
-		getItemElementId(itemId: string): string {
-			return `${this.elementId}:${itemId}`;
+		getItemElementId(nodeId: string): string {
+			return `${this.elementId}:${nodeId}`;
 		}
 
-		findItemElement(itemId: string): HTMLElement {
-			return findElementById(this.getItemElementId(itemId));
+		findItemElement(nodeId: string): HTMLElement {
+			return findElementById(this.getItemElementId(nodeId));
 		}
 
 		static key = Symbol("TreeViewContext");
