@@ -20,8 +20,14 @@
 	},
 	"svelte": "./dist/index.js",
 	"types": "./dist/index.d.ts",
-	"sideEffects": ["**/*.css"],
-	"files": ["dist", "!dist/**/*.test.*", "!dist/**/*.spec.*"],
+	"sideEffects": [
+		"**/*.css"
+	],
+	"files": [
+		"dist",
+		"!dist/**/*.test.*",
+		"!dist/**/*.spec.*"
+	],
 	"peerDependencies": {
 		"svelte": "5.0.0-next.265"
 	},

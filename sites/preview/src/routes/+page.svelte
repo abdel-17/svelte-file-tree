@@ -27,6 +27,7 @@
 						onCommit={(value) => {
 							console.log("onCommit", value);
 						}}
+						class="bg-white focus:outline-none"
 					/>
 				{:else}
 					<span>{node.value}</span>

@@ -1,6 +1,15 @@
 <script lang="ts" module>
-	export class TreeItemContext {
-		editing = $state(false);
+	export class TreeItemContext<Value = unknown> {
+		#node: () => TreeNode<Value>;
+		editing: boolean = $state(false);
+
+		constructor(node: () => TreeNode<Value>) {
+			this.#node = node;
+		}
+
+		get node(): TreeNode<Value> {
+			return this.#node();
+		}
 
 		static key = Symbol("TreeItemContext");
 	}
@@ -23,7 +32,6 @@
 		| "aria-setsize"
 		| "aria-expanded"
 		| "aria-selected"
-		| "aria-checked"
 		| "tabindex"
 		| "children"
 	>;
@@ -57,7 +65,7 @@
 		treeContext.tabbableId = node.id;
 	}
 
-	const itemContext = new TreeItemContext();
+	const itemContext = new TreeItemContext(() => node);
 	setContext(TreeItemContext.key, itemContext);
 
 	$effect.pre(() => {
@@ -69,6 +77,12 @@
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (
 		event,
 	) => {
+		if (event.target !== event.currentTarget) {
+			// Don't handle keydown events that bubble up from child elements,
+			// like the input element in `TreeItemInput`.
+			return;
+		}
+
 		switch (event.key) {
 			case keys.ARROW_RIGHT: {
 				if (node.children.length === 0) {
@@ -81,7 +95,6 @@
 					const firstChild = node.children[0]!;
 					treeContext.findItemElement(firstChild.id).focus();
 				}
-
 				break;
 			}
 			case keys.ARROW_LEFT: {
@@ -90,7 +103,6 @@
 				} else if (node.parent !== undefined) {
 					treeContext.findItemElement(node.parent.id).focus();
 				}
-
 				break;
 			}
 			case keys.ARROW_DOWN:
@@ -111,13 +123,11 @@
 				}
 
 				treeContext.findItemElement(next.id).focus();
-
 				break;
 			}
 			case keys.HOME: {
 				const first = node.tree.roots[0]!;
 				treeContext.findItemElement(first.id).focus();
-
 				break;
 			}
 			case keys.END: {
@@ -126,7 +136,6 @@
 					last = last.children.at(-1)!;
 				}
 				treeContext.findItemElement(last.id).focus();
-
 				break;
 			}
 			case keys.SPACE:
@@ -137,7 +146,6 @@
 				if (isModifierKey(event)) {
 					node.toggleSelection();
 				}
-
 				break;
 			}
 			case keys.PAGE_DOWN:
@@ -173,29 +181,12 @@
 					}
 				}
 				currentElement.focus();
-
 				break;
 			}
 			case keys.ENTER: {
-				if (!editable) {
-					break;
-				}
-
-				if (itemContext.editing) {
-					itemContext.editing = false;
-					event.currentTarget.focus();
-				} else {
+				if (editable) {
 					itemContext.editing = true;
 				}
-
-				break;
-			}
-			case keys.ESCAPE: {
-				if (itemContext.editing) {
-					itemContext.editing = false;
-					event.currentTarget.focus();
-				}
-
 				break;
 			}
 			default: {
@@ -224,22 +215,11 @@
 
 	const handleFocus: EventHandler<FocusEvent, HTMLDivElement> = () => {
 		treeContext.tabbableId = node.id;
-
-		if (treeContext.shouldSelectOnNextFocus) {
-			node.select();
-		} else {
-			// Reset back to the default behavior
-			treeContext.shouldSelectOnNextFocus = true;
-		}
+		treeContext.onFocus(node.id);
 	};
 
 	const handleBlur: EventHandler<FocusEvent, HTMLDivElement> = () => {
-		if (treeContext.shouldClearSelectionOnNextBlur) {
-			node.tree.selectedIds.clear();
-		} else {
-			// Reset back to the default behavior
-			treeContext.shouldClearSelectionOnNextBlur = true;
-		}
+		treeContext.onBlur();
 	};
 </script>
 
