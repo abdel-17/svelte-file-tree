@@ -30,38 +30,49 @@
 	const itemContext: TreeItemContext = getContext(TreeItemContext.key);
 	const treeContext: TreeViewContext = getContext(TreeViewContext.key);
 
-	function enterEditingMode(element: HTMLInputElement) {
-		// Prevent selection from being cleared when focus switches
-		// from the item to the input.
-		treeContext.shouldClearSelectionOnNextFocusOut = false;
-		element.focus();
+	function findItemElement(): HTMLElement {
+		return treeContext.findItemElement(itemContext.node.id);
 	}
 
-	function exitEditingMode() {
+	function enterEditingMode(input: HTMLInputElement) {
 		// Prevent selection from being cleared when focus switches
-		// from the input back to the item.
-		treeContext.shouldClearSelectionOnNextFocusOut = false;
+		// from the item to the input.
+		const itemElement = findItemElement();
+		if (itemElement === document.activeElement) {
+			treeContext.shouldClearSelectionOnNextBlur = false;
+		}
 
+		input.focus();
+	}
+
+	function exitEditingMode(input: HTMLInputElement) {
 		// If the item was not selected before, don't select it now.
 		if (!itemContext.node.selected) {
 			treeContext.shouldSelectOnNextFocus = false;
 		}
 
+		// Prevent selection from being cleared when focus switches
+		// from the input to the item.
+		if (input === document.activeElement) {
+			treeContext.shouldClearSelectionOnNextBlur = false;
+		}
+
 		itemContext.editing = false;
-		treeContext.findItemElement(itemContext.node.id).focus();
+		findItemElement().focus();
 	}
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (
 		event,
 	) => {
+		const input = event.currentTarget;
 		switch (event.key) {
 			case keys.ENTER: {
-				exitEditingMode();
+				exitEditingMode(input);
 				break;
 			}
 			case keys.ESCAPE: {
 				value = originalValue;
-				exitEditingMode();
+				exitEditingMode(input);
 				break;
 			}
 			default: {
@@ -79,6 +90,7 @@
 			onCommit(event.currentTarget.value);
 		}
 
+		treeContext.onBlur();
 		itemContext.editing = false;
 	};
 </script>

@@ -51,7 +51,7 @@
 		onkeydown,
 		onpointerdown,
 		onfocus,
-		onfocusout,
+		onblur,
 		...props
 	}: Props = $props();
 
@@ -114,11 +114,11 @@
 				}
 
 				if (event.shiftKey) {
-					treeContext.shouldClearSelectionOnNextFocusOut = false;
+					treeContext.shouldClearSelectionOnNextBlur = false;
 				}
 
 				if (isModifierKey(event)) {
-					treeContext.shouldClearSelectionOnNextFocusOut = false;
+					treeContext.shouldClearSelectionOnNextBlur = false;
 					treeContext.shouldSelectOnNextFocus = false;
 				}
 
@@ -209,30 +209,17 @@
 		if (event.currentTarget !== document.activeElement) {
 			// If another tree item is focused, preserve selection
 			// when focus moves from that item to this one.
-			treeContext.shouldClearSelectionOnNextFocusOut = false;
+			treeContext.shouldClearSelectionOnNextBlur = false;
 		}
 	};
 
 	const handleFocus: EventHandler<FocusEvent, HTMLDivElement> = () => {
 		treeContext.tabbableId = node.id;
-
-		if (treeContext.shouldSelectOnNextFocus) {
-			node.select();
-		} else {
-			// Reset back to the default behavior
-			treeContext.shouldSelectOnNextFocus = true;
-		}
+		treeContext.onFocus(node.id);
 	};
 
-	// Use `focusout` instead of `blur` to handle focus changes within the tree,
-	// like the input element in `TreeItemInput`.
-	const handleFocusOut: EventHandler<FocusEvent, HTMLDivElement> = () => {
-		if (treeContext.shouldClearSelectionOnNextFocusOut) {
-			node.tree.selectedIds.clear();
-		} else {
-			// Reset back to the default behavior
-			treeContext.shouldClearSelectionOnNextFocusOut = true;
-		}
+	const handleBlur: EventHandler<FocusEvent, HTMLDivElement> = () => {
+		treeContext.onBlur();
 	};
 </script>
 
@@ -252,7 +239,7 @@
 	onkeydown={composeHandlers(handleKeyDown, onkeydown)}
 	onpointerdown={composeHandlers(handlePointerDown, onpointerdown)}
 	onfocus={composeHandlers(handleFocus, onfocus)}
-	onfocusout={composeHandlers(handleFocusOut, onfocusout)}
+	onblur={composeHandlers(handleBlur, onblur)}
 >
 	{@render children({ editing: itemContext.editing })}
 </div>
