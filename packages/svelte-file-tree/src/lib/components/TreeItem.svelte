@@ -1,18 +1,39 @@
+<script lang="ts" module>
+	export class TreeItemContext {
+		editing = $state(false);
+		input: HTMLInputElement | undefined = $state();
+
+		static key = Symbol("TreeItemContext");
+	}
+</script>
+
 <script lang="ts" generics="Value">
-	import { getContext, hasContext, type Snippet } from "svelte";
+	import {
+		flushSync,
+		getContext,
+		hasContext,
+		setContext,
+		type Snippet,
+	} from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
 	import { composeHandlers, isModifierKey, keys } from "$lib/helpers.js";
 	import { TreeViewContext } from "./TreeView.svelte";
 	import type { TreeNode } from "./tree.svelte.js";
 
-	interface Props extends HTMLAttributes<HTMLDivElement> {
+	type ChildrenProps = {
+		editing: boolean;
+	};
+
+	interface Props extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
 		item: TreeNode<Value>;
-		children: Snippet;
+		children: Snippet<[ChildrenProps]>;
+		editable?: boolean;
 	}
 
 	const {
 		item,
 		children,
+		editable = false,
 		onkeydown,
 		onpointerdown,
 		onfocus,
@@ -30,17 +51,22 @@
 		treeContext.tabbableId = item.id;
 	}
 
+	const itemContext = new TreeItemContext();
+	setContext(TreeItemContext.key, itemContext);
+
+	$effect.pre(() => {
+		if (!editable) {
+			itemContext.editing = false;
+		}
+	});
+
 	function handleKeyDown(event: KeyboardEvent) {
 		switch (event.key) {
 			case keys.ARROW_RIGHT: {
-				if (item.children.length === 0) {
-					break;
-				}
-
-				if (!item.expanded) {
+				if (!item.expanded && item.children.length !== 0) {
 					item.expand();
 				} else {
-					item.children[0]!.element.focus();
+					item.children[0]?.element.focus();
 				}
 
 				break;
@@ -48,8 +74,8 @@
 			case keys.ARROW_LEFT: {
 				if (item.expanded && item.children.length !== 0) {
 					item.collapse();
-				} else if (item.parent !== undefined) {
-					item.parent.element.focus();
+				} else {
+					item.parent?.element.focus();
 				}
 
 				break;
@@ -132,6 +158,31 @@
 
 				break;
 			}
+			case keys.ENTER: {
+				if (!editable) {
+					break;
+				}
+
+				if (itemContext.editing) {
+					itemContext.editing = false;
+					item.element.focus();
+				} else {
+					flushSync(() => {
+						itemContext.editing = true;
+					});
+					itemContext.input?.focus();
+				}
+
+				break;
+			}
+			case keys.ESCAPE: {
+				if (itemContext.editing) {
+					itemContext.editing = false;
+					item.element.focus();
+				}
+
+				break;
+			}
 			default: {
 				return;
 			}
@@ -192,7 +243,7 @@
 	onfocus={composeHandlers(handleFocus, onfocus)}
 	onblur={composeHandlers(handleBlur, onblur)}
 >
-	{@render children()}
+	{@render children({ editing: itemContext.editing })}
 </div>
 
 <style>

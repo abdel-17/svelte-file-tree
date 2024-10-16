@@ -42,10 +42,12 @@ export const keys = {
 	ARROW_DOWN: "ArrowDown",
 	ARROW_LEFT: "ArrowLeft",
 	ARROW_RIGHT: "ArrowRight",
-	END: "End",
-	HOME: "Home",
 	PAGE_UP: "PageUp",
 	PAGE_DOWN: "PageDown",
+	HOME: "Home",
+	END: "End",
 	SPACE: " ",
 	NON_BREAKING_SPACE: "\u00A0",
-};
+	ENTER: "Enter",
+	ESCAPE: "Escape",
+} as const;
