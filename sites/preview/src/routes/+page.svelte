@@ -19,6 +19,8 @@
 		>
 			{#snippet children({ editing })}
 				<ChevronDown
+					role="presentation"
+					onclick={() => node.toggleExpansion()}
 					class="transition-transform duration-300 group-aria-expanded:rotate-180 group-data-leaf:invisible"
 				/>
 				{#if editing}
