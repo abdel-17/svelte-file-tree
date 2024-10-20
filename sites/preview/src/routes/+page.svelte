@@ -18,11 +18,15 @@
 			class="group ms-[calc(var(--spacing-4)*var(--depth))] flex gap-2 p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 aria-selected:bg-blue-100 aria-selected:text-blue-900"
 		>
 			{#snippet children({ editing })}
-				<ChevronDown
-					role="presentation"
+				<button
+					aria-expanded={node.expanded}
+					tabindex={-1}
 					onclick={() => node.toggleExpansion()}
 					class="transition-transform duration-300 group-aria-expanded:rotate-180 group-data-leaf:invisible"
-				/>
+				>
+					<ChevronDown role="presentation" />
+					<span class="sr-only">Toggle expansion</span>
+				</button>
 				{#if editing}
 					<TreeItemInput
 						bind:value={node.value}

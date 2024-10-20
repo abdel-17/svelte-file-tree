@@ -1,23 +1,14 @@
 <script lang="ts" module>
 	import { findElementById } from "$lib/helpers.js";
 
-	export class TreeViewContext<Value = unknown> {
-		#tree: () => Tree<Value>;
+	export class TreeViewContext {
 		#elementId: () => string | null | undefined;
 		tabbableId: string | undefined = $state();
-		shouldSelectOnNextFocus = true;
-		shouldClearSelectionOnNextBlur = true;
+		shouldSelectOnFocusEnter = true;
+		shouldClearSelectionOnFocusLeave = true;
 
-		constructor(
-			tree: () => Tree<Value>,
-			elementId: () => string | null | undefined,
-		) {
-			this.#tree = tree;
+		constructor(elementId: () => string | null | undefined) {
 			this.#elementId = elementId;
-		}
-
-		get tree(): Tree<Value> {
-			return this.#tree();
 		}
 
 		readonly elementId: string = $derived.by(() => {
@@ -38,24 +29,6 @@
 
 		findItemElement(nodeId: string): HTMLElement {
 			return findElementById(this.getItemElementId(nodeId));
-		}
-
-		onFocus(nodeId: string) {
-			if (this.shouldSelectOnNextFocus) {
-				this.tree.selectedIds.add(nodeId);
-			} else {
-				// Reset back to the default behavior.
-				this.shouldSelectOnNextFocus = true;
-			}
-		}
-
-		onBlur() {
-			if (this.shouldClearSelectionOnNextBlur) {
-				this.tree.selectedIds.clear();
-			} else {
-				// Reset back to the default behavior.
-				this.shouldClearSelectionOnNextBlur = true;
-			}
 		}
 
 		static key = Symbol("TreeViewContext");
@@ -80,10 +53,7 @@
 
 	let { tree, item, ref = $bindable(), id, ...props }: Props = $props();
 
-	const context = new TreeViewContext(
-		() => tree,
-		() => id,
-	);
+	const context = new TreeViewContext(() => id);
 	setContext(TreeViewContext.key, context);
 </script>
 

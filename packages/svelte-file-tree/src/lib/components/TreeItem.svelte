@@ -50,8 +50,8 @@
 		ref = $bindable(),
 		onkeydown,
 		onpointerdown,
-		onfocus,
-		onblur,
+		onfocusin,
+		onfocusout,
 		...props
 	}: Props = $props();
 
@@ -114,12 +114,12 @@
 				}
 
 				if (event.shiftKey) {
-					treeContext.shouldClearSelectionOnNextBlur = false;
+					treeContext.shouldClearSelectionOnFocusLeave = false;
 				}
 
 				if (isModifierKey(event)) {
-					treeContext.shouldClearSelectionOnNextBlur = false;
-					treeContext.shouldSelectOnNextFocus = false;
+					treeContext.shouldClearSelectionOnFocusLeave = false;
+					treeContext.shouldSelectOnFocusEnter = false;
 				}
 
 				treeContext.findItemElement(next.id).focus();
@@ -205,21 +205,30 @@
 		}
 
 		node.toggleSelection();
+		treeContext.shouldClearSelectionOnFocusLeave = false;
+	};
 
-		if (event.currentTarget !== document.activeElement) {
-			// If another tree item is focused, preserve selection
-			// when focus moves from that item to this one.
-			treeContext.shouldClearSelectionOnNextBlur = false;
+	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = () => {
+		treeContext.tabbableId = node.id;
+
+		if (treeContext.shouldSelectOnFocusEnter) {
+			node.tree.selectedIds.add(node.id);
+		} else {
+			// Reset back to the default behavior.
+			treeContext.shouldSelectOnFocusEnter = true;
 		}
 	};
 
-	const handleFocus: EventHandler<FocusEvent, HTMLDivElement> = () => {
-		treeContext.tabbableId = node.id;
-		treeContext.onFocus(node.id);
-	};
-
-	const handleBlur: EventHandler<FocusEvent, HTMLDivElement> = () => {
-		treeContext.onBlur();
+	const handleFocusOut: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
+		if (
+			treeContext.shouldClearSelectionOnFocusLeave &&
+			!event.currentTarget.matches(":focus-within")
+		) {
+			node.tree.selectedIds.clear();
+		} else {
+			// Reset back to the default behavior.
+			treeContext.shouldClearSelectionOnFocusLeave = true;
+		}
 	};
 </script>
 
@@ -238,8 +247,8 @@
 	data-tree-item=""
 	onkeydown={composeHandlers(handleKeyDown, onkeydown)}
 	onpointerdown={composeHandlers(handlePointerDown, onpointerdown)}
-	onfocus={composeHandlers(handleFocus, onfocus)}
-	onblur={composeHandlers(handleBlur, onblur)}
+	onfocusin={composeHandlers(handleFocusIn, onfocusin)}
+	onfocusout={composeHandlers(handleFocusOut, onfocusout)}
 >
 	{@render children({ editing: itemContext.editing })}
 </div>
