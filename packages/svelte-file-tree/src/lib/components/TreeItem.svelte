@@ -183,7 +183,7 @@
 				currentElement.focus();
 				break;
 			}
-			case keys.ENTER: {
+			case keys.F2: {
 				if (editable) {
 					itemContext.editing = true;
 				}

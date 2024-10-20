@@ -50,6 +50,7 @@ export const keys = {
 	NON_BREAKING_SPACE: "\u00A0",
 	ENTER: "Enter",
 	ESCAPE: "Escape",
+	F2: "F2",
 } as const;
 
 export function findElementById(id: string): HTMLElement {
