@@ -1,59 +1,41 @@
-import { findElementById } from "$lib/helpers/dom.js";
-import type { TreeNode } from "./tree.svelte.js";
+import type { Tree, TreeNode } from "./tree.svelte.js";
 
-export class TreeViewContext {
-	readonly #id: () => string;
+export class TreeViewContext<Value = unknown> {
+	#tree: () => Tree<Value>;
 	tabbableId: string | undefined = $state();
 	selectOnNextFocusEnter = true;
 	clearSelectionOnNextFocusLeave = true;
 
-	constructor(id: () => string) {
-		this.#id = id;
+	constructor(tree: () => Tree<Value>) {
+		this.#tree = tree;
 	}
 
-	get id(): string {
-		return this.#id();
-	}
-
-	findTreeElement(): HTMLElement {
-		return findElementById(this.id);
-	}
-
-	getTreeItemElementId(nodeId: string): string {
-		return `${this.id}:${nodeId}`;
-	}
-
-	findTreeItemElement(nodeId: string): HTMLElement {
-		return findElementById(this.getTreeItemElementId(nodeId));
+	get tree(): Tree<Value> {
+		return this.#tree();
 	}
 
 	static readonly key = Symbol("TreeViewContext");
 }
 
+export type TreeItemContextProps<Value = unknown> = {
+	node: () => TreeNode<Value>;
+	editing: () => boolean;
+	onEditingChange: (value: boolean) => void;
+};
+
 export class TreeItemContext<Value = unknown> {
-	readonly #treeContext: TreeViewContext;
 	readonly #node: () => TreeNode<Value>;
 	readonly #editing: () => boolean;
 	readonly #onEditingChange: (value: boolean) => void;
 
-	constructor(
-		treeContext: TreeViewContext,
-		node: () => TreeNode<Value>,
-		editing: () => boolean,
-		onEditingChange: (value: boolean) => void,
-	) {
-		this.#treeContext = treeContext;
-		this.#node = node;
-		this.#editing = editing;
-		this.#onEditingChange = onEditingChange;
+	constructor(props: TreeItemContextProps<Value>) {
+		this.#node = props.node;
+		this.#editing = props.editing;
+		this.#onEditingChange = props.onEditingChange;
 	}
 
 	get node(): TreeNode<Value> {
 		return this.#node();
-	}
-
-	get treeItemElementId(): string {
-		return this.#treeContext.getTreeItemElementId(this.node.id);
 	}
 
 	get editing(): boolean {
@@ -62,10 +44,6 @@ export class TreeItemContext<Value = unknown> {
 
 	set editing(value: boolean) {
 		this.#onEditingChange(value);
-	}
-
-	findTreeItemElement(): HTMLElement {
-		return this.#treeContext.findTreeItemElement(this.node.id);
 	}
 
 	static readonly key = Symbol("TreeItemContext");

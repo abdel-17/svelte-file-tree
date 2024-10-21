@@ -26,7 +26,7 @@
 		children: Snippet<[{ editing: boolean }]>;
 		editable?: boolean;
 		editing?: boolean;
-		ref?: HTMLDivElement;
+		ref?: HTMLDivElement | null;
 	}
 
 	let {
@@ -34,9 +34,10 @@
 		children,
 		editable = false,
 		editing = $bindable(false),
-		ref = $bindable(),
+		ref = $bindable(null),
 		onkeydown,
 		onpointerdown,
+		onpointerup,
 		onfocusin,
 		onfocusout,
 		...props
@@ -47,14 +48,13 @@
 	}
 	const treeContext: TreeViewContext = getContext(TreeViewContext.key);
 
-	const itemContext = new TreeItemContext(
-		treeContext,
-		() => node,
-		() => editing,
-		(value) => {
+	const itemContext = new TreeItemContext({
+		node: () => node,
+		editing: () => editing,
+		onEditingChange(value) {
 			editing = value;
 		},
-	);
+	});
 	setContext(TreeItemContext.key, itemContext);
 
 	// The first node in the tree should be initially tabbable with the keyboard.
@@ -84,16 +84,18 @@
 				if (!node.expanded) {
 					node.expand();
 				} else {
-					treeContext.findTreeItemElement(node.children[0]!.id).focus();
+					node.children[0]!.findElement().focus();
 				}
+
 				break;
 			}
 			case keys.ARROW_LEFT: {
 				if (node.expanded && node.children.length !== 0) {
 					node.collapse();
-				} else if (node.parent !== undefined) {
-					treeContext.findTreeItemElement(node.parent.id).focus();
+				} else {
+					node.parent?.findElement().focus();
 				}
+
 				break;
 			}
 			case keys.ARROW_DOWN:
@@ -104,20 +106,21 @@
 					break;
 				}
 
-				if (event.shiftKey) {
-					treeContext.clearSelectionOnNextFocusLeave = false;
-				}
-
+				const nextElement = next.findElement();
 				if (isModifierKey(event)) {
 					treeContext.clearSelectionOnNextFocusLeave = false;
 					treeContext.selectOnNextFocusEnter = false;
 				}
+				if (event.shiftKey) {
+					treeContext.clearSelectionOnNextFocusLeave = false;
+				}
+				nextElement.focus();
 
-				treeContext.findTreeItemElement(next.id).focus();
 				break;
 			}
 			case keys.HOME: {
-				treeContext.findTreeItemElement(node.tree.roots[0]!.id).focus();
+				node.tree.roots[0]!.findElement().focus();
+
 				break;
 			}
 			case keys.END: {
@@ -125,17 +128,17 @@
 				while (last.expanded && last.children.length !== 0) {
 					last = last.children.at(-1)!;
 				}
-				treeContext.findTreeItemElement(last.id).focus();
+				last.findElement().focus();
+
 				break;
 			}
 			case keys.SPACE:
 			case keys.NON_BREAKING_SPACE: {
 				// Option + Space inserts a non-breaking space. Since Option is the
-				// modifier key on macOS, we need to handle non-breaking spaces as well
-				// to detect the use of the modifier key.
-				if (isModifierKey(event)) {
-					node.toggleSelection();
-				}
+				// modifier key on macOS, we need to also handle non-breaking spaces to
+				// avoid forcing the user to release the Option key to toggle selection.
+				node.toggleSelection();
+
 				break;
 			}
 			case keys.PAGE_DOWN:
@@ -146,7 +149,7 @@
 					break;
 				}
 
-				const treeElement = treeContext.findTreeElement();
+				const treeElement = treeContext.tree.findElement();
 				const maxScrollDistance = Math.min(
 					treeElement.clientHeight,
 					window.innerHeight,
@@ -154,7 +157,7 @@
 				const itemRect = event.currentTarget.getBoundingClientRect();
 
 				let current = next;
-				let currentElement = treeContext.findTreeItemElement(current.id);
+				let currentElement = current.findElement();
 				while (true) {
 					const next = down ? current.next : current.previous;
 					if (next === undefined) {
@@ -162,7 +165,7 @@
 					}
 
 					current = next;
-					currentElement = treeContext.findTreeItemElement(current.id);
+					currentElement = current.findElement();
 
 					const currentRect = currentElement.getBoundingClientRect();
 					const distance = Math.abs(currentRect.top - itemRect.top);
@@ -171,12 +174,14 @@
 					}
 				}
 				currentElement.focus();
+
 				break;
 			}
 			case keys.F2: {
 				if (editable) {
 					editing = true;
 				}
+
 				break;
 			}
 			default: {
@@ -196,18 +201,13 @@
 
 		if (isModifierKey(event)) {
 			node.toggleSelection();
-
-			if (!event.currentTarget.matches(":focus-within")) {
-				treeContext.clearSelectionOnNextFocusLeave = false;
-			}
-
-			return;
+			treeContext.clearSelectionOnNextFocusLeave = false;
 		}
 
 		if (event.shiftKey) {
 			let tabbableNodeId = treeContext.tabbableId!;
 			let tabbableElement = document.getElementById(
-				treeContext.getTreeItemElementId(tabbableNodeId),
+				treeContext.tree.getTreeItemElementId(tabbableNodeId),
 			);
 
 			if (tabbableElement === null) {
@@ -240,6 +240,12 @@
 		}
 	};
 
+	const handlePointerUp: EventHandler<PointerEvent, HTMLDivElement> = () => {
+		// Reset clear selection behavior in case the pointerdown event
+		// did not cause another tree item to lose focus.
+		treeContext.clearSelectionOnNextFocusLeave = true;
+	};
+
 	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = () => {
 		treeContext.tabbableId = node.id;
 
@@ -268,7 +274,7 @@
 <div
 	{...props}
 	bind:this={ref}
-	id={itemContext.treeItemElementId}
+	id={node.elementId}
 	role="treeitem"
 	aria-level={node.depth + 1}
 	aria-posinset={node.levelIndex + 1}
@@ -280,6 +286,7 @@
 	data-tree-item=""
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
 	onpointerdown={composeEventHandlers(handlePointerDown, onpointerdown)}
+	onpointerup={composeEventHandlers(handlePointerUp, onpointerup)}
 	onfocusin={composeEventHandlers(handleFocusIn, onfocusin)}
 	onfocusout={composeEventHandlers(handleFocusOut, onfocusout)}
 >

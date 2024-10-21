@@ -6,32 +6,25 @@
 
 	type BaseProps = Omit<
 		HTMLAttributes<HTMLDivElement>,
-		"role" | "aria-multiselectable" | "children"
+		"id" | "role" | "aria-multiselectable" | "children"
 	>;
 
 	interface Props extends BaseProps {
 		tree: Tree<Value>;
 		item: Snippet<[TreeNode<Value>]>;
-		id?: string;
-		ref?: HTMLDivElement;
+		ref?: HTMLDivElement | null;
 	}
 
-	let {
-		tree,
-		item,
-		id = crypto.randomUUID(),
-		ref = $bindable(),
-		...props
-	}: Props = $props();
+	let { tree, item, ref = $bindable(null), ...props }: Props = $props();
 
-	const context = new TreeViewContext(() => id);
+	const context = new TreeViewContext(() => tree);
 	setContext(TreeViewContext.key, context);
 </script>
 
 <div
 	{...props}
 	bind:this={ref}
-	{id}
+	id={tree.id}
 	role="tree"
 	aria-multiselectable="true"
 	data-tree-view=""

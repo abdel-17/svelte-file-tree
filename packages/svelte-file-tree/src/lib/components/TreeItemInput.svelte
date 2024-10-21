@@ -7,20 +7,20 @@
 
 	interface Props extends HTMLInputAttributes {
 		value: any;
-		ref?: HTMLInputElement;
-		onCommit?: (value: string) => void;
+		ref?: HTMLInputElement | null;
+		onCommit?: (value: any) => void;
+		onRollback?: (originalValue: any) => void;
 	}
 
 	let {
 		value = $bindable(),
-		ref = $bindable(),
+		ref = $bindable(null),
 		onCommit,
+		onRollback,
 		onkeydown,
 		onfocusout,
 		...props
 	}: Props = $props();
-
-	const originalValue = value;
 
 	if (!hasContext(TreeItemContext.key)) {
 		throw new Error(
@@ -29,27 +29,25 @@
 	}
 	const itemContext: TreeItemContext = getContext(TreeItemContext.key);
 
-	function init(input: HTMLInputElement) {
-		input.focus();
-		input.select();
-	}
-
-	function exitEditingMode() {
-		itemContext.editing = false;
-		itemContext.findTreeItemElement().focus();
-	}
+	const originalValue = value;
+	let commited = false;
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (
 		event,
 	) => {
 		switch (event.key) {
 			case keys.ENTER: {
-				exitEditingMode();
+				commited = true;
+				if (value !== originalValue) {
+					onCommit?.(value);
+				}
+				itemContext.node.findElement().focus();
+
 				break;
 			}
 			case keys.ESCAPE: {
-				value = originalValue;
-				exitEditingMode();
+				itemContext.node.findElement().focus();
+
 				break;
 			}
 			default: {
@@ -61,19 +59,25 @@
 	};
 
 	// If we use the blur event to exit editing mode, the input gets unmounted
-	// before the focusout event is dispatched, which needs to happen for the
-	// selection state to be correct.
-	const handleFocusOut: EventHandler<FocusEvent, HTMLInputElement> = (
-		event,
-	) => {
-		if (onCommit !== undefined && value !== originalValue) {
-			// Use the value from the input directly because the bound value
-			// may not be a string, depending on the `type` attribute.
-			onCommit(event.currentTarget.value);
-		}
-
+	// before the focusout event is dispatched, which the tree item relies on
+	// to manage selection state.
+	const handleFocusOut: EventHandler<FocusEvent, HTMLInputElement> = () => {
 		itemContext.editing = false;
 	};
+
+	function init(input: HTMLInputElement) {
+		input.focus();
+		input.select();
+
+		return {
+			destroy() {
+				if (!commited && value !== originalValue) {
+					value = originalValue;
+					onRollback?.(originalValue);
+				}
+			},
+		};
+	}
 </script>
 
 <input
@@ -81,7 +85,7 @@
 	bind:this={ref}
 	bind:value
 	data-tree-item-input=""
-	use:init
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
 	onfocusout={composeEventHandlers(handleFocusOut, onfocusout)}
+	use:init
 />

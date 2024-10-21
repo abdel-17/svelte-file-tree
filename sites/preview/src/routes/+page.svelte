@@ -30,8 +30,11 @@
 				{#if editing}
 					<TreeItemInput
 						bind:value={node.value}
-						onCommit={(value) => {
-							console.log("onCommit", value);
+						onCommit={(value: string) => {
+							console.log("onCommit:", value);
+						}}
+						onRollback={(value: string) => {
+							console.log("onRollback:", value);
 						}}
 						class="bg-white focus:outline-none"
 					/>

@@ -1,3 +1,4 @@
+import { findElementById } from "$lib/helpers/dom.js";
 import { SvelteSet } from "svelte/reactivity";
 
 export type TreeItem<Value> = {
@@ -8,6 +9,7 @@ export type TreeItem<Value> = {
 
 export type TreeProps<Value> = {
 	items: ReadonlyArray<TreeItem<Value>>;
+	id?: string;
 	defaultSelected?: Iterable<string> | null;
 	defaultExpanded?: Iterable<string> | null;
 };
@@ -31,9 +33,29 @@ export class Tree<Value> {
 		return this.#expandedIds;
 	}
 
+	readonly id: string = $derived.by(() => {
+		const id = this.#props.id;
+		if (id === undefined) {
+			return crypto.randomUUID();
+		}
+		return id;
+	});
+
 	readonly roots: ReadonlyArray<TreeNode<Value>> = $derived.by(() =>
 		this.#props.items.map((item, i) => new TreeNode(this, item, i)),
 	);
+
+	findElement(): HTMLElement {
+		return findElementById(this.id);
+	}
+
+	getTreeItemElementId(id: string): string {
+		return this.id + ":" + id;
+	}
+
+	findTreeItemElement(id: string): HTMLElement {
+		return findElementById(this.getTreeItemElementId(id));
+	}
 
 	*[Symbol.iterator](): Iterator<TreeNode<Value>> {
 		for (const root of this.roots) {
@@ -84,6 +106,10 @@ export class TreeNode<Value> {
 
 	get children(): ReadonlyArray<TreeNode<Value>> {
 		return this.#children;
+	}
+
+	get elementId(): string {
+		return this.#tree.getTreeItemElementId(this.#id);
 	}
 
 	readonly selected: boolean = $derived.by(() =>
@@ -179,6 +205,10 @@ export class TreeNode<Value> {
 		} else {
 			this.expand();
 		}
+	}
+
+	findElement(): HTMLElement {
+		return findElementById(this.elementId);
 	}
 
 	*[Symbol.iterator](): Iterator<TreeNode<Value>> {
