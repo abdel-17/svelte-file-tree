@@ -4,7 +4,7 @@ import type { TreeNode } from "./tree.svelte.js";
 export class TreeViewContext {
 	readonly #id: () => string;
 	tabbableId: string | undefined = $state();
-	selectOnNextFocus = true;
+	selectOnNextFocusEnter = true;
 	clearSelectionOnNextFocusLeave = true;
 
 	constructor(id: () => string) {

@@ -37,7 +37,7 @@
 		ref = $bindable(),
 		onkeydown,
 		onpointerdown,
-		onfocus,
+		onfocusin,
 		onfocusout,
 		...props
 	}: Props = $props();
@@ -110,7 +110,7 @@
 
 				if (isModifierKey(event)) {
 					treeContext.clearSelectionOnNextFocusLeave = false;
-					treeContext.selectOnNextFocus = false;
+					treeContext.selectOnNextFocusEnter = false;
 				}
 
 				treeContext.findTreeItemElement(next.id).focus();
@@ -240,12 +240,12 @@
 		}
 	};
 
-	const handleFocus: EventHandler<FocusEvent, HTMLDivElement> = () => {
+	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = () => {
 		treeContext.tabbableId = node.id;
 
-		if (!treeContext.selectOnNextFocus) {
+		if (!treeContext.selectOnNextFocusEnter) {
 			// Reset for the next event.
-			treeContext.selectOnNextFocus = true;
+			treeContext.selectOnNextFocusEnter = true;
 			return;
 		}
 
@@ -280,7 +280,7 @@
 	data-tree-item=""
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
 	onpointerdown={composeEventHandlers(handlePointerDown, onpointerdown)}
-	onfocus={composeEventHandlers(handleFocus, onfocus)}
+	onfocusin={composeEventHandlers(handleFocusIn, onfocusin)}
 	onfocusout={composeEventHandlers(handleFocusOut, onfocusout)}
 >
 	{@render children({ editing })}
