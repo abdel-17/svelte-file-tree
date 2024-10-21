@@ -3,19 +3,19 @@ import { SvelteSet } from "svelte/reactivity";
 export type TreeItem<Value> = {
 	id: string;
 	value: Value;
-	children?: Array<TreeItem<Value>>;
+	children?: ReadonlyArray<TreeItem<Value>>;
 };
 
 export type TreeProps<Value> = {
-	items: Array<TreeItem<Value>>;
+	items: ReadonlyArray<TreeItem<Value>>;
 	defaultSelected?: Iterable<string> | null;
 	defaultExpanded?: Iterable<string> | null;
 };
 
 export class Tree<Value> {
-	#props: TreeProps<Value>;
-	#selectedIds: SvelteSet<string>;
-	#expandedIds: SvelteSet<string>;
+	readonly #props: TreeProps<Value>;
+	readonly #selectedIds: SvelteSet<string>;
+	readonly #expandedIds: SvelteSet<string>;
 
 	constructor(props: TreeProps<Value>) {
 		this.#props = props;
@@ -43,9 +43,9 @@ export class Tree<Value> {
 }
 
 export class TreeNode<Value> {
-	#tree: Tree<Value>;
-	#id: string;
-	#index: number = $state()!;
+	readonly #tree: Tree<Value>;
+	readonly #id: string;
+	#levelIndex: number = $state()!;
 	#parent: TreeNode<Value> | undefined = $state();
 	#children: Array<TreeNode<Value>> = $state()!;
 	value: Value = $state()!;
@@ -53,12 +53,12 @@ export class TreeNode<Value> {
 	constructor(
 		tree: Tree<Value>,
 		item: TreeItem<Value>,
-		index: number,
+		levelIndex: number,
 		parent?: TreeNode<Value>,
 	) {
 		this.#tree = tree;
 		this.#id = item.id;
-		this.#index = index;
+		this.#levelIndex = levelIndex;
 		this.#parent = parent;
 		this.#children =
 			item.children?.map((child, i) => new TreeNode(tree, child, i, this)) ??
@@ -74,8 +74,8 @@ export class TreeNode<Value> {
 		return this.#id;
 	}
 
-	get index(): number {
-		return this.#index;
+	get levelIndex(): number {
+		return this.#levelIndex;
 	}
 
 	get parent(): TreeNode<Value> | undefined {
@@ -87,11 +87,11 @@ export class TreeNode<Value> {
 	}
 
 	readonly selected: boolean = $derived.by(() =>
-		this.#tree.selectedIds.has(this.id),
+		this.#tree.selectedIds.has(this.#id),
 	);
 
 	readonly expanded: boolean = $derived.by(() =>
-		this.#tree.expandedIds.has(this.id),
+		this.#tree.expandedIds.has(this.#id),
 	);
 
 	readonly visible: boolean = $derived.by(() => {
@@ -116,7 +116,7 @@ export class TreeNode<Value> {
 	});
 
 	readonly previous: TreeNode<Value> | undefined = $derived.by(() => {
-		const previousSibling = this.level[this.#index - 1];
+		const previousSibling = this.level[this.#levelIndex - 1];
 		if (previousSibling === undefined) {
 			return this.#parent;
 		}
@@ -136,7 +136,7 @@ export class TreeNode<Value> {
 
 		let current: TreeNode<Value> = this;
 		while (true) {
-			const nextSibling = current.level[current.#index + 1];
+			const nextSibling = current.level[current.#levelIndex + 1];
 			if (nextSibling !== undefined) {
 				return nextSibling;
 			}
@@ -150,11 +150,11 @@ export class TreeNode<Value> {
 	});
 
 	select(): void {
-		this.#tree.selectedIds.add(this.id);
+		this.#tree.selectedIds.add(this.#id);
 	}
 
 	deselect(): void {
-		this.#tree.selectedIds.delete(this.id);
+		this.#tree.selectedIds.delete(this.#id);
 	}
 
 	toggleSelection(): void {
@@ -166,11 +166,11 @@ export class TreeNode<Value> {
 	}
 
 	expand(): void {
-		this.#tree.expandedIds.add(this.id);
+		this.#tree.expandedIds.add(this.#id);
 	}
 
 	collapse(): void {
-		this.#tree.expandedIds.delete(this.id);
+		this.#tree.expandedIds.delete(this.#id);
 	}
 
 	toggleExpansion(): void {
@@ -183,8 +183,8 @@ export class TreeNode<Value> {
 
 	*[Symbol.iterator](): Iterator<TreeNode<Value>> {
 		yield this;
-		for (const node of this.#children) {
-			yield* node;
+		for (const child of this.#children) {
+			yield* child;
 		}
 	}
 }

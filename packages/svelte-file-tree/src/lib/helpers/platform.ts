@@ -1,13 +1,3 @@
-export function composeHandlers<E extends Event>(
-	first: (event: E) => void,
-	second: ((event: E) => void) | null | undefined,
-): (event: E) => void {
-	return (event) => {
-		first(event);
-		second?.(event);
-	};
-}
-
 export function getPlatform(): string {
 	if ("userAgentData" in navigator) {
 		const { platform } = navigator.userAgentData as { platform: string };
@@ -35,28 +25,4 @@ export function isModifierKey(event: KeyboardEvent | MouseEvent) {
 		return event.altKey;
 	}
 	return event.ctrlKey;
-}
-
-export const keys = {
-	ARROW_UP: "ArrowUp",
-	ARROW_DOWN: "ArrowDown",
-	ARROW_LEFT: "ArrowLeft",
-	ARROW_RIGHT: "ArrowRight",
-	PAGE_UP: "PageUp",
-	PAGE_DOWN: "PageDown",
-	HOME: "Home",
-	END: "End",
-	SPACE: " ",
-	NON_BREAKING_SPACE: "\u00A0",
-	ENTER: "Enter",
-	ESCAPE: "Escape",
-	F2: "F2",
-} as const;
-
-export function findElementById(id: string): HTMLElement {
-	const element = document.getElementById(id);
-	if (element === null) {
-		throw new Error(`Element with id "${id}" not found`);
-	}
-	return element;
 }

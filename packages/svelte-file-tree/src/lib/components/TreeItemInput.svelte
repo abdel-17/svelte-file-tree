@@ -1,9 +1,9 @@
 <script lang="ts">
+	import { composeEventHandlers } from "$lib/helpers/events.js";
+	import { keys } from "$lib/helpers/keys.js";
 	import { getContext, hasContext } from "svelte";
 	import type { EventHandler, HTMLInputAttributes } from "svelte/elements";
-	import { composeHandlers, keys } from "$lib/helpers.js";
-	import { TreeItemContext } from "./TreeItem.svelte";
-	import { TreeViewContext } from "./TreeView.svelte";
+	import { TreeItemContext } from "./context.svelte.js";
 
 	interface Props extends HTMLInputAttributes {
 		value: any;
@@ -28,15 +28,15 @@
 		);
 	}
 	const itemContext: TreeItemContext = getContext(TreeItemContext.key);
-	const treeContext: TreeViewContext = getContext(TreeViewContext.key);
 
-	function focus(input: HTMLInputElement) {
+	function init(input: HTMLInputElement) {
 		input.focus();
+		input.select();
 	}
 
 	function exitEditingMode() {
 		itemContext.editing = false;
-		treeContext.findItemElement(itemContext.node.id).focus();
+		itemContext.findTreeItemElement().focus();
 	}
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (
@@ -60,9 +60,9 @@
 		event.preventDefault();
 	};
 
-	// If we user the blur event to exit editing mode, the input gets unmounted
-	// before the focusout evnet is dispatched, which the tree item relies on
-	// for focus management, so we use the focusout event instead.
+	// If we use the blur event to exit editing mode, the input gets unmounted
+	// before the focusout event is dispatched, which needs to happen for the
+	// selection state to be correct.
 	const handleFocusOut: EventHandler<FocusEvent, HTMLInputElement> = (
 		event,
 	) => {
@@ -81,7 +81,7 @@
 	bind:this={ref}
 	bind:value
 	data-tree-item-input=""
-	use:focus
-	onkeydown={composeHandlers(handleKeyDown, onkeydown)}
-	onfocusout={composeHandlers(handleFocusOut, onblur)}
+	use:init
+	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
+	onfocusout={composeEventHandlers(handleFocusOut, onfocusout)}
 />

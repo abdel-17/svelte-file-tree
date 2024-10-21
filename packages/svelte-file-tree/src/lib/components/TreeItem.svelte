@@ -1,37 +1,22 @@
-<script lang="ts" module>
-	export class TreeItemContext<Value = unknown> {
-		#node: () => TreeNode<Value>;
-		editing: boolean = $state(false);
-
-		constructor(node: () => TreeNode<Value>) {
-			this.#node = node;
-		}
-
-		get node(): TreeNode<Value> {
-			return this.#node();
-		}
-
-		static key = Symbol("TreeItemContext");
-	}
-</script>
-
 <script lang="ts" generics="Value">
+	import { composeEventHandlers } from "$lib/helpers/events.js";
+	import { keys } from "$lib/helpers/keys.js";
+	import { isModifierKey } from "$lib/helpers/platform.js";
 	import { getContext, hasContext, setContext, type Snippet } from "svelte";
 	import type { EventHandler, HTMLAttributes } from "svelte/elements";
-	import { composeHandlers, isModifierKey, keys } from "$lib/helpers.js";
-	import { TreeViewContext } from "./TreeView.svelte";
+	import { TreeItemContext, TreeViewContext } from "./context.svelte.js";
 	import type { TreeNode } from "./tree.svelte.js";
 
 	type BaseProps = Omit<
 		HTMLAttributes<HTMLDivElement>,
 		| "id"
 		| "role"
-		| "hidden"
 		| "aria-level"
 		| "aria-posinset"
 		| "aria-setsize"
 		| "aria-expanded"
 		| "aria-selected"
+		| "hidden"
 		| "tabindex"
 		| "children"
 	>;
@@ -40,6 +25,7 @@
 		node: TreeNode<Value>;
 		children: Snippet<[{ editing: boolean }]>;
 		editable?: boolean;
+		editing?: boolean;
 		ref?: HTMLDivElement;
 	}
 
@@ -47,10 +33,11 @@
 		node,
 		children,
 		editable = false,
+		editing = $bindable(false),
 		ref = $bindable(),
 		onkeydown,
 		onpointerdown,
-		onfocusin,
+		onfocus,
 		onfocusout,
 		...props
 	}: Props = $props();
@@ -60,17 +47,22 @@
 	}
 	const treeContext: TreeViewContext = getContext(TreeViewContext.key);
 
-	// The first node in the tree should be initially tabbable with the keyboard.
-	if (treeContext.tabbableId === undefined) {
-		treeContext.tabbableId = node.id;
-	}
-
-	const itemContext = new TreeItemContext(() => node);
+	const itemContext = new TreeItemContext(
+		treeContext,
+		() => node,
+		() => editing,
+		(value) => {
+			editing = value;
+		},
+	);
 	setContext(TreeItemContext.key, itemContext);
+
+	// The first node in the tree should be initially tabbable with the keyboard.
+	treeContext.tabbableId ??= node.id;
 
 	$effect.pre(() => {
 		if (!editable) {
-			itemContext.editing = false;
+			editing = false;
 		}
 	});
 
@@ -78,8 +70,8 @@
 		event,
 	) => {
 		if (event.target !== event.currentTarget) {
-			// Don't handle keydown events that bubble up from child elements,
-			// like the input element in `TreeItemInput`.
+			// Don't handle keydown events that bubble up from child elements
+			// to avoid conflict with the input during editing mode.
 			return;
 		}
 
@@ -92,8 +84,7 @@
 				if (!node.expanded) {
 					node.expand();
 				} else {
-					const firstChild = node.children[0]!;
-					treeContext.findItemElement(firstChild.id).focus();
+					treeContext.findTreeItemElement(node.children[0]!.id).focus();
 				}
 				break;
 			}
@@ -101,7 +92,7 @@
 				if (node.expanded && node.children.length !== 0) {
 					node.collapse();
 				} else if (node.parent !== undefined) {
-					treeContext.findItemElement(node.parent.id).focus();
+					treeContext.findTreeItemElement(node.parent.id).focus();
 				}
 				break;
 			}
@@ -114,20 +105,19 @@
 				}
 
 				if (event.shiftKey) {
-					treeContext.shouldClearSelectionOnFocusLeave = false;
+					treeContext.clearSelectionOnNextFocusLeave = false;
 				}
 
 				if (isModifierKey(event)) {
-					treeContext.shouldClearSelectionOnFocusLeave = false;
-					treeContext.shouldSelectOnFocusEnter = false;
+					treeContext.clearSelectionOnNextFocusLeave = false;
+					treeContext.selectOnNextFocus = false;
 				}
 
-				treeContext.findItemElement(next.id).focus();
+				treeContext.findTreeItemElement(next.id).focus();
 				break;
 			}
 			case keys.HOME: {
-				const first = node.tree.roots[0]!;
-				treeContext.findItemElement(first.id).focus();
+				treeContext.findTreeItemElement(node.tree.roots[0]!.id).focus();
 				break;
 			}
 			case keys.END: {
@@ -135,7 +125,7 @@
 				while (last.expanded && last.children.length !== 0) {
 					last = last.children.at(-1)!;
 				}
-				treeContext.findItemElement(last.id).focus();
+				treeContext.findTreeItemElement(last.id).focus();
 				break;
 			}
 			case keys.SPACE:
@@ -156,7 +146,7 @@
 					break;
 				}
 
-				const treeElement = treeContext.findElement();
+				const treeElement = treeContext.findTreeElement();
 				const maxScrollDistance = Math.min(
 					treeElement.clientHeight,
 					window.innerHeight,
@@ -164,7 +154,7 @@
 				const itemRect = event.currentTarget.getBoundingClientRect();
 
 				let current = next;
-				let currentElement = treeContext.findItemElement(current.id);
+				let currentElement = treeContext.findTreeItemElement(current.id);
 				while (true) {
 					const next = down ? current.next : current.previous;
 					if (next === undefined) {
@@ -172,7 +162,7 @@
 					}
 
 					current = next;
-					currentElement = treeContext.findItemElement(current.id);
+					currentElement = treeContext.findTreeItemElement(current.id);
 
 					const currentRect = currentElement.getBoundingClientRect();
 					const distance = Math.abs(currentRect.top - itemRect.top);
@@ -185,7 +175,7 @@
 			}
 			case keys.F2: {
 				if (editable) {
-					itemContext.editing = true;
+					editing = true;
 				}
 				break;
 			}
@@ -200,34 +190,77 @@
 	const handlePointerDown: EventHandler<PointerEvent, HTMLDivElement> = (
 		event,
 	) => {
-		if (event.button !== 0 || !isModifierKey(event)) {
+		if (event.button !== 0) {
 			return;
 		}
 
-		node.toggleSelection();
-		treeContext.shouldClearSelectionOnFocusLeave = false;
-	};
+		if (isModifierKey(event)) {
+			node.toggleSelection();
 
-	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = () => {
-		treeContext.tabbableId = node.id;
+			if (!event.currentTarget.matches(":focus-within")) {
+				treeContext.clearSelectionOnNextFocusLeave = false;
+			}
 
-		if (treeContext.shouldSelectOnFocusEnter) {
-			node.tree.selectedIds.add(node.id);
-		} else {
-			// Reset back to the default behavior.
-			treeContext.shouldSelectOnFocusEnter = true;
+			return;
+		}
+
+		if (event.shiftKey) {
+			let tabbableNodeId = treeContext.tabbableId!;
+			let tabbableElement = document.getElementById(
+				treeContext.getTreeItemElementId(tabbableNodeId),
+			);
+
+			if (tabbableElement === null) {
+				// Maybe the element got removed for some reason, who knows.
+				// Handle this edge case just in case to avoid errors.
+				tabbableNodeId = node.id;
+				tabbableElement = event.currentTarget;
+			}
+
+			const tabbableRect = tabbableElement.getBoundingClientRect();
+			const tabbableBeforeCurrent = event.y > tabbableRect.top;
+
+			let current = node;
+			while (true) {
+				current.select();
+
+				if (current.id === tabbableNodeId) {
+					break;
+				}
+
+				const next = tabbableBeforeCurrent ? current.previous : current.next;
+				if (next === undefined) {
+					break;
+				}
+
+				current = next;
+			}
+
+			treeContext.clearSelectionOnNextFocusLeave = false;
 		}
 	};
 
+	const handleFocus: EventHandler<FocusEvent, HTMLDivElement> = () => {
+		treeContext.tabbableId = node.id;
+
+		if (!treeContext.selectOnNextFocus) {
+			// Reset for the next event.
+			treeContext.selectOnNextFocus = true;
+			return;
+		}
+
+		node.select();
+	};
+
 	const handleFocusOut: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
-		if (
-			treeContext.shouldClearSelectionOnFocusLeave &&
-			!event.currentTarget.matches(":focus-within")
-		) {
+		if (!treeContext.clearSelectionOnNextFocusLeave) {
+			// Reset for the next event.
+			treeContext.clearSelectionOnNextFocusLeave = true;
+			return;
+		}
+
+		if (!event.currentTarget.matches(":focus-within")) {
 			node.tree.selectedIds.clear();
-		} else {
-			// Reset back to the default behavior.
-			treeContext.shouldClearSelectionOnFocusLeave = true;
 		}
 	};
 </script>
@@ -235,26 +268,26 @@
 <div
 	{...props}
 	bind:this={ref}
-	id={treeContext.getItemElementId(node.id)}
+	id={itemContext.treeItemElementId}
 	role="treeitem"
-	hidden={!node.visible ? true : undefined}
 	aria-level={node.depth + 1}
-	aria-posinset={node.index + 1}
+	aria-posinset={node.levelIndex + 1}
 	aria-setsize={node.level.length}
 	aria-expanded={node.children.length !== 0 ? node.expanded : undefined}
 	aria-selected={node.selected}
+	hidden={!node.visible ? true : undefined}
 	tabindex={node.id === treeContext.tabbableId ? 0 : -1}
 	data-tree-item=""
-	onkeydown={composeHandlers(handleKeyDown, onkeydown)}
-	onpointerdown={composeHandlers(handlePointerDown, onpointerdown)}
-	onfocusin={composeHandlers(handleFocusIn, onfocusin)}
-	onfocusout={composeHandlers(handleFocusOut, onfocusout)}
+	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
+	onpointerdown={composeEventHandlers(handlePointerDown, onpointerdown)}
+	onfocus={composeEventHandlers(handleFocus, onfocus)}
+	onfocusout={composeEventHandlers(handleFocusOut, onfocusout)}
 >
-	{@render children({ editing: itemContext.editing })}
+	{@render children({ editing })}
 </div>
 
 <style>
-	[data-tree-item][hidden] {
+	[hidden] {
 		display: none;
 	}
 </style>

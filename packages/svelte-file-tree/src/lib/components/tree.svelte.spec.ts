@@ -1,68 +1,68 @@
 import { describe, expect, onTestFinished, test } from "vitest";
 import { Tree } from "./tree.svelte.js";
 
-describe("Tree", () => {
-	const tree = new Tree({
-		items: [
-			{
-				id: "1",
-				value: "Section 1",
-				children: [
-					{
-						id: "1.1",
-						value: "Section 1.1",
-						children: [
-							{
-								id: "1.1.1",
-								value: "Section 1.1.1",
-							},
-							{
-								id: "1.1.2",
-								value: "Section 1.1.2",
-							},
-							{
-								id: "1.1.3",
-								value: "Section 1.1.3",
-							},
-						],
-					},
-					{
-						id: "1.2",
-						value: "Section 1.2",
-						children: [
-							{
-								id: "1.2.1",
-								value: "Section 1.2.1",
-							},
-							{
-								id: "1.2.2",
-								value: "Section 1.2.2",
-							},
-						],
-					},
-				],
-			},
-			{
-				id: "2",
-				value: "Section 2",
-				children: [
-					{
-						id: "2.1",
-						value: "Section 2.1",
-					},
-					{
-						id: "2.2",
-						value: "Section 2.2",
-					},
-				],
-			},
-			{
-				id: "3",
-				value: "Section 3",
-			},
-		],
-	});
+const tree = new Tree({
+	items: [
+		{
+			id: "1",
+			value: "Section 1",
+			children: [
+				{
+					id: "1.1",
+					value: "Section 1.1",
+					children: [
+						{
+							id: "1.1.1",
+							value: "Section 1.1.1",
+						},
+						{
+							id: "1.1.2",
+							value: "Section 1.1.2",
+						},
+						{
+							id: "1.1.3",
+							value: "Section 1.1.3",
+						},
+					],
+				},
+				{
+					id: "1.2",
+					value: "Section 1.2",
+					children: [
+						{
+							id: "1.2.1",
+							value: "Section 1.2.1",
+						},
+						{
+							id: "1.2.2",
+							value: "Section 1.2.2",
+						},
+					],
+				},
+			],
+		},
+		{
+			id: "2",
+			value: "Section 2",
+			children: [
+				{
+					id: "2.1",
+					value: "Section 2.1",
+				},
+				{
+					id: "2.2",
+					value: "Section 2.2",
+				},
+			],
+		},
+		{
+			id: "3",
+			value: "Section 3",
+		},
+	],
+});
 
+describe("Tree", () => {
 	test("Tree traversal order is correct", () => {
 		const nodes = Array.from(tree).map((node) => {
 			return {
@@ -192,9 +192,9 @@ describe("Tree", () => {
 		});
 	});
 
-	test("Tree.index is correct", () => {
+	test("Tree.levelIndex is correct", () => {
 		const indices = Object.fromEntries(
-			Array.from(tree).map((item) => [item.id, item.index]),
+			Array.from(tree).map((item) => [item.id, item.levelIndex]),
 		);
 
 		expect(indices).toEqual({

@@ -1,0 +1,15 @@
+export const keys = {
+	ARROW_UP: "ArrowUp",
+	ARROW_DOWN: "ArrowDown",
+	ARROW_LEFT: "ArrowLeft",
+	ARROW_RIGHT: "ArrowRight",
+	PAGE_UP: "PageUp",
+	PAGE_DOWN: "PageDown",
+	HOME: "Home",
+	END: "End",
+	SPACE: " ",
+	NON_BREAKING_SPACE: "\u00A0",
+	ENTER: "Enter",
+	ESCAPE: "Escape",
+	F2: "F2",
+} as const;
