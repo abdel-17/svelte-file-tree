@@ -130,16 +130,52 @@
 				break;
 			}
 			case keys.HOME: {
-				node.tree.roots[0]!.findElement().focus();
+				if (event.shiftKey && isModifierKey(event)) {
+					let current = node;
+					while (true) {
+						current.select();
+
+						const previous = current.previous;
+						if (previous === undefined) {
+							break;
+						}
+						current = previous;
+					}
+
+					if (current !== node) {
+						treeContext.clearSelectionOnNextFocusLeave = false;
+						current.findElement().focus();
+					}
+				} else {
+					node.tree.roots[0]!.findElement().focus();
+				}
 
 				break;
 			}
 			case keys.END: {
-				let last = node.tree.roots.at(-1)!;
-				while (last.expanded && last.children.length !== 0) {
-					last = last.children.at(-1)!;
+				if (event.shiftKey && isModifierKey(event)) {
+					let current = node;
+					while (true) {
+						current.select();
+
+						const next = current.next;
+						if (next === undefined) {
+							break;
+						}
+						current = next;
+					}
+
+					if (current !== node) {
+						treeContext.clearSelectionOnNextFocusLeave = false;
+						current.findElement().focus();
+					}
+				} else {
+					let last = node.tree.roots.at(-1)!;
+					while (last.expanded && last.children.length !== 0) {
+						last = last.children.at(-1)!;
+					}
+					last.findElement().focus();
 				}
-				last.findElement().focus();
 
 				break;
 			}
@@ -231,7 +267,6 @@
 				if (next === undefined) {
 					break;
 				}
-
 				current = next;
 			}
 
@@ -249,8 +284,8 @@
 	};
 
 	const handlePointerLeave: EventHandler<PointerEvent, HTMLDivElement> = () => {
-		// The pointerdown event may not be dispatched if the pointer
-		// is released outside the tree item.
+		// The pointerdown event may not have been dispatched if
+		// the pointer is released outside the tree item.
 		treeContext.clearSelectionOnNextFocusLeave = true;
 	};
 
