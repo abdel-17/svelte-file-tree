@@ -234,10 +234,33 @@ describe("Tree", () => {
 		});
 	});
 
+	test("Tree.size is correct", () => {
+		const sizes = Object.fromEntries(
+			Array.from(tree).map((item) => [item.id, item.size]),
+		);
+
+		expect(sizes).toEqual({
+			"1": 8,
+			"1.1": 4,
+			"1.1.1": 1,
+			"1.1.2": 1,
+			"1.1.3": 1,
+			"1.2": 3,
+			"1.2.1": 1,
+			"1.2.2": 1,
+			"2": 3,
+			"2.1": 1,
+			"2.2": 1,
+			"3": 1,
+		});
+
+		expect(tree.size).toBe(12);
+	});
+
 	test("Tree navigation is correct", () => {
-		tree.expandedIds.add("1");
-		tree.expandedIds.add("1.2");
-		tree.expandedIds.add("2");
+		tree.expandItem("1");
+		tree.expandItem("1.2");
+		tree.expandItem("2");
 		// 1
 		// -- 1.1
 		//   -- 1.1.1 (hidden)
@@ -252,7 +275,7 @@ describe("Tree", () => {
 		// 3
 
 		onTestFinished(() => {
-			tree.expandedIds.clear();
+			tree.collapseAll();
 		});
 
 		const nodes = Array.from(tree)

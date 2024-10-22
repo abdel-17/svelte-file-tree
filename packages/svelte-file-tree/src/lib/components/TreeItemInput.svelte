@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { composeEventHandlers } from "$lib/helpers/events.js";
-	import { keys } from "$lib/helpers/keys.js";
 	import { getContext, hasContext } from "svelte";
 	import type { EventHandler, HTMLInputAttributes } from "svelte/elements";
 	import { TreeItemContext } from "./context.svelte.js";
@@ -36,7 +35,7 @@
 		event,
 	) => {
 		switch (event.key) {
-			case keys.ENTER: {
+			case "Enter": {
 				commited = true;
 				if (value !== originalValue) {
 					onCommit?.(value);
@@ -45,7 +44,7 @@
 
 				break;
 			}
-			case keys.ESCAPE: {
+			case "Escape": {
 				itemContext.node.findElement().focus();
 
 				break;

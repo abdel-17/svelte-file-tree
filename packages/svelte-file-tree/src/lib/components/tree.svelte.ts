@@ -17,19 +17,12 @@ export class Tree<Value> {
 	readonly #props: TreeProps<Value>;
 	readonly #selectedIds: SvelteSet<string>;
 	readonly #expandedIds: SvelteSet<string>;
+	#invertSelection = $state(false);
 
 	constructor(props: TreeProps<Value>) {
 		this.#props = props;
 		this.#selectedIds = new SvelteSet(props.defaultSelected);
 		this.#expandedIds = new SvelteSet(props.defaultExpanded);
-	}
-
-	get selectedIds(): SvelteSet<string> {
-		return this.#selectedIds;
-	}
-
-	get expandedIds(): SvelteSet<string> {
-		return this.#expandedIds;
 	}
 
 	readonly id: string = $derived.by(() => {
@@ -43,6 +36,77 @@ export class Tree<Value> {
 	readonly roots: ReadonlyArray<TreeNode<Value>> = $derived.by(() =>
 		this.#props.items.map((item, i) => new TreeNode(this, item, i)),
 	);
+
+	readonly size: number = $derived.by(() => {
+		let size = 0;
+		for (const root of this.roots) {
+			size += root.size;
+		}
+		return size;
+	});
+
+	itemSelected(id: string): boolean {
+		const selected = this.#selectedIds.has(id);
+		if (this.#invertSelection) {
+			return !selected;
+		}
+		return selected;
+	}
+
+	allSelected(): boolean {
+		if (this.#invertSelection) {
+			return this.#selectedIds.size === 0;
+		}
+
+		// The size of the tree is greater than or equal to the number of roots.
+		// If the number of selected items is less than the number of roots,
+		// then surely not all items are selected. This is an optimization
+		// to avoid computing the tree's size, which can be expensive.
+		const selectedCount = this.#selectedIds.size;
+		return selectedCount >= this.roots.length && selectedCount === this.size;
+	}
+
+	selectItem(id: string): void {
+		if (this.#invertSelection) {
+			this.#selectedIds.delete(id);
+		} else {
+			this.#selectedIds.add(id);
+		}
+	}
+
+	deselectItem(id: string): void {
+		if (this.#invertSelection) {
+			this.#selectedIds.add(id);
+		} else {
+			this.#selectedIds.delete(id);
+		}
+	}
+
+	selectAll(): void {
+		this.#invertSelection = true;
+		this.#selectedIds.clear();
+	}
+
+	deselectAll(): void {
+		this.#invertSelection = false;
+		this.#selectedIds.clear();
+	}
+
+	itemExpanded(id: string): boolean {
+		return this.#expandedIds.has(id);
+	}
+
+	expandItem(id: string): void {
+		this.#expandedIds.add(id);
+	}
+
+	collapseItem(id: string): void {
+		this.#expandedIds.delete(id);
+	}
+
+	collapseAll(): void {
+		this.#expandedIds.clear();
+	}
 
 	findElement(): HTMLElement {
 		const element = document.getElementById(this.id);
@@ -120,11 +184,11 @@ export class TreeNode<Value> {
 	}
 
 	readonly selected: boolean = $derived.by(() =>
-		this.#tree.selectedIds.has(this.#id),
+		this.#tree.itemSelected(this.#id),
 	);
 
 	readonly expanded: boolean = $derived.by(() =>
-		this.#tree.expandedIds.has(this.#id),
+		this.#tree.itemExpanded(this.#id),
 	);
 
 	readonly visible: boolean = $derived.by(() => {
@@ -146,6 +210,14 @@ export class TreeNode<Value> {
 			return this.#tree.roots;
 		}
 		return this.#parent.children;
+	});
+
+	readonly size: number = $derived.by(() => {
+		let size = 1;
+		for (const child of this.#children) {
+			size += child.size;
+		}
+		return size;
 	});
 
 	readonly previous: TreeNode<Value> | undefined = $derived.by(() => {
@@ -183,11 +255,11 @@ export class TreeNode<Value> {
 	});
 
 	select(): void {
-		this.#tree.selectedIds.add(this.#id);
+		this.#tree.selectItem(this.#id);
 	}
 
 	deselect(): void {
-		this.#tree.selectedIds.delete(this.#id);
+		this.#tree.deselectItem(this.#id);
 	}
 
 	toggleSelection(): void {
@@ -199,11 +271,11 @@ export class TreeNode<Value> {
 	}
 
 	expand(): void {
-		this.#tree.expandedIds.add(this.#id);
+		this.#tree.expandItem(this.#id);
 	}
 
 	collapse(): void {
-		this.#tree.expandedIds.delete(this.#id);
+		this.#tree.collapseItem(this.#id);
 	}
 
 	toggleExpansion(): void {

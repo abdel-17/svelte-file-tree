@@ -1,6 +1,5 @@
 <script lang="ts" generics="Value">
 	import { composeEventHandlers } from "$lib/helpers/events.js";
-	import { keys } from "$lib/helpers/keys.js";
 	import { isModifierKey } from "$lib/helpers/platform.js";
 	import { getContext, hasContext, setContext, type Snippet } from "svelte";
 	import type { EventHandler, HTMLAttributes } from "svelte/elements";
@@ -77,7 +76,7 @@
 		}
 
 		switch (event.key) {
-			case keys.ARROW_RIGHT: {
+			case "ArrowRight": {
 				if (node.children.length === 0) {
 					break;
 				}
@@ -90,7 +89,7 @@
 
 				break;
 			}
-			case keys.ARROW_LEFT: {
+			case "ArrowLeft": {
 				if (node.expanded && node.children.length !== 0) {
 					node.collapse();
 				} else {
@@ -99,9 +98,9 @@
 
 				break;
 			}
-			case keys.ARROW_DOWN:
-			case keys.ARROW_UP: {
-				const down = event.key === keys.ARROW_DOWN;
+			case "ArrowDown":
+			case "ArrowUp": {
+				const down = event.key === "ArrowDown";
 				const next = down ? node.next : node.previous;
 				if (next === undefined) {
 					break;
@@ -129,7 +128,7 @@
 
 				break;
 			}
-			case keys.HOME: {
+			case "Home": {
 				if (event.shiftKey && isModifierKey(event)) {
 					let current = node;
 					while (true) {
@@ -152,7 +151,7 @@
 
 				break;
 			}
-			case keys.END: {
+			case "End": {
 				if (event.shiftKey && isModifierKey(event)) {
 					let current = node;
 					while (true) {
@@ -179,18 +178,14 @@
 
 				break;
 			}
-			case keys.SPACE:
-			case keys.NON_BREAKING_SPACE: {
-				// Option + Space inserts a non-breaking space. Since Option is the
-				// modifier key on macOS, we need to also handle non-breaking spaces to
-				// avoid forcing the user to release the Option key to toggle selection.
+			case " ": {
 				node.toggleSelection();
 
 				break;
 			}
-			case keys.PAGE_DOWN:
-			case keys.PAGE_UP: {
-				const down = event.key === keys.PAGE_DOWN;
+			case "PageDown":
+			case "PageUp": {
+				const down = event.key === "PageDown";
 				const next = down ? node.next : node.previous;
 				if (next === undefined) {
 					break;
@@ -224,9 +219,22 @@
 
 				break;
 			}
-			case keys.F2: {
+			case "F2": {
 				if (editable) {
 					editing = true;
+				}
+
+				break;
+			}
+			case "a": {
+				if (!isModifierKey(event)) {
+					break;
+				}
+
+				if (node.tree.allSelected()) {
+					node.tree.deselectAll();
+				} else {
+					node.tree.selectAll();
 				}
 
 				break;
@@ -272,7 +280,7 @@
 
 			treeContext.clearSelectionOnNextFocusLeave = false;
 		} else {
-			node.tree.selectedIds.clear();
+			node.tree.deselectAll();
 			node.select();
 		}
 	};
@@ -309,7 +317,7 @@
 		}
 
 		if (!event.currentTarget.matches(":focus-within")) {
-			node.tree.selectedIds.clear();
+			node.tree.deselectAll();
 		}
 	};
 </script>
