@@ -1,7 +1,13 @@
 <script lang="ts" generics="Value">
 	import { composeEventHandlers } from "$lib/helpers/events.js";
 	import { isModifierKey } from "$lib/helpers/platform.js";
-	import { getContext, hasContext, setContext, type Snippet } from "svelte";
+	import {
+		flushSync,
+		getContext,
+		hasContext,
+		setContext,
+		type Snippet,
+	} from "svelte";
 	import type { EventHandler, HTMLAttributes } from "svelte/elements";
 	import { TreeItemContext, TreeViewContext } from "./context.svelte.js";
 	import type { TreeNode } from "./tree.svelte.js";
@@ -238,6 +244,22 @@
 				}
 
 				break;
+			}
+			case "*": {
+				const element = node.findElement();
+				const rectBefore = element.getBoundingClientRect();
+
+				flushSync(() => {
+					for (const sibling of node.level) {
+						sibling.expand();
+					}
+				});
+
+				// When the sibling nodes are all expanded, the tree's height changes,
+				// causing a lot of layout shift. Preserve the position of the focused
+				// node relative to the viewport to avoid disorienting the user.
+				const rectAfter = element.getBoundingClientRect();
+				window.scrollBy(0, rectAfter.top - rectBefore.top);
 			}
 			default: {
 				return;
