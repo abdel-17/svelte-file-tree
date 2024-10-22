@@ -110,8 +110,7 @@
 				if (isModifierKey(event)) {
 					treeContext.clearSelectionOnNextFocusLeave = false;
 					treeContext.selectOnNextFocusEnter = false;
-				}
-				if (event.shiftKey) {
+				} else if (event.shiftKey) {
 					treeContext.clearSelectionOnNextFocusLeave = false;
 				}
 				nextElement.focus();
@@ -202,33 +201,21 @@
 		if (isModifierKey(event)) {
 			node.toggleSelection();
 			treeContext.clearSelectionOnNextFocusLeave = false;
-		}
-
-		if (event.shiftKey) {
-			let tabbableNodeId = treeContext.tabbableId!;
-			let tabbableElement = document.getElementById(
-				treeContext.tree.getTreeItemElementId(tabbableNodeId),
-			);
-
-			if (tabbableElement === null) {
-				// Maybe the element got removed for some reason, who knows.
-				// Handle this edge case just in case to avoid errors.
-				tabbableNodeId = node.id;
-				tabbableElement = event.currentTarget;
-			}
-
+		} else if (event.shiftKey) {
+			const tabbableId = treeContext.tabbableId!;
+			const tabbableElement = treeContext.tree.findTreeItemElement(tabbableId);
 			const tabbableRect = tabbableElement.getBoundingClientRect();
-			const tabbableBeforeCurrent = event.y > tabbableRect.top;
+			const down = tabbableRect.top > event.y;
 
 			let current = node;
 			while (true) {
 				current.select();
 
-				if (current.id === tabbableNodeId) {
+				if (current.id === tabbableId) {
 					break;
 				}
 
-				const next = tabbableBeforeCurrent ? current.previous : current.next;
+				const next = down ? current.next : current.previous;
 				if (next === undefined) {
 					break;
 				}
