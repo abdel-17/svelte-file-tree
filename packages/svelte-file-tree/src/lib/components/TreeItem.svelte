@@ -38,6 +38,7 @@
 		onkeydown,
 		onpointerdown,
 		onpointerup,
+		onpointerleave,
 		onfocusin,
 		onfocusout,
 		...props
@@ -105,8 +106,8 @@
 				if (next === undefined) {
 					break;
 				}
-
 				const nextElement = next.findElement();
+
 				if (isModifierKey(event)) {
 					treeContext.clearSelectionOnNextFocusLeave = false;
 					treeContext.selectOnNextFocusEnter = false;
@@ -247,6 +248,12 @@
 		treeContext.clearSelectionOnNextFocusLeave = true;
 	};
 
+	const handlePointerLeave: EventHandler<PointerEvent, HTMLDivElement> = () => {
+		// The pointerdown event may not be dispatched if the pointer
+		// is released outside the tree item.
+		treeContext.clearSelectionOnNextFocusLeave = true;
+	};
+
 	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = () => {
 		treeContext.tabbableId = node.id;
 
@@ -288,6 +295,7 @@
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
 	onpointerdown={composeEventHandlers(handlePointerDown, onpointerdown)}
 	onpointerup={composeEventHandlers(handlePointerUp, onpointerup)}
+	onpointerleave={composeEventHandlers(handlePointerLeave, onpointerleave)}
 	onfocusin={composeEventHandlers(handleFocusIn, onfocusin)}
 	onfocusout={composeEventHandlers(handleFocusOut, onfocusout)}
 >
