@@ -235,6 +235,9 @@
 			}
 
 			treeContext.clearSelectionOnNextFocusLeave = false;
+		} else {
+			node.tree.selectedIds.clear();
+			node.select();
 		}
 	};
 
