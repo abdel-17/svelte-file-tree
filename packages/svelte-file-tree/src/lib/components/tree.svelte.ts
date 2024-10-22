@@ -1,4 +1,3 @@
-import { findElementById } from "$lib/helpers/dom.js";
 import { SvelteSet } from "svelte/reactivity";
 
 export type TreeItem<Value> = {
@@ -46,7 +45,11 @@ export class Tree<Value> {
 	);
 
 	findElement(): HTMLElement {
-		return findElementById(this.id);
+		const element = document.getElementById(this.id);
+		if (element === null) {
+			throw new Error(`TreeView "${this.id}" not mounted in the DOM`);
+		}
+		return element;
 	}
 
 	getTreeItemElementId(id: string): string {
@@ -54,7 +57,11 @@ export class Tree<Value> {
 	}
 
 	findTreeItemElement(id: string): HTMLElement {
-		return findElementById(this.getTreeItemElementId(id));
+		const element = document.getElementById(this.getTreeItemElementId(id));
+		if (element === null) {
+			throw new Error(`TreeItem "${id}" not mounted in the DOM`);
+		}
+		return element;
 	}
 
 	*[Symbol.iterator](): Iterator<TreeNode<Value>> {
@@ -208,7 +215,7 @@ export class TreeNode<Value> {
 	}
 
 	findElement(): HTMLElement {
-		return findElementById(this.elementId);
+		return this.#tree.findTreeItemElement(this.#id);
 	}
 
 	*[Symbol.iterator](): Iterator<TreeNode<Value>> {

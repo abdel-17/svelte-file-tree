@@ -111,6 +111,17 @@
 					treeContext.clearSelectionOnNextFocusLeave = false;
 					treeContext.selectOnNextFocusEnter = false;
 				} else if (event.shiftKey) {
+					const previous = down ? node.previous : node.next;
+					if (
+						previous !== undefined &&
+						!previous.selected &&
+						node.selected &&
+						next.selected
+					) {
+						node.deselect();
+					} else {
+						node.select();
+					}
 					treeContext.clearSelectionOnNextFocusLeave = false;
 				}
 				nextElement.focus();
