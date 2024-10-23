@@ -1,4 +1,4 @@
-import { withEffectRoot } from "$test/with-effect-root.svelte.js";
+import { withEffectRoot } from "$lib/test/with-effect-root.svelte.js";
 import { describe, expect, test } from "vitest";
 import { Tree } from "./tree.svelte.js";
 
@@ -62,14 +62,15 @@ const items = [
 ] as const;
 
 describe("Tree", () => {
-	test("Tree traversal order", () => {
+	test("Tree.iter()", () => {
 		const tree = new Tree({ items });
-		const nodes = Array.from(tree).map((node) => {
-			return {
+		const nodes = tree
+			.iter()
+			.map((node) => ({
 				id: node.id,
 				value: node.value,
-			};
-		});
+			}))
+			.toArray();
 
 		// 1
 		// -- 1.1
@@ -135,10 +136,10 @@ describe("Tree", () => {
 		]);
 	});
 
-	test("Tree.parent", () => {
+	test("TreeNode.parent", () => {
 		const tree = new Tree({ items });
 		const parents = Object.fromEntries(
-			Array.from(tree).map((node) => [node.id, node.parent?.id]),
+			tree.iter().map((node) => [node.id, node.parent?.id]),
 		);
 
 		// 1
@@ -169,13 +170,12 @@ describe("Tree", () => {
 		});
 	});
 
-	test("Tree.children", () => {
+	test("TreeNode.children", () => {
 		const tree = new Tree({ items });
 		const children = Object.fromEntries(
-			Array.from(tree).map((node) => [
-				node.id,
-				node.children.map((child) => child.id),
-			]),
+			tree
+				.iter()
+				.map((node) => [node.id, node.children.map((child) => child.id)]),
 		);
 
 		// 1
@@ -206,13 +206,12 @@ describe("Tree", () => {
 		});
 	});
 
-	test("Tree.level", () => {
+	test("TreeNode.level", () => {
 		const tree = new Tree({ items });
 		const levels = Object.fromEntries(
-			Array.from(tree).map((node) => [
-				node.id,
-				node.level.map((sibling) => sibling.id),
-			]),
+			tree
+				.iter()
+				.map((node) => [node.id, node.level.map((sibling) => sibling.id)]),
 		);
 
 		// 1
@@ -243,10 +242,10 @@ describe("Tree", () => {
 		});
 	});
 
-	test("Tree.levelIndex", () => {
+	test("TreeNode.levelIndex", () => {
 		const tree = new Tree({ items });
 		const indices = Object.fromEntries(
-			Array.from(tree).map((node) => [node.id, node.levelIndex]),
+			tree.iter().map((node) => [node.id, node.levelIndex]),
 		);
 
 		// 1
@@ -277,10 +276,10 @@ describe("Tree", () => {
 		});
 	});
 
-	test("Tree.depth", () => {
+	test("TreeNode.depth", () => {
 		const tree = new Tree({ items });
 		const depths = Object.fromEntries(
-			Array.from(tree).map((node) => [node.id, node.depth]),
+			tree.iter().map((node) => [node.id, node.depth]),
 		);
 
 		// 1
@@ -311,10 +310,10 @@ describe("Tree", () => {
 		});
 	});
 
-	test("Tree.size", () => {
+	test("TreeNode.size", () => {
 		const tree = new Tree({ items });
 		const sizes = Object.fromEntries(
-			Array.from(tree).map((node) => [node.id, node.size]),
+			tree.iter().map((node) => [node.id, node.size]),
 		);
 
 		// 1
@@ -354,15 +353,14 @@ describe("Tree", () => {
 				items,
 				defaultSelected: ["1", "1.2", "2"],
 			});
-			const selected = $derived.by(() => {
-				const selected = new Set<string>();
-				for (const node of tree) {
-					if (node.selected) {
-						selected.add(node.id);
-					}
-				}
-				return selected;
-			});
+			const selected = $derived(
+				new Set(
+					tree
+						.iter()
+						.filter((node) => node.selected)
+						.map((node) => node.id),
+				),
+			);
 
 			const expected = new Set(["1", "1.2", "2"]);
 			expect(selected).toEqual(expected);
@@ -402,15 +400,14 @@ describe("Tree", () => {
 				defaultExpanded: ["1", "1.2", "2"],
 			});
 
-			const expanded = $derived.by(() => {
-				const expanded = new Set<string>();
-				for (const node of tree) {
-					if (node.expanded) {
-						expanded.add(node.id);
-					}
-				}
-				return expanded;
-			});
+			const expanded = $derived(
+				new Set(
+					tree
+						.iter()
+						.filter((node) => node.expanded)
+						.map((node) => node.id),
+				),
+			);
 
 			const expected = new Set(["1", "1.2", "2"]);
 			expect(expanded).toEqual(expected);
@@ -431,21 +428,19 @@ describe("Tree", () => {
 		}),
 	);
 
-	test("Tree navigation", () => {
+	test("TreeNode.previous/next", () => {
 		const tree = new Tree({
 			items,
 			defaultExpanded: ["1", "1.2", "2"],
 		});
-
-		const nodes = Array.from(tree)
-			.filter((node) => node.visible)
-			.map((node) => {
-				return {
-					id: node.id,
-					previous: node.previous?.id,
-					next: node.next?.id,
-				};
-			});
+		const nodes = tree
+			.iter()
+			.map((node) => ({
+				id: node.id,
+				previous: node.previous?.id,
+				next: node.next?.id,
+			}))
+			.toArray();
 
 		// 1
 		// -- 1.1
@@ -470,6 +465,23 @@ describe("Tree", () => {
 				previous: "1",
 				next: "1.2",
 			},
+			// <hidden>
+			{
+				id: "1.1.1",
+				previous: "1.1",
+				next: "1.1.2",
+			},
+			{
+				id: "1.1.2",
+				previous: "1.1.1",
+				next: "1.1.3",
+			},
+			{
+				id: "1.1.3",
+				previous: "1.1.2",
+				next: "1.2",
+			},
+			// </hidden>
 			{
 				id: "1.2",
 				previous: "1.1",

@@ -21,11 +21,11 @@
 		"prettier": "^3.3.3",
 		"prettier-plugin-svelte": "^3.2.7",
 		"prettier-plugin-tailwindcss": "^0.6.8",
-		"svelte": "5.0.2",
+		"svelte": "5.0.5",
 		"svelte-check": "^4.0.5",
 		"svelte-file-tree": "workspace:^",
 		"tailwindcss": "4.0.0-alpha.26",
 		"typescript": "^5.6.3",
-		"vite": "^5.4.9"
+		"vite": "^5.4.10"
 	}
 }

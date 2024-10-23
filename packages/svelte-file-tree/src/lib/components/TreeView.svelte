@@ -1,6 +1,7 @@
 <script lang="ts" generics="Value">
 	import { setContext, type Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
+	import TreeList from "./TreeList.svelte";
 	import { TreeViewContext } from "./context.svelte.js";
 	import type { Tree, TreeNode } from "./tree.svelte.js";
 
@@ -29,7 +30,5 @@
 	aria-multiselectable="true"
 	data-tree-view=""
 >
-	{#each tree as node (node.id)}
-		{@render item(node)}
-	{/each}
+	<TreeList nodes={tree.roots} {item} />
 </div>

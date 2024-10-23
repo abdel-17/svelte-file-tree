@@ -14,8 +14,8 @@
 			{node}
 			editable
 			data-leaf={node.children.length === 0 ? "" : undefined}
-			style="--depth: {node.depth}"
-			class="group ms-[calc(var(--spacing-4)*var(--depth))] flex gap-2 p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 aria-selected:bg-blue-100 aria-selected:text-blue-900"
+			style="--indent: {node.depth + 1}"
+			class="group flex gap-2 ps-[calc(var(--indent)*var(--spacing-4))] pe-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current aria-selected:bg-blue-100 aria-selected:text-blue-800"
 		>
 			{#snippet children({ editing })}
 				<button
@@ -27,6 +27,7 @@
 					<ChevronDown role="presentation" />
 					<span class="sr-only">Toggle expansion</span>
 				</button>
+
 				{#if editing}
 					<TreeItemInput
 						bind:value={node.value}

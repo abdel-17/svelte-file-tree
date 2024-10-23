@@ -128,10 +128,14 @@ export class Tree<Value> {
 		return element;
 	}
 
-	*[Symbol.iterator](): Iterator<TreeNode<Value>> {
+	*iter(): Generator<TreeNode<Value>> {
 		for (const root of this.roots) {
-			yield* root;
+			yield* root.iter();
 		}
+	}
+
+	[Symbol.iterator](): Generator<TreeNode<Value>> {
+		return this.iter();
 	}
 }
 
@@ -190,13 +194,6 @@ export class TreeNode<Value> {
 	readonly expanded: boolean = $derived.by(() =>
 		this.#tree.itemExpanded(this.#id),
 	);
-
-	readonly visible: boolean = $derived.by(() => {
-		if (this.#parent === undefined) {
-			return true;
-		}
-		return this.#parent.expanded && this.#parent.visible;
-	});
 
 	readonly depth: number = $derived.by(() => {
 		if (this.#parent === undefined) {
@@ -290,10 +287,14 @@ export class TreeNode<Value> {
 		return this.#tree.findTreeItemElement(this.#id);
 	}
 
-	*[Symbol.iterator](): Iterator<TreeNode<Value>> {
+	*iter(): Generator<TreeNode<Value>> {
 		yield this;
 		for (const child of this.#children) {
-			yield* child;
+			yield* child.iter();
 		}
+	}
+
+	[Symbol.iterator](): Generator<TreeNode<Value>> {
+		return this.iter();
 	}
 }

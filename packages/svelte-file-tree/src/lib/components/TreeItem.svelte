@@ -354,7 +354,6 @@
 	aria-setsize={node.level.length}
 	aria-expanded={node.children.length !== 0 ? node.expanded : undefined}
 	aria-selected={node.selected}
-	hidden={!node.visible ? true : undefined}
 	tabindex={node.id === treeContext.tabbableId ? 0 : -1}
 	data-tree-item=""
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
@@ -366,9 +365,3 @@
 >
 	{@render children({ editing })}
 </div>
-
-<style>
-	[hidden] {
-		display: none;
-	}
-</style>
