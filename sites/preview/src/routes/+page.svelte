@@ -19,13 +19,12 @@
 		>
 			{#snippet children({ editing })}
 				<button
-					aria-expanded={node.expanded}
+					aria-hidden="true"
 					tabindex={-1}
 					onclick={() => node.toggleExpansion()}
 					class="transition-transform duration-300 group-aria-expanded:rotate-180 group-data-leaf:invisible"
 				>
-					<ChevronDown role="presentation" />
-					<span class="sr-only">Toggle expansion</span>
+					<ChevronDown />
 				</button>
 
 				{#if editing}
