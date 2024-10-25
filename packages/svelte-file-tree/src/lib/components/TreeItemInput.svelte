@@ -31,22 +31,21 @@
 	const originalValue = value;
 	let commited = false;
 
-	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (
-		event,
-	) => {
+	type WithCurrentTarget<Event> = Event & { currentTarget: HTMLInputElement };
+
+	function handleKeyDown(event: WithCurrentTarget<KeyboardEvent>) {
 		switch (event.key) {
 			case "Enter": {
 				commited = true;
+				itemContext.node.findElement().focus();
+
 				if (value !== originalValue) {
 					onCommit?.(value);
 				}
-				itemContext.node.findElement().focus();
-
 				break;
 			}
 			case "Escape": {
 				itemContext.node.findElement().focus();
-
 				break;
 			}
 			default: {
@@ -55,14 +54,14 @@
 		}
 
 		event.preventDefault();
-	};
+	}
 
 	// If we use the blur event to exit editing mode, the input gets unmounted
 	// before the focusout event is dispatched, which the tree item relies on
 	// to manage selection state.
-	const handleFocusOut: EventHandler<FocusEvent, HTMLInputElement> = () => {
+	function handleFocusOut() {
 		itemContext.editing = false;
-	};
+	}
 
 	function init(input: HTMLInputElement) {
 		input.focus();

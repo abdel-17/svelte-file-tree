@@ -15,23 +15,19 @@ export type TreeProps<Value> = {
 
 export class Tree<Value> {
 	readonly #props: TreeProps<Value>;
-	readonly #selectedIds: SvelteSet<string>;
-	readonly #expandedIds: SvelteSet<string>;
-	#invertSelection = $state(false);
+	readonly #selected: SvelteSet<string>;
+	readonly #expanded: SvelteSet<string>;
+	#selectionInverted: boolean = $state(false);
 
 	constructor(props: TreeProps<Value>) {
 		this.#props = props;
-		this.#selectedIds = new SvelteSet(props.defaultSelected);
-		this.#expandedIds = new SvelteSet(props.defaultExpanded);
+		this.#selected = new SvelteSet(props.defaultSelected);
+		this.#expanded = new SvelteSet(props.defaultExpanded);
 	}
 
-	readonly id: string = $derived.by(() => {
-		const id = this.#props.id;
-		if (id === undefined) {
-			return crypto.randomUUID();
-		}
-		return id;
-	});
+	readonly id: string = $derived.by(
+		() => this.#props.id ?? crypto.randomUUID(),
+	);
 
 	readonly roots: ReadonlyArray<TreeNode<Value>> = $derived.by(() =>
 		this.#props.items.map((item, i) => new TreeNode(this, item, i)),
@@ -45,87 +41,10 @@ export class Tree<Value> {
 		return size;
 	});
 
-	itemSelected(id: string): boolean {
-		const selected = this.#selectedIds.has(id);
-		if (this.#invertSelection) {
-			return !selected;
+	*all(): Generator<TreeNode<Value>> {
+		for (const root of this.roots) {
+			yield* root.all();
 		}
-		return selected;
-	}
-
-	allSelected(): boolean {
-		if (this.#invertSelection) {
-			return this.#selectedIds.size === 0;
-		}
-
-		// The size of the tree is greater than or equal to the number of roots.
-		// If the number of selected items is less than the number of roots,
-		// then surely not all items are selected. This is an optimization
-		// to avoid computing the tree's size, which can be expensive.
-		const selectedCount = this.#selectedIds.size;
-		return selectedCount >= this.roots.length && selectedCount === this.size;
-	}
-
-	selectItem(id: string): void {
-		if (this.#invertSelection) {
-			this.#selectedIds.delete(id);
-		} else {
-			this.#selectedIds.add(id);
-		}
-	}
-
-	deselectItem(id: string): void {
-		if (this.#invertSelection) {
-			this.#selectedIds.add(id);
-		} else {
-			this.#selectedIds.delete(id);
-		}
-	}
-
-	selectAll(): void {
-		this.#invertSelection = true;
-		this.#selectedIds.clear();
-	}
-
-	deselectAll(): void {
-		this.#invertSelection = false;
-		this.#selectedIds.clear();
-	}
-
-	itemExpanded(id: string): boolean {
-		return this.#expandedIds.has(id);
-	}
-
-	expandItem(id: string): void {
-		this.#expandedIds.add(id);
-	}
-
-	collapseItem(id: string): void {
-		this.#expandedIds.delete(id);
-	}
-
-	collapseAll(): void {
-		this.#expandedIds.clear();
-	}
-
-	findElement(): HTMLElement {
-		const element = document.getElementById(this.id);
-		if (element === null) {
-			throw new Error(`TreeView "${this.id}" not mounted in the DOM`);
-		}
-		return element;
-	}
-
-	getTreeItemElementId(id: string): string {
-		return this.id + ":" + id;
-	}
-
-	findTreeItemElement(id: string): HTMLElement {
-		const element = document.getElementById(this.getTreeItemElementId(id));
-		if (element === null) {
-			throw new Error(`TreeItem "${id}" not mounted in the DOM`);
-		}
-		return element;
 	}
 
 	*iter(): Generator<TreeNode<Value>> {
@@ -134,33 +53,147 @@ export class Tree<Value> {
 		}
 	}
 
+	*reversed(): Generator<TreeNode<Value>> {
+		for (let i = this.roots.length - 1; i >= 0; i--) {
+			const root = this.roots[i]!;
+			yield* root.reversed();
+		}
+	}
+
 	[Symbol.iterator](): Generator<TreeNode<Value>> {
 		return this.iter();
+	}
+
+	itemSelected(id: string): boolean {
+		const selected = this.#selected.has(id);
+		if (this.#selectionInverted) {
+			return !selected;
+		}
+		return selected;
+	}
+
+	allSelected(): boolean {
+		const selectedCount = this.#selected.size;
+		if (this.#selectionInverted) {
+			return selectedCount === 0;
+		}
+
+		// The size of the tree is greater than or equal to the number of roots.
+		// If the number of selected items is less than the number of roots,
+		// then surely not all items are selected. This is an optimization
+		// to avoid computing the tree's size, which can be expensive.
+		if (selectedCount < this.roots.length) {
+			return false;
+		}
+
+		return selectedCount === this.size;
+	}
+
+	selectItem(id: string): void {
+		if (this.#selectionInverted) {
+			this.#selected.delete(id);
+		} else {
+			this.#selected.add(id);
+		}
+	}
+
+	deselectItem(id: string): void {
+		if (this.#selectionInverted) {
+			this.#selected.add(id);
+		} else {
+			this.#selected.delete(id);
+		}
+	}
+
+	selectAll(): void {
+		this.#selectionInverted = true;
+		this.#selected.clear();
+	}
+
+	deselectAll(): void {
+		this.#selectionInverted = false;
+		this.#selected.clear();
+	}
+
+	itemExpanded(id: string): boolean {
+		return this.#expanded.has(id);
+	}
+
+	expandItem(id: string): void {
+		this.#expanded.add(id);
+	}
+
+	collapseItem(id: string): void {
+		this.#expanded.delete(id);
+	}
+
+	collapseAll(): void {
+		this.#expanded.clear();
+	}
+
+	findElement(): HTMLElement {
+		const element = document.getElementById(this.id);
+		if (element === null) {
+			throw new Error("TreeView element not found");
+		}
+		return element;
+	}
+
+	first(): TreeNode<Value> | null {
+		if (this.roots.length === 0) {
+			return null;
+		}
+		return this.roots[0]!;
+	}
+
+	last(): TreeNode<Value> | null {
+		if (this.roots.length === 0) {
+			return null;
+		}
+
+		let last = this.roots.at(-1)!;
+		while (last.expanded && last.children.length !== 0) {
+			last = last.children.at(-1)!;
+		}
+		return last;
+	}
+
+	treeItemElementId(nodeId: string): string {
+		return this.id + ":" + nodeId;
+	}
+
+	findTreeItemElement(nodeId: string): HTMLElement {
+		const elementId = this.treeItemElementId(nodeId);
+		const element = document.getElementById(elementId);
+		if (element === null) {
+			throw new Error("TreeItem element not found");
+		}
+		return element;
 	}
 }
 
 export class TreeNode<Value> {
 	readonly #tree: Tree<Value>;
 	readonly #id: string;
-	#levelIndex: number = $state()!;
-	#parent: TreeNode<Value> | undefined = $state();
-	#children: Array<TreeNode<Value>> = $state()!;
 	value: Value = $state()!;
+	#levelIndex: number = $state()!;
+	#parent: TreeNode<Value> | null = $state()!;
+	#children: Array<TreeNode<Value>> = $state()!;
 
 	constructor(
 		tree: Tree<Value>,
 		item: TreeItem<Value>,
 		levelIndex: number,
-		parent?: TreeNode<Value>,
+		parent: TreeNode<Value> | null = null,
 	) {
 		this.#tree = tree;
 		this.#id = item.id;
+		this.value = item.value;
 		this.#levelIndex = levelIndex;
 		this.#parent = parent;
 		this.#children =
 			item.children?.map((child, i) => new TreeNode(tree, child, i, this)) ??
 			[];
-		this.value = item.value;
 	}
 
 	get tree(): Tree<Value> {
@@ -175,16 +208,12 @@ export class TreeNode<Value> {
 		return this.#levelIndex;
 	}
 
-	get parent(): TreeNode<Value> | undefined {
+	get parent(): TreeNode<Value> | null {
 		return this.#parent;
 	}
 
 	get children(): ReadonlyArray<TreeNode<Value>> {
 		return this.#children;
-	}
-
-	get elementId(): string {
-		return this.#tree.getTreeItemElementId(this.#id);
 	}
 
 	readonly selected: boolean = $derived.by(() =>
@@ -196,17 +225,10 @@ export class TreeNode<Value> {
 	);
 
 	readonly depth: number = $derived.by(() => {
-		if (this.#parent === undefined) {
+		if (this.#parent === null) {
 			return 0;
 		}
 		return this.#parent.depth + 1;
-	});
-
-	readonly level: ReadonlyArray<TreeNode<Value>> = $derived.by(() => {
-		if (this.#parent === undefined) {
-			return this.#tree.roots;
-		}
-		return this.#parent.children;
 	});
 
 	readonly size: number = $derived.by(() => {
@@ -217,39 +239,35 @@ export class TreeNode<Value> {
 		return size;
 	});
 
-	readonly previous: TreeNode<Value> | undefined = $derived.by(() => {
-		const previousSibling = this.level[this.#levelIndex - 1];
-		if (previousSibling === undefined) {
-			return this.#parent;
+	*all(): Generator<TreeNode<Value>> {
+		yield this;
+		for (const child of this.#children) {
+			yield* child.all();
 		}
+	}
 
-		let current = previousSibling;
-		while (current.expanded && current.children.length !== 0) {
-			// Navigate to the last child until a leaf node is found.
-			current = current.children.at(-1)!;
-		}
-		return current;
-	});
-
-	readonly next: TreeNode<Value> | undefined = $derived.by(() => {
-		if (this.expanded && this.#children.length !== 0) {
-			return this.#children[0]!;
-		}
-
-		let current: TreeNode<Value> = this;
-		while (true) {
-			const nextSibling = current.level[current.#levelIndex + 1];
-			if (nextSibling !== undefined) {
-				return nextSibling;
+	*iter(): Generator<TreeNode<Value>> {
+		yield this;
+		if (this.expanded) {
+			for (const child of this.#children) {
+				yield* child.iter();
 			}
-
-			// Navigate up until a next sibling is found.
-			if (current.#parent === undefined) {
-				return;
-			}
-			current = current.#parent;
 		}
-	});
+	}
+
+	*reversed(): Generator<TreeNode<Value>> {
+		if (this.expanded) {
+			for (let i = this.#children.length - 1; i >= 0; i--) {
+				const child = this.#children[i]!;
+				yield* child.reversed();
+			}
+		}
+		yield this;
+	}
+
+	[Symbol.iterator](): Generator<TreeNode<Value>> {
+		return this.iter();
+	}
 
 	select(): void {
 		this.#tree.selectItem(this.#id);
@@ -283,18 +301,68 @@ export class TreeNode<Value> {
 		}
 	}
 
-	findElement(): HTMLElement {
-		return this.#tree.findTreeItemElement(this.#id);
+	level(): ReadonlyArray<TreeNode<Value>> {
+		if (this.#parent === null) {
+			return this.#tree.roots;
+		}
+		return this.#parent.children;
 	}
 
-	*iter(): Generator<TreeNode<Value>> {
-		yield this;
-		for (const child of this.#children) {
-			yield* child.iter();
+	previousSibling(): TreeNode<Value> | null {
+		if (this.#levelIndex === 0) {
+			return null;
+		}
+		const level = this.level();
+		return level[this.#levelIndex - 1]!;
+	}
+
+	nextSibling(): TreeNode<Value> | null {
+		const level = this.level();
+		if (this.#levelIndex === level.length - 1) {
+			return null;
+		}
+		return level[this.#levelIndex + 1]!;
+	}
+
+	previous(): TreeNode<Value> | null {
+		const previousSibling = this.previousSibling();
+		if (previousSibling === null) {
+			return this.#parent;
+		}
+
+		let current = previousSibling;
+		while (current.expanded && current.children.length !== 0) {
+			// Navigate to the last child until a leaf node is found.
+			current = current.children.at(-1)!;
+		}
+		return current;
+	}
+
+	next(): TreeNode<Value> | null {
+		if (this.expanded && this.#children.length !== 0) {
+			return this.#children[0]!;
+		}
+
+		let current: TreeNode<Value> = this;
+		while (true) {
+			const nextSibling = current.nextSibling();
+			if (nextSibling !== null) {
+				return nextSibling;
+			}
+
+			// Navigate up until a next sibling is found.
+			if (current.#parent === null) {
+				return null;
+			}
+			current = current.#parent;
 		}
 	}
 
-	[Symbol.iterator](): Generator<TreeNode<Value>> {
-		return this.iter();
+	elementId(): string {
+		return this.#tree.treeItemElementId(this.#id);
+	}
+
+	findElement(): HTMLElement {
+		return this.#tree.findTreeItemElement(this.#id);
 	}
 }
