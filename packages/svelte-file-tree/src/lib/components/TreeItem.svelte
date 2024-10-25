@@ -8,7 +8,7 @@
 		setContext,
 		type Snippet,
 	} from "svelte";
-	import type { EventHandler, HTMLAttributes } from "svelte/elements";
+	import type { HTMLAttributes } from "svelte/elements";
 	import { TreeItemContext, TreeViewContext } from "./context.svelte.js";
 	import type { TreeNode } from "./tree.svelte.js";
 
@@ -42,10 +42,8 @@
 		ref = $bindable(null),
 		onkeydown,
 		onpointerdown,
-		onpointerup,
-		onpointerleave,
+		onclick,
 		onfocusin,
-		onfocusout,
 		...props
 	}: Props = $props();
 
@@ -109,33 +107,13 @@
 				if (next === null) {
 					break;
 				}
-				const nextElement = next.findElement();
 
-				if (isModifierKey(event)) {
-					treeContext.clearSelectionOnNextFocusLeave = false;
-					treeContext.selectOnNextFocusEnter = false;
-					nextElement.focus();
-					break;
-				}
-
-				if (!event.shiftKey) {
-					break;
-				}
-
-				const previous = down ? node.previous() : node.next();
-				if (
-					previous !== null &&
-					!previous.selected &&
-					node.selected &&
-					next.selected
-				) {
-					node.deselect();
-				} else {
+				if (event.shiftKey) {
 					node.select();
+					next.select();
 				}
 
-				treeContext.clearSelectionOnNextFocusLeave = false;
-				nextElement.focus();
+				next.findElement().focus();
 				break;
 			}
 			case "PageDown":
@@ -179,19 +157,18 @@
 					break;
 				}
 
-				let first!: TreeNode<Value>;
+				let first = true;
 				for (const current of node.tree) {
-					first ??= current;
+					if (first) {
+						current.findElement().focus();
+						first = false;
+					}
+
 					current.select();
 
 					if (current === node) {
 						break;
 					}
-				}
-
-				if (node !== first) {
-					treeContext.clearSelectionOnNextFocusLeave = false;
-					first.findElement().focus();
 				}
 				break;
 			}
@@ -201,19 +178,18 @@
 					return;
 				}
 
-				let last!: TreeNode<Value>;
+				let last = true;
 				for (const current of node.tree.reversed()) {
-					last ??= current;
+					if (last) {
+						current.findElement().focus();
+						last = false;
+					}
+
 					current.select();
 
 					if (current === node) {
 						break;
 					}
-				}
-
-				if (node !== last) {
-					treeContext.clearSelectionOnNextFocusLeave = false;
-					last.findElement().focus();
 				}
 				break;
 			}
@@ -233,7 +209,7 @@
 				}
 
 				if (node.tree.allSelected()) {
-					node.tree.deselectAll();
+					node.tree.unselectAll();
 				} else {
 					node.tree.selectAll();
 				}
@@ -264,33 +240,50 @@
 		event.preventDefault();
 	}
 
+	let multiSelectTargetId: string | undefined;
+
 	function handlePointerDown(event: WithCurrentTarget<PointerEvent>) {
+		if (event.button === 0 && event.shiftKey) {
+			// We can't use `tabbableId` directly in the click handler
+			// because the focus event gets triggered first, causing
+			// this to be the tabbable element.
+			multiSelectTargetId = treeContext.tabbableId;
+		}
+	}
+
+	function handleClick(event: WithCurrentTarget<MouseEvent>) {
 		if (event.button !== 0) {
 			return;
 		}
 
 		if (isModifierKey(event)) {
 			node.toggleSelection();
-			treeContext.clearSelectionOnNextFocusLeave = false;
 			return;
 		}
 
 		if (!event.shiftKey) {
-			node.tree.deselectAll();
+			node.tree.unselectAll();
 			node.select();
 			return;
 		}
 
-		const tabbableId = treeContext.tabbableId!;
-		const tabbableElement = treeContext.tree.findTreeItemElement(tabbableId);
-		const tabbableRect = tabbableElement.getBoundingClientRect();
-		const down = tabbableRect.top > event.y;
+		const multiSelectElementId = treeContext.tree.treeItemElementId(
+			multiSelectTargetId!,
+		);
+		const multiSelectElement = document.getElementById(multiSelectElementId);
+
+		if (multiSelectElement === null) {
+			return;
+		}
+
+		const multiSelectElementRect = multiSelectElement.getBoundingClientRect();
+		const down = multiSelectElementRect.top > event.y;
 
 		let current = node;
 		while (true) {
 			current.select();
 
-			if (current.id === tabbableId) {
+			if (current.id === multiSelectTargetId) {
 				break;
 			}
 
@@ -300,44 +293,10 @@
 			}
 			current = next;
 		}
-
-		treeContext.clearSelectionOnNextFocusLeave = false;
-	}
-
-	function handlePointerUp() {
-		// If the pointerdown event did not cause another tree item to lose focus,
-		// reset the "clear selection" behavior back to the default.
-		treeContext.clearSelectionOnNextFocusLeave = true;
-	}
-
-	function handlePointerLeave() {
-		// The pointerup event may not have been dispatched if
-		// the pointer was released outside of the tree item.
-		treeContext.clearSelectionOnNextFocusLeave = true;
 	}
 
 	function handleFocusIn() {
 		treeContext.tabbableId = node.id;
-
-		if (!treeContext.selectOnNextFocusEnter) {
-			// Reset for the next event.
-			treeContext.selectOnNextFocusEnter = true;
-			return;
-		}
-
-		node.select();
-	}
-
-	function handleFocusOut(event: WithCurrentTarget<FocusEvent>) {
-		if (!treeContext.clearSelectionOnNextFocusLeave) {
-			// Reset for the next event.
-			treeContext.clearSelectionOnNextFocusLeave = true;
-			return;
-		}
-
-		if (!event.currentTarget.matches(":focus-within")) {
-			node.tree.deselectAll();
-		}
 	}
 </script>
 
@@ -355,10 +314,8 @@
 	data-tree-item=""
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
 	onpointerdown={composeEventHandlers(handlePointerDown, onpointerdown)}
-	onpointerup={composeEventHandlers(handlePointerUp, onpointerup)}
-	onpointerleave={composeEventHandlers(handlePointerLeave, onpointerleave)}
+	onclick={composeEventHandlers(handleClick, onclick)}
 	onfocusin={composeEventHandlers(handleFocusIn, onfocusin)}
-	onfocusout={composeEventHandlers(handleFocusOut, onfocusout)}
 >
 	{@render children({ editing })}
 </div>

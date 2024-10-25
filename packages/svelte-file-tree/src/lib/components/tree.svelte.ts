@@ -97,7 +97,7 @@ export class Tree<Value> {
 		}
 	}
 
-	deselectItem(id: string): void {
+	unselectItem(id: string): void {
 		if (this.#selectionInverted) {
 			this.#selected.add(id);
 		} else {
@@ -110,7 +110,7 @@ export class Tree<Value> {
 		this.#selected.clear();
 	}
 
-	deselectAll(): void {
+	unselectAll(): void {
 		this.#selectionInverted = false;
 		this.#selected.clear();
 	}
@@ -131,14 +131,6 @@ export class Tree<Value> {
 		this.#expanded.clear();
 	}
 
-	findElement(): HTMLElement {
-		const element = document.getElementById(this.id);
-		if (element === null) {
-			throw new Error("TreeView element not found");
-		}
-		return element;
-	}
-
 	first(): TreeNode<Value> | null {
 		if (this.roots.length === 0) {
 			return null;
@@ -156,6 +148,14 @@ export class Tree<Value> {
 			last = last.children.at(-1)!;
 		}
 		return last;
+	}
+
+	findElement(): HTMLElement {
+		const element = document.getElementById(this.id);
+		if (element === null) {
+			throw new Error("TreeView element not found");
+		}
+		return element;
 	}
 
 	treeItemElementId(nodeId: string): string {
@@ -273,13 +273,13 @@ export class TreeNode<Value> {
 		this.#tree.selectItem(this.#id);
 	}
 
-	deselect(): void {
-		this.#tree.deselectItem(this.#id);
+	unselect(): void {
+		this.#tree.unselectItem(this.#id);
 	}
 
 	toggleSelection(): void {
 		if (this.selected) {
-			this.deselect();
+			this.unselect();
 		} else {
 			this.select();
 		}

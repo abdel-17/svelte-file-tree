@@ -364,7 +364,7 @@ describe("Tree", () => {
 			expect(tree.itemSelected("1.1")).toBe(true);
 			expect(selected).toEqual(expected);
 
-			tree.deselectItem("1");
+			tree.unselectItem("1");
 			expected.delete("1");
 			expect(tree.itemSelected("1")).toBe(false);
 			expect(selected).toEqual(expected);
@@ -375,12 +375,12 @@ describe("Tree", () => {
 			}
 			expect(selected).toEqual(expected);
 
-			tree.deselectItem("1.2");
+			tree.unselectItem("1.2");
 			expected.delete("1.2");
 			expect(tree.itemSelected("1.2")).toBe(false);
 			expect(selected).toEqual(expected);
 
-			tree.deselectAll();
+			tree.unselectAll();
 			expected.clear();
 			expect(selected).toEqual(expected);
 		}),

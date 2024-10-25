@@ -6,42 +6,62 @@
 	const tree = new Tree({
 		items: data,
 	});
+
+	const allSelected = $derived(tree.allSelected());
+
+	function toggleAllSelected() {
+		if (allSelected) {
+			tree.unselectAll();
+		} else {
+			tree.selectAll();
+		}
+	}
 </script>
 
-<TreeView {tree} class="m-8 border">
-	{#snippet item(node)}
-		<TreeItem
-			{node}
-			editable
-			data-leaf={node.children.length === 0 ? "" : undefined}
-			style="--indent: {node.depth + 1}"
-			class="group flex gap-2 ps-[calc(var(--indent)*var(--spacing-4))] pe-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current aria-selected:bg-blue-100 aria-selected:text-blue-800"
+<main class="p-8">
+	<div class="flex justify-end">
+		<button
+			onclick={toggleAllSelected}
+			class="rounded-md border-2 py-1.5 px-4 hover:bg-current/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-current/12"
 		>
-			{#snippet children({ editing })}
-				<button
-					aria-hidden="true"
-					tabindex={-1}
-					onclick={() => node.toggleExpansion()}
-					class="transition-transform duration-300 group-aria-expanded:rotate-180 group-data-leaf:invisible"
-				>
-					<ChevronDown />
-				</button>
+			{allSelected ? "Unselect All" : "Select All"}
+		</button>
+	</div>
+	<TreeView {tree} class="mt-4 rounded border">
+		{#snippet item(node)}
+			<TreeItem
+				{node}
+				editable
+				data-leaf={node.children.length === 0 ? "" : undefined}
+				style="--indent: calc({node.depth + 1} * var(--spacing-4));"
+				class="group flex gap-2 ps-[var(--indent)] pe-4 py-2 hover:bg-current/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current active:bg-current/12 aria-selected:bg-blue-100 aria-selected:text-blue-800"
+			>
+				{#snippet children({ editing })}
+					<button
+						aria-hidden="true"
+						tabindex={-1}
+						onclick={() => node.toggleExpansion()}
+						class="transition-transform duration-300 group-aria-expanded:rotate-180 group-data-leaf:invisible"
+					>
+						<ChevronDown />
+					</button>
 
-				{#if editing}
-					<TreeItemInput
-						bind:value={node.value}
-						onCommit={(value: string) => {
-							console.log("onCommit:", value);
-						}}
-						onRollback={(value: string) => {
-							console.log("onRollback:", value);
-						}}
-						class="bg-white focus:outline-none"
-					/>
-				{:else}
-					<span>{node.value}</span>
-				{/if}
-			{/snippet}
-		</TreeItem>
-	{/snippet}
-</TreeView>
+					{#if editing}
+						<TreeItemInput
+							bind:value={node.value}
+							onCommit={(value: string) => {
+								console.log("onCommit:", value);
+							}}
+							onRollback={(value: string) => {
+								console.log("onRollback:", value);
+							}}
+							class="bg-white focus:outline-none"
+						/>
+					{:else}
+						<span class="select-none">{node.value}</span>
+					{/if}
+				{/snippet}
+			</TreeItem>
+		{/snippet}
+	</TreeView>
+</main>

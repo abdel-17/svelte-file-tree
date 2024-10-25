@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { composeEventHandlers } from "$lib/helpers/events.js";
 	import { getContext, hasContext } from "svelte";
-	import type { EventHandler, HTMLInputAttributes } from "svelte/elements";
+	import type { HTMLInputAttributes } from "svelte/elements";
 	import { TreeItemContext } from "./context.svelte.js";
 
 	interface Props extends HTMLInputAttributes {
