@@ -5,14 +5,14 @@
 
 	type Props = {
 		nodes: ReadonlyArray<TreeNode<Value>>;
-		item: Snippet<[TreeNode<Value>]>;
+		item: Snippet<[{ node: TreeNode<Value>; levelIndex: number }]>;
 	};
 
 	const { nodes, item }: Props = $props();
 </script>
 
-{#each nodes as node (node.id)}
-	{@render item(node)}
+{#each nodes as node, levelIndex (node.id)}
+	{@render item({ node, levelIndex })}
 
 	{#if node.expanded && node.children.length !== 0}
 		<TreeList nodes={node.children} {item} />

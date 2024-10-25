@@ -6,41 +6,26 @@
 	const tree = new Tree({
 		items: data,
 	});
-
-	const allSelected = $derived(tree.allSelected());
-
-	function toggleAllSelected() {
-		if (allSelected) {
-			tree.unselectAll();
-		} else {
-			tree.selectAll();
-		}
-	}
 </script>
 
 <main class="p-8">
-	<div class="flex justify-end">
-		<button
-			onclick={toggleAllSelected}
-			class="rounded-md border-2 py-1.5 px-4 hover:bg-current/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-current/12"
-		>
-			{allSelected ? "Unselect All" : "Select All"}
-		</button>
-	</div>
-	<TreeView {tree} class="mt-4 rounded border">
-		{#snippet item(node)}
+	<TreeView {tree} class="rounded border">
+		{#snippet item({ node, levelIndex })}
 			<TreeItem
 				{node}
+				{levelIndex}
 				editable
 				data-leaf={node.children.length === 0 ? "" : undefined}
-				style="--indent: calc({node.depth + 1} * var(--spacing-4));"
+				style="--indent: calc({node.depth + 1} * var(--spacing-4))"
 				class="group flex gap-2 ps-[var(--indent)] pe-4 py-2 hover:bg-current/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current active:bg-current/12 aria-selected:bg-blue-100 aria-selected:text-blue-800"
 			>
 				{#snippet children({ editing })}
 					<button
 						aria-hidden="true"
 						tabindex={-1}
-						onclick={() => node.toggleExpansion()}
+						onclick={() => {
+							node.expanded = !node.expanded;
+						}}
 						class="transition-transform duration-300 group-aria-expanded:rotate-180 group-data-leaf:invisible"
 					>
 						<ChevronDown />

@@ -12,13 +12,13 @@
 
 	interface Props extends BaseProps {
 		tree: Tree<Value>;
-		item: Snippet<[TreeNode<Value>]>;
+		item: Snippet<[{ node: TreeNode<Value>; levelIndex: number }]>;
 		ref?: HTMLDivElement | null;
 	}
 
 	let { tree, item, ref = $bindable(null), ...props }: Props = $props();
 
-	const context = new TreeViewContext(() => tree);
+	const context = new TreeViewContext();
 	setContext(TreeViewContext.key, context);
 </script>
 
@@ -28,7 +28,6 @@
 	id={tree.id}
 	role="tree"
 	aria-multiselectable="true"
-	data-tree-view=""
 >
 	<TreeList nodes={tree.roots} {item} />
 </div>

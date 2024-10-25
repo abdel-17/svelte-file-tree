@@ -17,7 +17,7 @@
 		onCommit,
 		onRollback,
 		onkeydown,
-		onfocusout,
+		onblur,
 		...props
 	}: Props = $props();
 
@@ -37,7 +37,7 @@
 		switch (event.key) {
 			case "Enter": {
 				commited = true;
-				itemContext.node.findElement().focus();
+				itemContext.node.getElement()!.focus();
 
 				if (value !== originalValue) {
 					onCommit?.(value);
@@ -45,7 +45,7 @@
 				break;
 			}
 			case "Escape": {
-				itemContext.node.findElement().focus();
+				itemContext.node.getElement()!.focus();
 				break;
 			}
 			default: {
@@ -56,17 +56,13 @@
 		event.preventDefault();
 	}
 
-	// If we use the blur event to exit editing mode, the input gets unmounted
-	// before the focusout event is dispatched, which the tree item relies on
-	// to manage selection state.
-	function handleFocusOut() {
+	function handleBlur() {
 		itemContext.editing = false;
 	}
 
 	function init(input: HTMLInputElement) {
 		input.focus();
 		input.select();
-
 		return {
 			destroy() {
 				if (!commited && value !== originalValue) {
@@ -82,8 +78,7 @@
 	{...props}
 	bind:this={ref}
 	bind:value
-	data-tree-item-input=""
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
-	onfocusout={composeEventHandlers(handleFocusOut, onfocusout)}
+	onblur={composeEventHandlers(handleBlur, onblur)}
 	use:init
 />

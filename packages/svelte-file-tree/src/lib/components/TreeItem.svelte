@@ -28,6 +28,7 @@
 
 	interface Props extends BaseProps {
 		node: TreeNode<Value>;
+		levelIndex: number;
 		children: Snippet<[{ editing: boolean }]>;
 		editable?: boolean;
 		editing?: boolean;
@@ -36,12 +37,12 @@
 
 	let {
 		node,
+		levelIndex,
 		children,
 		editable = false,
 		editing = $bindable(false),
 		ref = $bindable(null),
 		onkeydown,
-		onpointerdown,
 		onclick,
 		onfocusin,
 		...props
@@ -70,6 +71,36 @@
 		}
 	});
 
+	function getPreviousTreeItem(treeItem: HTMLElement): HTMLElement | null {
+		const previous = treeItem.previousElementSibling;
+		if (previous === null) {
+			return null;
+		}
+		if (previous instanceof HTMLElement && previous.role === "treeitem") {
+			return previous;
+		}
+		throw new Error("Expected previous sibling to be a tree item.");
+	}
+
+	function getNextTreeItem(treeItem: HTMLElement): HTMLElement | null {
+		const next = treeItem.nextElementSibling;
+		if (next === null) {
+			return null;
+		}
+		if (next instanceof HTMLElement && next.role === "treeitem") {
+			return next;
+		}
+		throw new Error("Expected next sibling to be a tree item.");
+	}
+
+	function getNodeId(treeItem: HTMLElement): string {
+		const { nodeId } = treeItem.dataset;
+		if (nodeId === undefined) {
+			throw new Error("Expected tree item to have a data-node-id attribute.");
+		}
+		return nodeId;
+	}
+
 	type WithCurrentTarget<Event> = Event & { currentTarget: HTMLDivElement };
 
 	function handleKeyDown(event: WithCurrentTarget<KeyboardEvent>) {
@@ -86,85 +117,83 @@
 				}
 
 				if (!node.expanded) {
-					node.expand();
+					node.expanded = true;
 				} else {
-					node.children[0]!.findElement().focus();
+					node.children[0]!.getElement()!.focus();
 				}
 				break;
 			}
 			case "ArrowLeft": {
 				if (node.expanded && node.children.length !== 0) {
-					node.collapse();
-				} else {
-					node.parent?.findElement().focus();
+					node.expanded = false;
+				} else if (node.parent !== null) {
+					node.parent.getElement()!.focus();
 				}
 				break;
 			}
 			case "ArrowDown":
 			case "ArrowUp": {
 				const down = event.key === "ArrowDown";
-				const next = down ? node.next() : node.previous();
+				const next = down
+					? getNextTreeItem(event.currentTarget)
+					: getPreviousTreeItem(event.currentTarget);
+
 				if (next === null) {
 					break;
 				}
 
 				if (event.shiftKey) {
-					node.select();
-					next.select();
+					node.selected = true;
+					node.tree.selected.add(getNodeId(next));
 				}
 
-				next.findElement().focus();
+				next.focus();
 				break;
 			}
 			case "PageDown":
 			case "PageUp": {
 				const down = event.key === "PageDown";
-				const next = down ? node.next() : node.previous();
-				if (next === null) {
-					break;
-				}
-
-				const treeElement = treeContext.tree.findElement();
+				const treeElement = node.tree.getElement()!;
 				const maxScrollDistance = Math.min(
 					treeElement.clientHeight,
 					window.innerHeight,
 				);
-				const itemRect = event.currentTarget.getBoundingClientRect();
+				const rect = event.currentTarget.getBoundingClientRect();
 
-				let current = next;
-				let currentElement = current.findElement();
+				let current: HTMLElement = event.currentTarget;
 				while (true) {
-					const next = down ? current.next() : current.previous();
+					const next = down
+						? getNextTreeItem(current)
+						: getPreviousTreeItem(current);
+
 					if (next === null) {
 						break;
 					}
 
 					current = next;
-					currentElement = current.findElement();
-
-					const currentRect = currentElement.getBoundingClientRect();
-					const distance = Math.abs(currentRect.top - itemRect.top);
+					const currentRect = current.getBoundingClientRect();
+					const distance = Math.abs(currentRect.top - rect.top);
 					if (distance >= maxScrollDistance) {
 						break;
 					}
 				}
-				currentElement.focus();
+				current.focus();
 				break;
 			}
 			case "Home": {
 				if (!event.shiftKey || !isModifierKey(event)) {
-					node.tree.first()!.findElement().focus();
+					node.tree.roots[0]!.getElement()!.focus();
 					break;
 				}
 
 				let first = true;
 				for (const current of node.tree) {
 					if (first) {
-						current.findElement().focus();
+						current.getElement()!.focus();
 						first = false;
 					}
 
-					current.select();
+					current.selected = true;
 
 					if (current === node) {
 						break;
@@ -174,18 +203,22 @@
 			}
 			case "End": {
 				if (!event.shiftKey || !isModifierKey(event)) {
-					node.tree.last()!.findElement().focus();
-					return;
+					let last = node.tree.roots.at(-1)!;
+					while (last.expanded && last.children.length !== 0) {
+						last = last.children.at(-1)!;
+					}
+					last.getElement()!.focus();
+					break;
 				}
 
 				let last = true;
 				for (const current of node.tree.reversed()) {
 					if (last) {
-						current.findElement().focus();
+						current.getElement()!.focus();
 						last = false;
 					}
 
-					current.select();
+					current.selected = true;
 
 					if (current === node) {
 						break;
@@ -194,7 +227,7 @@
 				break;
 			}
 			case " ": {
-				node.toggleSelection();
+				node.selected = !node.selected;
 				break;
 			}
 			case "F2": {
@@ -208,27 +241,24 @@
 					break;
 				}
 
-				if (node.tree.allSelected()) {
-					node.tree.unselectAll();
-				} else {
-					node.tree.selectAll();
+				for (const item of node.tree) {
+					item.selected = true;
 				}
 				break;
 			}
 			case "*": {
-				const element = node.findElement();
-				const rectBefore = element.getBoundingClientRect();
+				const rectBefore = event.currentTarget.getBoundingClientRect();
 
 				flushSync(() => {
-					for (const sibling of node.level()) {
-						sibling.expand();
+					for (const sibling of node.level) {
+						sibling.expanded = true;
 					}
 				});
 
 				// When the sibling nodes are all expanded, the tree's height changes,
 				// causing a lot of layout shift. Preserve the position of the focused
 				// node relative to the viewport to avoid disorienting the user.
-				const rectAfter = element.getBoundingClientRect();
+				const rectAfter = event.currentTarget.getBoundingClientRect();
 				window.scrollBy(0, rectAfter.top - rectBefore.top);
 				break;
 			}
@@ -240,57 +270,47 @@
 		event.preventDefault();
 	}
 
-	let multiSelectTargetId: string | undefined;
-
-	function handlePointerDown(event: WithCurrentTarget<PointerEvent>) {
-		if (event.button === 0 && event.shiftKey) {
-			// We can't use `tabbableId` directly in the click handler
-			// because the focus event gets triggered first, causing
-			// this to be the tabbable element.
-			multiSelectTargetId = treeContext.tabbableId;
-		}
-	}
-
 	function handleClick(event: WithCurrentTarget<MouseEvent>) {
-		if (event.button !== 0) {
-			return;
-		}
-
 		if (isModifierKey(event)) {
-			node.toggleSelection();
+			node.selected = !node.selected;
 			return;
 		}
 
 		if (!event.shiftKey) {
-			node.tree.unselectAll();
-			node.select();
+			node.tree.selected.clear();
+			node.selected = true;
 			return;
 		}
 
-		const multiSelectElementId = treeContext.tree.treeItemElementId(
-			multiSelectTargetId!,
-		);
-		const multiSelectElement = document.getElementById(multiSelectElementId);
-
-		if (multiSelectElement === null) {
+		// The click event is fired after the focus event, so the currently
+		// tabbable element is this element. We want to select all elements
+		// starting from the previously tabbable element up to this element.
+		const tabbableId = treeContext.previousTabbableId;
+		if (tabbableId === undefined) {
 			return;
 		}
 
-		const multiSelectElementRect = multiSelectElement.getBoundingClientRect();
-		const down = multiSelectElementRect.top > event.y;
+		const tabbableElement = node.tree.getTreeItemElement(tabbableId)!;
+		const tabbableElementRect = tabbableElement.getBoundingClientRect();
+		const down = tabbableElementRect.top > event.y;
 
-		let current = node;
+		let current: HTMLElement = event.currentTarget;
 		while (true) {
-			current.select();
+			const currentId = getNodeId(current);
+			node.tree.selected.add(currentId);
 
-			if (current.id === multiSelectTargetId) {
+			if (currentId === tabbableId) {
 				break;
 			}
 
-			const next = down ? current.next() : current.previous();
+			const next = down
+				? getNextTreeItem(current)
+				: getPreviousTreeItem(current);
+
 			if (next === null) {
 				break;
 			}
+
 			current = next;
 		}
 	}
@@ -303,17 +323,16 @@
 <div
 	{...props}
 	bind:this={ref}
-	id={node.elementId()}
+	id={node.elementId}
 	role="treeitem"
 	aria-level={node.depth + 1}
-	aria-posinset={node.levelIndex + 1}
+	aria-posinset={levelIndex + 1}
 	aria-setsize={node.level.length}
 	aria-expanded={node.children.length !== 0 ? node.expanded : undefined}
 	aria-selected={node.selected}
 	tabindex={node.id === treeContext.tabbableId ? 0 : -1}
-	data-tree-item=""
+	data-node-id={node.id}
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
-	onpointerdown={composeEventHandlers(handlePointerDown, onpointerdown)}
 	onclick={composeEventHandlers(handleClick, onclick)}
 	onfocusin={composeEventHandlers(handleFocusIn, onfocusin)}
 >

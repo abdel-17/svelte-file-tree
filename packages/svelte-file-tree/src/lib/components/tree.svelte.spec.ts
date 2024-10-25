@@ -1,4 +1,3 @@
-import { withEffectRoot } from "$lib/test/with-effect-root.svelte.js";
 import { describe, expect, test } from "vitest";
 import { Tree } from "./tree.svelte.js";
 
@@ -72,80 +71,58 @@ const items = [
 ] as const;
 
 describe("Tree", () => {
-	test("Tree.all()", () => {
+	test("Tree.roots", () => {
 		const tree = new Tree({ items });
-		const nodes = tree
-			.all()
-			.map((node) => ({
-				id: node.id,
-				value: node.value,
-			}))
-			.toArray();
+		const roots = tree.roots.map((node) => ({
+			id: node.id,
+			value: node.value,
+		}));
 
-		expect(nodes).toEqual([
+		expect(roots).toEqual([
 			{
 				id: "1",
 				value: "Section 1",
-			},
-			{
-				id: "1.1",
-				value: "Section 1.1",
-			},
-			{
-				id: "1.1.1",
-				value: "Section 1.1.1",
-			},
-			{
-				id: "1.1.2",
-				value: "Section 1.1.2",
-			},
-			{
-				id: "1.1.3",
-				value: "Section 1.1.3",
-			},
-			{
-				id: "1.2",
-				value: "Section 1.2",
-			},
-			{
-				id: "1.2.1",
-				value: "Section 1.2.1",
-			},
-			{
-				id: "1.2.2",
-				value: "Section 1.2.2",
 			},
 			{
 				id: "2",
 				value: "Section 2",
 			},
 			{
-				id: "2.1",
-				value: "Section 2.1",
-			},
-			{
-				id: "2.2",
-				value: "Section 2.2",
-			},
-			{
 				id: "3",
 				value: "Section 3",
 			},
-			{
-				id: "3.1",
-				value: "Section 3.1",
-			},
-			{
-				id: "3.2",
-				value: "Section 3.2",
-			},
+		]);
+	});
+
+	test("Tree.all()", () => {
+		const tree = new Tree({ items });
+		const nodes = tree
+			.all()
+			.map((node) => node.id)
+			.toArray();
+
+		expect(nodes).toEqual([
+			"1",
+			"1.1",
+			"1.1.1",
+			"1.1.2",
+			"1.1.3",
+			"1.2",
+			"1.2.1",
+			"1.2.2",
+			"2",
+			"2.1",
+			"2.2",
+			"3",
+			"3.1",
+			"3.2",
 		]);
 	});
 
 	test("Tree.iter()", () => {
 		const tree = new Tree({
 			items,
-			defaultExpanded: ["1", "1.2", "2"],
+			defaultExpanded: ["1", "1.1", "2"],
 		});
 		const nodes = tree
 			.iter()
@@ -154,12 +131,12 @@ describe("Tree", () => {
 
 		// 1
 		// -- 1.1
-		//   -- 1.1.1 (hidden)
-		//   -- 1.1.2 (hidden)
-		//   -- 1.1.3 (hidden)
+		//   -- 1.1.1
+		//   -- 1.1.2
+		//   -- 1.1.3
 		// -- 1.2
-		//   -- 1.2.1
-		//	 -- 1.2.2
+		//   -- 1.2.1 (hidden)
+		//   -- 1.2.2 (hidden)
 		// 2
 		// -- 2.1
 		// -- 2.2
@@ -169,9 +146,10 @@ describe("Tree", () => {
 		expect(nodes).toEqual([
 			"1",
 			"1.1",
+			"1.1.1",
+			"1.1.2",
+			"1.1.3",
 			"1.2",
-			"1.2.1",
-			"1.2.2",
 			"2",
 			"2.1",
 			"2.2",
@@ -182,7 +160,7 @@ describe("Tree", () => {
 	test("Tree.reversed()", () => {
 		const tree = new Tree({
 			items,
-			defaultExpanded: ["1", "1.2", "2"],
+			defaultExpanded: ["1", "1.1", "2"],
 		});
 		const nodes = tree
 			.reversed()
@@ -191,12 +169,12 @@ describe("Tree", () => {
 
 		// 1
 		// -- 1.1
-		//   -- 1.1.1 (hidden)
-		//   -- 1.1.2 (hidden)
-		//   -- 1.1.3 (hidden)
+		//   -- 1.1.1
+		//   -- 1.1.2
+		//   -- 1.1.3
 		// -- 1.2
-		//   -- 1.2.1
-		//	 -- 1.2.2
+		//   -- 1.2.1 (hidden)
+		//   -- 1.2.2 (hidden)
 		// 2
 		// -- 2.1
 		// -- 2.2
@@ -208,36 +186,13 @@ describe("Tree", () => {
 			"2.2",
 			"2.1",
 			"2",
-			"1.2.2",
-			"1.2.1",
 			"1.2",
+			"1.1.3",
+			"1.1.2",
+			"1.1.1",
 			"1.1",
 			"1",
 		]);
-	});
-
-	test("TreeNode.levelIndex", () => {
-		const tree = new Tree({ items });
-		const indices = Object.fromEntries(
-			tree.all().map((node) => [node.id, node.levelIndex]),
-		);
-
-		expect(indices).toEqual({
-			"1": 0,
-			"2": 1,
-			"3": 2,
-			"1.1": 0,
-			"1.2": 1,
-			"2.1": 0,
-			"2.2": 1,
-			"3.1": 0,
-			"3.2": 1,
-			"1.1.1": 0,
-			"1.1.2": 1,
-			"1.1.3": 2,
-			"1.2.1": 0,
-			"1.2.2": 1,
-		});
 	});
 
 	test("TreeNode.parent", () => {
@@ -314,119 +269,12 @@ describe("Tree", () => {
 		});
 	});
 
-	test("Tree.size and TreeNode.size", () => {
-		const tree = new Tree({ items });
-		const sizes = Object.fromEntries(
-			tree.all().map((node) => [node.id, node.size]),
-		);
-
-		expect(sizes).toEqual({
-			"1": 8,
-			"2": 3,
-			"3": 3,
-			"1.1": 4,
-			"1.2": 3,
-			"2.1": 1,
-			"2.2": 1,
-			"3.1": 1,
-			"3.2": 1,
-			"1.1.1": 1,
-			"1.1.2": 1,
-			"1.1.3": 1,
-			"1.2.1": 1,
-			"1.2.2": 1,
-		});
-
-		expect(tree.size).toBe(14);
-	});
-
-	test(
-		"Tree selection methods",
-		withEffectRoot(() => {
-			const tree = new Tree({
-				items,
-				defaultSelected: ["1", "1.2", "2"],
-			});
-			const selected = $derived(
-				new Set(
-					tree
-						.all()
-						.filter((node) => node.selected)
-						.map((node) => node.id),
-				),
-			);
-
-			const expected = new Set(["1", "1.2", "2"]);
-			expect(selected).toEqual(expected);
-
-			tree.selectItem("1.1");
-			expected.add("1.1");
-			expect(tree.itemSelected("1.1")).toBe(true);
-			expect(selected).toEqual(expected);
-
-			tree.unselectItem("1");
-			expected.delete("1");
-			expect(tree.itemSelected("1")).toBe(false);
-			expect(selected).toEqual(expected);
-
-			tree.selectAll();
-			for (const node of tree) {
-				expected.add(node.id);
-			}
-			expect(selected).toEqual(expected);
-
-			tree.unselectItem("1.2");
-			expected.delete("1.2");
-			expect(tree.itemSelected("1.2")).toBe(false);
-			expect(selected).toEqual(expected);
-
-			tree.unselectAll();
-			expected.clear();
-			expect(selected).toEqual(expected);
-		}),
-	);
-
-	test(
-		"Tree expansion methods",
-		withEffectRoot(() => {
-			const tree = new Tree({
-				items,
-				defaultExpanded: ["1", "1.2", "2"],
-			});
-			const expanded = $derived(
-				new Set(
-					tree
-						.all()
-						.filter((node) => node.expanded)
-						.map((node) => node.id),
-				),
-			);
-
-			const expected = new Set(["1", "1.2", "2"]);
-			expect(expanded).toEqual(expected);
-
-			tree.expandItem("1.1");
-			expected.add("1.1");
-			expect(tree.itemExpanded("1.1")).toBe(true);
-			expect(expanded).toEqual(expected);
-
-			tree.collapseItem("1");
-			expected.delete("1");
-			expect(tree.itemExpanded("1")).toBe(false);
-			expect(expanded).toEqual(expected);
-
-			tree.collapseAll();
-			expanded.clear();
-			expect(expanded).toBe(expected);
-		}),
-	);
-
-	test("TreeNode.level()", () => {
+	test("TreeNode.level", () => {
 		const tree = new Tree({ items });
 		const levels = Object.fromEntries(
 			tree
 				.all()
-				.map((node) => [node.id, node.level().map((sibling) => sibling.id)]),
+				.map((node) => [node.id, node.level.map((sibling) => sibling.id)]),
 		);
 
 		expect(levels).toEqual({
@@ -447,144 +295,15 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.previousSibling() and TreeNode.nextSibling()", () => {
+	test("TreeNode.contains()", () => {
 		const tree = new Tree({ items });
-		const siblings = Object.fromEntries(
-			tree.all().map((node) => [
-				node.id,
-				{
-					previous: node.previousSibling()?.id,
-					next: node.nextSibling()?.id,
-				},
-			]),
-		);
 
-		expect(siblings).toEqual({
-			"1": {
-				previous: undefined,
-				next: "2",
-			},
-			"2": {
-				previous: "1",
-				next: "3",
-			},
-			"3": {
-				previous: "2",
-				next: undefined,
-			},
-			"1.1": {
-				previous: undefined,
-				next: "1.2",
-			},
-			"1.2": {
-				previous: "1.1",
-				next: undefined,
-			},
-			"2.1": {
-				previous: undefined,
-				next: "2.2",
-			},
-			"2.2": {
-				previous: "2.1",
-				next: undefined,
-			},
-			"3.1": {
-				previous: undefined,
-				next: "3.2",
-			},
-			"3.2": {
-				previous: "3.1",
-				next: undefined,
-			},
-			"1.1.1": {
-				previous: undefined,
-				next: "1.1.2",
-			},
-			"1.1.2": {
-				previous: "1.1.1",
-				next: "1.1.3",
-			},
-			"1.1.3": {
-				previous: "1.1.2",
-				next: undefined,
-			},
-			"1.2.1": {
-				previous: undefined,
-				next: "1.2.2",
-			},
-			"1.2.2": {
-				previous: "1.2.1",
-				next: undefined,
-			},
-		});
-	});
+		const first = tree.roots[0]!;
+		expect(first.contains(first)).toBe(true);
+		expect(first.contains(first.children[0]!)).toBe(true);
 
-	test("TreeNode.previous() and TreeNode.next()", () => {
-		const tree = new Tree({
-			items,
-			defaultExpanded: ["1", "1.2", "2"],
-		});
-		const nodes = Object.fromEntries(
-			tree.iter().map((node) => [
-				node.id,
-				{
-					previous: node.previous()?.id,
-					next: node.next()?.id,
-				},
-			]),
-		);
-
-		// 1
-		// -- 1.1
-		//   -- 1.1.1 (hidden)
-		//   -- 1.1.2 (hidden)
-		//   -- 1.1.3 (hidden)
-		// -- 1.2
-		//   -- 1.2.1
-		//	 -- 1.2.2
-		// 2
-		// -- 2.1
-		// -- 2.2
-		// 3
-		// -- 3.1 (hidden)
-		// -- 3.2 (hidden)
-		expect(nodes).toEqual({
-			"1": {
-				previous: undefined,
-				next: "1.1",
-			},
-			"1.1": {
-				previous: "1",
-				next: "1.2",
-			},
-			"1.2": {
-				previous: "1.1",
-				next: "1.2.1",
-			},
-			"1.2.1": {
-				previous: "1.2",
-				next: "1.2.2",
-			},
-			"1.2.2": {
-				previous: "1.2.1",
-				next: "2",
-			},
-			"2": {
-				previous: "1.2.2",
-				next: "2.1",
-			},
-			"2.1": {
-				previous: "2",
-				next: "2.2",
-			},
-			"2.2": {
-				previous: "2.1",
-				next: "3",
-			},
-			"3": {
-				previous: "2.2",
-				next: undefined,
-			},
-		});
+		const second = tree.roots[1]!;
+		expect(first.contains(second)).toBe(false);
+		expect(first.contains(second.children[0]!)).toBe(false);
 	});
 });

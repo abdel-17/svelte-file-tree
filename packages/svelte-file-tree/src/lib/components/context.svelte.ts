@@ -1,38 +1,43 @@
-import type { Tree, TreeNode } from "./tree.svelte.js";
+import type { TreeNode } from "./tree.svelte.js";
 
-export class TreeViewContext<Value = unknown> {
-	#tree: () => Tree<Value>;
-	tabbableId: string | undefined = $state();
+export class TreeViewContext {
+	#tabbableId: string | undefined = $state();
+	#previousTabbableId: string | undefined;
 
-	constructor(tree: () => Tree<Value>) {
-		this.#tree = tree;
+	get tabbableId(): string | undefined {
+		return this.#tabbableId;
 	}
 
-	get tree(): Tree<Value> {
-		return this.#tree();
+	set tabbableId(value: string) {
+		this.#previousTabbableId = this.#tabbableId;
+		this.#tabbableId = value;
+	}
+
+	get previousTabbableId(): string | undefined {
+		return this.#previousTabbableId;
 	}
 
 	static readonly key = Symbol("TreeViewContext");
 }
 
-export type TreeItemContextProps<Value = unknown> = {
-	node: () => TreeNode<Value>;
+export type TreeItemContextProps = {
+	node: () => TreeNode<unknown>;
 	editing: () => boolean;
 	onEditingChange: (value: boolean) => void;
 };
 
-export class TreeItemContext<Value = unknown> {
-	readonly #node: () => TreeNode<Value>;
-	readonly #editing: () => boolean;
-	readonly #onEditingChange: (value: boolean) => void;
+export class TreeItemContext {
+	#node: () => TreeNode<unknown>;
+	#editing: () => boolean;
+	#onEditingChange: (value: boolean) => void;
 
-	constructor(props: TreeItemContextProps<Value>) {
+	constructor(props: TreeItemContextProps) {
 		this.#node = props.node;
 		this.#editing = props.editing;
 		this.#onEditingChange = props.onEditingChange;
 	}
 
-	get node(): TreeNode<Value> {
+	get node(): TreeNode<unknown> {
 		return this.#node();
 	}
 

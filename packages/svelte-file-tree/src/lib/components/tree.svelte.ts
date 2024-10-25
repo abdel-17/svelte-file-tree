@@ -1,3 +1,5 @@
+import { unwrap } from "$lib/helpers/unwrap.js";
+import type { MaybeGetter } from "$lib/types.js";
 import { SvelteSet } from "svelte/reactivity";
 
 export type TreeItem<Value> = {
@@ -7,39 +9,46 @@ export type TreeItem<Value> = {
 };
 
 export type TreeProps<Value> = {
-	items: ReadonlyArray<TreeItem<Value>>;
-	id?: string;
-	defaultSelected?: Iterable<string> | null;
-	defaultExpanded?: Iterable<string> | null;
+	items: MaybeGetter<ReadonlyArray<TreeItem<Value>>>;
+	id?: MaybeGetter<string>;
+	selected?: SvelteSet<string>;
+	expanded?: SvelteSet<string>;
+	defaultSelected?: Iterable<string>;
+	defaultExpanded?: Iterable<string>;
 };
 
 export class Tree<Value> {
-	readonly #props: TreeProps<Value>;
-	readonly #selected: SvelteSet<string>;
-	readonly #expanded: SvelteSet<string>;
-	#selectionInverted: boolean = $state(false);
+	#items: MaybeGetter<ReadonlyArray<TreeItem<Value>>>;
+	#id: MaybeGetter<string>;
+	#selected: SvelteSet<string>;
+	#expanded: SvelteSet<string>;
 
 	constructor(props: TreeProps<Value>) {
-		this.#props = props;
-		this.#selected = new SvelteSet(props.defaultSelected);
-		this.#expanded = new SvelteSet(props.defaultExpanded);
+		this.#items = props.items;
+		this.#id = props.id ?? crypto.randomUUID();
+		this.#selected = props.selected ?? new SvelteSet(props.defaultSelected);
+		this.#expanded = props.expanded ?? new SvelteSet(props.defaultExpanded);
 	}
 
-	readonly id: string = $derived.by(
-		() => this.#props.id ?? crypto.randomUUID(),
-	);
+	get selected(): SvelteSet<string> {
+		return this.#selected;
+	}
 
-	readonly roots: ReadonlyArray<TreeNode<Value>> = $derived.by(() =>
-		this.#props.items.map((item, i) => new TreeNode(this, item, i)),
-	);
+	get expanded(): SvelteSet<string> {
+		return this.#expanded;
+	}
 
-	readonly size: number = $derived.by(() => {
-		let size = 0;
-		for (const root of this.roots) {
-			size += root.size;
-		}
-		return size;
+	readonly #roots: Array<TreeNode<Value>> = $derived.by(() => {
+		const items = unwrap(this.#items);
+		const roots = $state(items.map((item) => new TreeNode(this, item)));
+		return roots;
 	});
+
+	get roots(): ReadonlyArray<TreeNode<Value>> {
+		return this.#roots;
+	}
+
+	readonly id: string = $derived.by(() => unwrap(this.#id));
 
 	*all(): Generator<TreeNode<Value>> {
 		for (const root of this.roots) {
@@ -64,136 +73,38 @@ export class Tree<Value> {
 		return this.iter();
 	}
 
-	itemSelected(id: string): boolean {
-		const selected = this.#selected.has(id);
-		if (this.#selectionInverted) {
-			return !selected;
-		}
-		return selected;
+	getElement(): HTMLElement | null {
+		return document.getElementById(this.id);
 	}
 
-	allSelected(): boolean {
-		const selectedCount = this.#selected.size;
-		if (this.#selectionInverted) {
-			return selectedCount === 0;
-		}
-
-		// The size of the tree is greater than or equal to the number of roots.
-		// If the number of selected items is less than the number of roots,
-		// then surely not all items are selected. This is an optimization
-		// to avoid computing the tree's size, which can be expensive.
-		if (selectedCount < this.roots.length) {
-			return false;
-		}
-
-		return selectedCount === this.size;
+	getTreeItemElementId(id: string): string {
+		return `${this.id}:${id}`;
 	}
 
-	selectItem(id: string): void {
-		if (this.#selectionInverted) {
-			this.#selected.delete(id);
-		} else {
-			this.#selected.add(id);
-		}
-	}
-
-	unselectItem(id: string): void {
-		if (this.#selectionInverted) {
-			this.#selected.add(id);
-		} else {
-			this.#selected.delete(id);
-		}
-	}
-
-	selectAll(): void {
-		this.#selectionInverted = true;
-		this.#selected.clear();
-	}
-
-	unselectAll(): void {
-		this.#selectionInverted = false;
-		this.#selected.clear();
-	}
-
-	itemExpanded(id: string): boolean {
-		return this.#expanded.has(id);
-	}
-
-	expandItem(id: string): void {
-		this.#expanded.add(id);
-	}
-
-	collapseItem(id: string): void {
-		this.#expanded.delete(id);
-	}
-
-	collapseAll(): void {
-		this.#expanded.clear();
-	}
-
-	first(): TreeNode<Value> | null {
-		if (this.roots.length === 0) {
-			return null;
-		}
-		return this.roots[0]!;
-	}
-
-	last(): TreeNode<Value> | null {
-		if (this.roots.length === 0) {
-			return null;
-		}
-
-		let last = this.roots.at(-1)!;
-		while (last.expanded && last.children.length !== 0) {
-			last = last.children.at(-1)!;
-		}
-		return last;
-	}
-
-	findElement(): HTMLElement {
-		const element = document.getElementById(this.id);
-		if (element === null) {
-			throw new Error("TreeView element not found");
-		}
-		return element;
-	}
-
-	treeItemElementId(nodeId: string): string {
-		return this.id + ":" + nodeId;
-	}
-
-	findTreeItemElement(nodeId: string): HTMLElement {
-		const elementId = this.treeItemElementId(nodeId);
-		const element = document.getElementById(elementId);
-		if (element === null) {
-			throw new Error("TreeItem element not found");
-		}
-		return element;
+	getTreeItemElement(id: string): HTMLElement | null {
+		const elementId = this.getTreeItemElementId(id);
+		return document.getElementById(elementId);
 	}
 }
 
 export class TreeNode<Value> {
-	readonly #tree: Tree<Value>;
-	readonly #id: string;
+	#tree: Tree<Value>;
+	#id: string;
 	value: Value = $state()!;
-	#levelIndex: number = $state()!;
 	#parent: TreeNode<Value> | null = $state()!;
 	#children: Array<TreeNode<Value>> = $state()!;
 
 	constructor(
 		tree: Tree<Value>,
 		item: TreeItem<Value>,
-		levelIndex: number,
 		parent: TreeNode<Value> | null = null,
 	) {
 		this.#tree = tree;
 		this.#id = item.id;
 		this.value = item.value;
-		this.#levelIndex = levelIndex;
 		this.#parent = parent;
 		this.#children =
-			item.children?.map((child, i) => new TreeNode(tree, child, i, this)) ??
-			[];
+			item.children?.map((child) => new TreeNode(tree, child, this)) ?? [];
 	}
 
 	get tree(): Tree<Value> {
@@ -204,10 +115,6 @@ export class TreeNode<Value> {
 		return this.#id;
 	}
 
-	get levelIndex(): number {
-		return this.#levelIndex;
-	}
-
 	get parent(): TreeNode<Value> | null {
 		return this.#parent;
 	}
@@ -216,32 +123,59 @@ export class TreeNode<Value> {
 		return this.#children;
 	}
 
-	readonly selected: boolean = $derived.by(() =>
-		this.#tree.itemSelected(this.#id),
+	readonly #selected: boolean = $derived.by(() =>
+		this.tree.selected.has(this.id),
 	);
 
-	readonly expanded: boolean = $derived.by(() =>
-		this.#tree.itemExpanded(this.#id),
+	get selected(): boolean {
+		return this.#selected;
+	}
+
+	set selected(value: boolean) {
+		if (value) {
+			this.tree.selected.add(this.id);
+		} else {
+			this.tree.selected.delete(this.id);
+		}
+	}
+
+	readonly #expanded: boolean = $derived.by(() =>
+		this.tree.expanded.has(this.id),
 	);
+
+	get expanded(): boolean {
+		return this.#expanded;
+	}
+
+	set expanded(value: boolean) {
+		if (value) {
+			this.tree.expanded.add(this.id);
+		} else {
+			this.tree.expanded.delete(this.id);
+		}
+	}
 
 	readonly depth: number = $derived.by(() => {
-		if (this.#parent === null) {
+		if (this.parent === null) {
 			return 0;
 		}
-		return this.#parent.depth + 1;
+		return this.parent.depth + 1;
 	});
 
-	readonly size: number = $derived.by(() => {
-		let size = 1;
-		for (const child of this.#children) {
-			size += child.size;
+	readonly level: ReadonlyArray<TreeNode<Value>> = $derived.by(() => {
+		if (this.parent === null) {
+			return this.#tree.roots;
 		}
-		return size;
+		return this.parent.children;
 	});
+
+	readonly elementId: string = $derived.by(() =>
+		this.#tree.getTreeItemElementId(this.id),
+	);
 
 	*all(): Generator<TreeNode<Value>> {
 		yield this;
-		for (const child of this.#children) {
+		for (const child of this.children) {
 			yield* child.all();
 		}
 	}
@@ -249,7 +183,7 @@ export class TreeNode<Value> {
 	*iter(): Generator<TreeNode<Value>> {
 		yield this;
 		if (this.expanded) {
-			for (const child of this.#children) {
+			for (const child of this.children) {
 				yield* child.iter();
 			}
 		}
@@ -257,8 +191,8 @@ export class TreeNode<Value> {
 
 	*reversed(): Generator<TreeNode<Value>> {
 		if (this.expanded) {
-			for (let i = this.#children.length - 1; i >= 0; i--) {
-				const child = this.#children[i]!;
+			for (let i = this.children.length - 1; i >= 0; i--) {
+				const child = this.children[i]!;
 				yield* child.reversed();
 			}
 		}
@@ -269,100 +203,15 @@ export class TreeNode<Value> {
 		return this.iter();
 	}
 
-	select(): void {
-		this.#tree.selectItem(this.#id);
-	}
-
-	unselect(): void {
-		this.#tree.unselectItem(this.#id);
-	}
-
-	toggleSelection(): void {
-		if (this.selected) {
-			this.unselect();
-		} else {
-			this.select();
+	contains(node: TreeNode<Value>): boolean {
+		let current = node;
+		while (current.depth > this.depth) {
+			current = current.#parent!;
 		}
+		return current === this;
 	}
 
-	expand(): void {
-		this.#tree.expandItem(this.#id);
-	}
-
-	collapse(): void {
-		this.#tree.collapseItem(this.#id);
-	}
-
-	toggleExpansion(): void {
-		if (this.expanded) {
-			this.collapse();
-		} else {
-			this.expand();
-		}
-	}
-
-	level(): ReadonlyArray<TreeNode<Value>> {
-		if (this.#parent === null) {
-			return this.#tree.roots;
-		}
-		return this.#parent.children;
-	}
-
-	previousSibling(): TreeNode<Value> | null {
-		if (this.#levelIndex === 0) {
-			return null;
-		}
-		const level = this.level();
-		return level[this.#levelIndex - 1]!;
-	}
-
-	nextSibling(): TreeNode<Value> | null {
-		const level = this.level();
-		if (this.#levelIndex === level.length - 1) {
-			return null;
-		}
-		return level[this.#levelIndex + 1]!;
-	}
-
-	previous(): TreeNode<Value> | null {
-		const previousSibling = this.previousSibling();
-		if (previousSibling === null) {
-			return this.#parent;
-		}
-
-		let current = previousSibling;
-		while (current.expanded && current.children.length !== 0) {
-			// Navigate to the last child until a leaf node is found.
-			current = current.children.at(-1)!;
-		}
-		return current;
-	}
-
-	next(): TreeNode<Value> | null {
-		if (this.expanded && this.#children.length !== 0) {
-			return this.#children[0]!;
-		}
-
-		let current: TreeNode<Value> = this;
-		while (true) {
-			const nextSibling = current.nextSibling();
-			if (nextSibling !== null) {
-				return nextSibling;
-			}
-
-			// Navigate up until a next sibling is found.
-			if (current.#parent === null) {
-				return null;
-			}
-			current = current.#parent;
-		}
-	}
-
-	elementId(): string {
-		return this.#tree.treeItemElementId(this.#id);
-	}
-
-	findElement(): HTMLElement {
-		return this.#tree.findTreeItemElement(this.#id);
+	getElement(): HTMLElement | null {
+		return document.getElementById(this.elementId);
 	}
 }
