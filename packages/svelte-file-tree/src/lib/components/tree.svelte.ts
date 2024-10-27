@@ -50,6 +50,18 @@ export class Tree<Value> {
 
 	readonly id: string = $derived.by(() => unwrap(this.#id));
 
+	readonly last: TreeNode<Value> | null = $derived.by(() => {
+		if (this.roots.length === 0) {
+			return null;
+		}
+
+		let last = this.roots.at(-1)!;
+		while (last.expanded && last.children.length !== 0) {
+			last = last.children.at(-1)!;
+		}
+		return last;
+	});
+
 	*all(): Generator<TreeNode<Value>> {
 		for (const root of this.roots) {
 			yield* root.all();

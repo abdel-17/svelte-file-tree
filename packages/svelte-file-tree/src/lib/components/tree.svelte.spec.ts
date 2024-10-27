@@ -94,6 +94,21 @@ describe("Tree", () => {
 		]);
 	});
 
+	test("Tree.last where none of the nodes are expanded", () => {
+		const tree = new Tree({ items });
+
+		expect(tree.last?.id).toBe("3");
+	});
+
+	test("Tree.last where the last root is expanded", () => {
+		const tree = new Tree({
+			items,
+			defaultExpanded: ["3"],
+		});
+
+		expect(tree.last?.id).toBe("3.2");
+	});
+
 	test("Tree.all()", () => {
 		const tree = new Tree({ items });
 		const nodes = tree

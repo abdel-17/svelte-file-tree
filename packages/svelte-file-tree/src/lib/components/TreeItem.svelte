@@ -71,32 +71,32 @@
 		}
 	});
 
-	function getPreviousTreeItem(treeItem: HTMLElement): HTMLElement | null {
-		const previous = treeItem.previousElementSibling;
-		if (previous === null) {
-			return null;
-		}
-		if (previous instanceof HTMLElement && previous.role === "treeitem") {
-			return previous;
-		}
-		throw new Error("Expected previous sibling to be a tree item.");
-	}
+	function getNextTreeItem(
+		treeItem: HTMLDivElement,
+		down: boolean,
+	): HTMLDivElement | null {
+		const next = down
+			? treeItem.nextElementSibling
+			: treeItem.previousElementSibling;
 
-	function getNextTreeItem(treeItem: HTMLElement): HTMLElement | null {
-		const next = treeItem.nextElementSibling;
 		if (next === null) {
 			return null;
 		}
-		if (next instanceof HTMLElement && next.role === "treeitem") {
+
+		if (next instanceof HTMLDivElement && next.role === "treeitem") {
 			return next;
 		}
-		throw new Error("Expected next sibling to be a tree item.");
+
+		console.error(
+			`Expected the ${down ? "next" : "previous"} sibling of the tree item to be a tree item.`,
+		);
+		return null;
 	}
 
-	function getNodeId(treeItem: HTMLElement): string {
+	function getNodeId(treeItem: HTMLDivElement): string {
 		const { nodeId } = treeItem.dataset;
 		if (nodeId === undefined) {
-			throw new Error("Expected tree item to have a data-node-id attribute.");
+			throw new Error("Tree item does not have a data-node-id attribute.");
 		}
 		return nodeId;
 	}
@@ -118,62 +118,88 @@
 
 				if (!node.expanded) {
 					node.expanded = true;
+					break;
+				}
+
+				const firstChild = node.children[0]!.getElement();
+				if (firstChild !== null) {
+					firstChild.focus();
 				} else {
-					node.children[0]!.getElement()!.focus();
+					console.error(
+						`Expected the first child of the tree item ${node.id} to exist in the DOM.`,
+					);
 				}
 				break;
 			}
 			case "ArrowLeft": {
 				if (node.expanded && node.children.length !== 0) {
 					node.expanded = false;
-				} else if (node.parent !== null) {
-					node.parent.getElement()!.focus();
+					break;
+				}
+
+				if (node.parent === null) {
+					break;
+				}
+
+				const parent = node.parent.getElement();
+				if (parent !== null) {
+					parent.focus();
+				} else {
+					console.error(
+						`Expected the parent of the tree item ${node.id} to exist in the DOM.`,
+					);
 				}
 				break;
 			}
 			case "ArrowDown":
 			case "ArrowUp": {
-				const down = event.key === "ArrowDown";
-				const next = down
-					? getNextTreeItem(event.currentTarget)
-					: getPreviousTreeItem(event.currentTarget);
+				const next = getNextTreeItem(
+					event.currentTarget,
+					event.key === "ArrowDown",
+				);
 
 				if (next === null) {
 					break;
 				}
 
-				if (event.shiftKey) {
+				const shouldSelect = event.shiftKey;
+				if (shouldSelect) {
 					node.selected = true;
 					node.tree.selected.add(getNodeId(next));
 				}
-
 				next.focus();
 				break;
 			}
 			case "PageDown":
 			case "PageUp": {
 				const down = event.key === "PageDown";
-				const treeElement = node.tree.getElement()!;
-				const maxScrollDistance = Math.min(
-					treeElement.clientHeight,
-					window.innerHeight,
-				);
-				const rect = event.currentTarget.getBoundingClientRect();
+				const shouldSelect = event.shiftKey && isModifierKey(event);
 
-				let current: HTMLElement = event.currentTarget;
+				const { tree } = node;
+				const { selected } = tree;
+
+				const treeHeight = tree.getElement()!.clientHeight;
+				const maxScrollDistance = Math.min(treeHeight, window.innerHeight);
+				const itemTop = event.currentTarget.getBoundingClientRect().top;
+
+				let current = event.currentTarget;
 				while (true) {
-					const next = down
-						? getNextTreeItem(current)
-						: getPreviousTreeItem(current);
+					if (shouldSelect) {
+						selected.add(getNodeId(current));
+					}
 
+					const next = getNextTreeItem(current, down);
 					if (next === null) {
 						break;
 					}
 
 					current = next;
-					const currentRect = current.getBoundingClientRect();
-					const distance = Math.abs(currentRect.top - rect.top);
+					const currentTop = current.getBoundingClientRect().top;
+					const distance = Math.abs(currentTop - itemTop);
 					if (distance >= maxScrollDistance) {
+						if (shouldSelect) {
+							selected.add(getNodeId(current));
+						}
 						break;
 					}
 				}
@@ -181,18 +207,19 @@
 				break;
 			}
 			case "Home": {
-				if (!event.shiftKey || !isModifierKey(event)) {
-					node.tree.roots[0]!.getElement()!.focus();
+				const first = node.tree.roots[0]!.getElement();
+				if (first !== null) {
+					first.focus();
+				} else {
+					console.error("Expected the first tree item to exist in the DOM.");
+				}
+
+				const shouldSelect = event.shiftKey && isModifierKey(event);
+				if (!shouldSelect) {
 					break;
 				}
 
-				let first = true;
 				for (const current of node.tree) {
-					if (first) {
-						current.getElement()!.focus();
-						first = false;
-					}
-
 					current.selected = true;
 
 					if (current === node) {
@@ -202,22 +229,19 @@
 				break;
 			}
 			case "End": {
-				if (!event.shiftKey || !isModifierKey(event)) {
-					let last = node.tree.roots.at(-1)!;
-					while (last.expanded && last.children.length !== 0) {
-						last = last.children.at(-1)!;
-					}
-					last.getElement()!.focus();
+				const last = node.tree.last!.getElement();
+				if (last !== null) {
+					last.focus();
+				} else {
+					console.error("Expected the last tree item to exist in the DOM.");
+				}
+
+				const shouldSelect = event.shiftKey && isModifierKey(event);
+				if (!shouldSelect) {
 					break;
 				}
 
-				let last = true;
 				for (const current of node.tree.reversed()) {
-					if (last) {
-						current.getElement()!.focus();
-						last = false;
-					}
-
 					current.selected = true;
 
 					if (current === node) {
@@ -237,7 +261,8 @@
 				break;
 			}
 			case "a": {
-				if (!isModifierKey(event)) {
+				const shouldSelectAll = isModifierKey(event);
+				if (!shouldSelectAll) {
 					break;
 				}
 
@@ -271,13 +296,18 @@
 	}
 
 	function handleClick(event: WithCurrentTarget<MouseEvent>) {
-		if (isModifierKey(event)) {
+		const shouldToggleSelection = isModifierKey(event);
+		if (shouldToggleSelection) {
 			node.selected = !node.selected;
 			return;
 		}
 
-		if (!event.shiftKey) {
-			node.tree.selected.clear();
+		const { tree } = node;
+		const { selected } = tree;
+
+		const shouldSelectMultiple = event.shiftKey;
+		if (!shouldSelectMultiple) {
+			selected.clear();
 			node.selected = true;
 			return;
 		}
@@ -287,30 +317,35 @@
 		// starting from the previously tabbable element up to this element.
 		const tabbableId = treeContext.previousTabbableId;
 		if (tabbableId === undefined) {
+			// Ideally, this situation should never happen, but events are messy.
+			// Focus can be prevented by calling `event.preventDefault()` on the
+			// pointerdown event. Fallback to just selecting this element.
+			selected.clear();
+			node.selected = true;
 			return;
 		}
 
-		const tabbableElement = node.tree.getTreeItemElement(tabbableId)!;
-		const tabbableElementRect = tabbableElement.getBoundingClientRect();
-		const down = tabbableElementRect.top > event.y;
+		const tabbableElement = tree.getTreeItemElement(tabbableId);
+		if (tabbableElement === null) {
+			selected.clear();
+			node.selected = true;
+			return;
+		}
+		const down = tabbableElement.getBoundingClientRect().top > event.y;
 
-		let current: HTMLElement = event.currentTarget;
+		let current = event.currentTarget;
 		while (true) {
 			const currentId = getNodeId(current);
-			node.tree.selected.add(currentId);
+			selected.add(currentId);
 
 			if (currentId === tabbableId) {
 				break;
 			}
 
-			const next = down
-				? getNextTreeItem(current)
-				: getPreviousTreeItem(current);
-
+			const next = getNextTreeItem(current, down);
 			if (next === null) {
 				break;
 			}
-
 			current = next;
 		}
 	}
