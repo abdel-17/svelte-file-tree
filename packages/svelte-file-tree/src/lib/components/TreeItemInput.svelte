@@ -2,7 +2,7 @@
 	import { composeEventHandlers } from "$lib/helpers/events.js";
 	import { getContext, hasContext } from "svelte";
 	import type { HTMLInputAttributes } from "svelte/elements";
-	import { TreeItemContext } from "./context.svelte.js";
+	import { TreeItemContext, TreeViewContext } from "./context.svelte.js";
 
 	interface Props extends HTMLInputAttributes {
 		value: any;
@@ -27,6 +27,7 @@
 		);
 	}
 	const itemContext: TreeItemContext = getContext(TreeItemContext.key);
+	const treeContext: TreeViewContext = getContext(TreeViewContext.key);
 
 	const originalValue = value;
 	let commited = false;
@@ -37,15 +38,14 @@
 		switch (event.key) {
 			case "Enter": {
 				commited = true;
-				itemContext.node.getElement()!.focus();
-
+				treeContext.getTreeItemElement(itemContext.node.id)!.focus();
 				if (value !== originalValue) {
 					onCommit?.(value);
 				}
 				break;
 			}
 			case "Escape": {
-				itemContext.node.getElement()!.focus();
+				treeContext.getTreeItemElement(itemContext.node.id)!.focus();
 				break;
 			}
 			default: {

@@ -10,7 +10,6 @@ export type TreeItem<Value> = {
 
 export type TreeProps<Value> = {
 	items: MaybeGetter<ReadonlyArray<TreeItem<Value>>>;
-	id?: MaybeGetter<string>;
 	selected?: SvelteSet<string>;
 	expanded?: SvelteSet<string>;
 	defaultSelected?: Iterable<string>;
@@ -19,13 +18,11 @@ export type TreeProps<Value> = {
 
 export class Tree<Value> {
 	#items: MaybeGetter<ReadonlyArray<TreeItem<Value>>>;
-	#id: MaybeGetter<string>;
 	#selected: SvelteSet<string>;
 	#expanded: SvelteSet<string>;
 
 	constructor(props: TreeProps<Value>) {
 		this.#items = props.items;
-		this.#id = props.id ?? crypto.randomUUID();
 		this.#selected = props.selected ?? new SvelteSet(props.defaultSelected);
 		this.#expanded = props.expanded ?? new SvelteSet(props.defaultExpanded);
 	}
@@ -40,7 +37,7 @@ export class Tree<Value> {
 
 	readonly #roots: Array<TreeNode<Value>> = $derived.by(() => {
 		const items = unwrap(this.#items);
-		const roots = $state(items.map((item) => new TreeNode(this, item)));
+		const roots = $state(items.map((item, i) => new TreeNode(this, item, i)));
 		return roots;
 	});
 
@@ -48,13 +45,17 @@ export class Tree<Value> {
 		return this.#roots;
 	}
 
-	readonly id: string = $derived.by(() => unwrap(this.#id));
+	readonly first: TreeNode<Value> | null = $derived.by(() => {
+		if (this.roots.length === 0) {
+			return null;
+		}
+		return this.roots[0];
+	});
 
 	readonly last: TreeNode<Value> | null = $derived.by(() => {
 		if (this.roots.length === 0) {
 			return null;
 		}
-
 		let last = this.roots.at(-1)!;
 		while (last.expanded && last.children.length !== 0) {
 			last = last.children.at(-1)!;
@@ -76,7 +77,7 @@ export class Tree<Value> {
 
 	*reversed(): Generator<TreeNode<Value>> {
 		for (let i = this.roots.length - 1; i >= 0; i--) {
-			const root = this.roots[i]!;
+			const root = this.roots[i];
 			yield* root.reversed();
 		}
 	}
@@ -84,39 +85,30 @@ export class Tree<Value> {
 	[Symbol.iterator](): Generator<TreeNode<Value>> {
 		return this.iter();
 	}
-
-	getElement(): HTMLElement | null {
-		return document.getElementById(this.id);
-	}
-
-	getTreeItemElementId(id: string): string {
-		return `${this.id}:${id}`;
-	}
-
-	getTreeItemElement(id: string): HTMLElement | null {
-		const elementId = this.getTreeItemElementId(id);
-		return document.getElementById(elementId);
-	}
 }
 
 export class TreeNode<Value> {
 	#tree: Tree<Value>;
 	#id: string;
 	value: Value = $state()!;
+	levelIndex: number = $state()!; // TODO: make private when https://github.com/sveltejs/svelte/issues/13965 is fixed
 	#parent: TreeNode<Value> | null = $state()!;
 	#children: Array<TreeNode<Value>> = $state()!;
 
 	constructor(
 		tree: Tree<Value>,
 		item: TreeItem<Value>,
+		levelIndex: number,
 		parent: TreeNode<Value> | null = null,
 	) {
 		this.#tree = tree;
 		this.#id = item.id;
 		this.value = item.value;
+		this.levelIndex = levelIndex;
 		this.#parent = parent;
 		this.#children =
-			item.children?.map((child) => new TreeNode(tree, child, this)) ?? [];
+			item.children?.map((child, i) => new TreeNode(tree, child, i, this)) ??
+			[];
 	}
 
 	get tree(): Tree<Value> {
@@ -181,9 +173,34 @@ export class TreeNode<Value> {
 		return this.parent.children;
 	});
 
-	readonly elementId: string = $derived.by(() =>
-		this.#tree.getTreeItemElementId(this.id),
-	);
+	readonly previous: TreeNode<Value> | null = $derived.by(() => {
+		if (this.levelIndex === 0) {
+			return this.parent;
+		}
+		let current = this.level[this.levelIndex - 1];
+		while (current.expanded && current.children.length !== 0) {
+			current = current.children.at(-1)!;
+		}
+		return current;
+	});
+
+	readonly next: TreeNode<Value> | null = $derived.by(() => {
+		if (this.expanded && this.children.length !== 0) {
+			return this.children[0];
+		}
+
+		let current: TreeNode<Value> = this;
+		while (true) {
+			const nextSiblingIndex = current.levelIndex + 1;
+			if (nextSiblingIndex !== current.level.length) {
+				return current.level[nextSiblingIndex];
+			}
+			if (current.parent === null) {
+				return null;
+			}
+			current = current.parent;
+		}
+	});
 
 	*all(): Generator<TreeNode<Value>> {
 		yield this;
@@ -204,7 +221,7 @@ export class TreeNode<Value> {
 	*reversed(): Generator<TreeNode<Value>> {
 		if (this.expanded) {
 			for (let i = this.children.length - 1; i >= 0; i--) {
-				const child = this.children[i]!;
+				const child = this.children[i];
 				yield* child.reversed();
 			}
 		}
@@ -223,7 +240,62 @@ export class TreeNode<Value> {
 		return current === this;
 	}
 
-	getElement(): HTMLElement | null {
-		return document.getElementById(this.elementId);
+	#revalidateLevelIndex(
+		level: Array<TreeNode<Value>>,
+		start: number,
+		end: number = level.length,
+	): void {
+		for (let i = start; i < end; i++) {
+			const sibling = level[i];
+			sibling.levelIndex = i;
+		}
+	}
+
+	move(position: "before" | "after", target: TreeNode<Value>): void {
+		let nextLevelIndex: number;
+		switch (position) {
+			case "before": {
+				nextLevelIndex = target.levelIndex;
+				break;
+			}
+			case "after": {
+				nextLevelIndex = target.levelIndex + 1;
+				break;
+			}
+		}
+
+		const level = this.level as Array<TreeNode<Value>>;
+		const targetLevel = target.level as Array<TreeNode<Value>>;
+		if (level !== targetLevel) {
+			// Remove this node from its level.
+			level.splice(this.levelIndex, 1);
+			this.#revalidateLevelIndex(level, this.levelIndex);
+
+			// Insert this node to the target level.
+			targetLevel.splice(nextLevelIndex, 0, this);
+			this.#revalidateLevelIndex(targetLevel, nextLevelIndex);
+			this.#parent = target.parent;
+			return;
+		}
+
+		// Instead of removing and inserting the node back to the same level,
+		// swap the nodes to achieve the same effect in a more efficient way.
+		//
+		// Case 1: The node is being moved to a position after itself.
+		for (let i = this.levelIndex + 1; i < nextLevelIndex; i++) {
+			const current = level[i];
+			level[i - 1] = current;
+			current.levelIndex = i - 1;
+			level[i] = this;
+			this.levelIndex = i;
+		}
+		// Case 2: The node is being moved to a position before itself.
+		for (let i = this.levelIndex; i > nextLevelIndex; i--) {
+			const previous = level[i - 1];
+			level[i] = previous;
+			previous.levelIndex = i;
+			level[i - 1] = this;
+			this.levelIndex = i - 1;
+		}
 	}
 }

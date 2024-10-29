@@ -10,10 +10,9 @@
 
 <main class="p-8">
 	<TreeView {tree} class="rounded border">
-		{#snippet item({ node, levelIndex })}
+		{#snippet item(node)}
 			<TreeItem
 				{node}
-				{levelIndex}
 				editable
 				data-leaf={node.children.length === 0 ? "" : undefined}
 				style="--indent: calc({node.depth + 1} * var(--spacing-4))"
