@@ -1,21 +1,17 @@
 <script lang="ts">
 	import ChevronDown from "lucide-svelte/icons/chevron-down";
-	import { Tree, TreeItem, TreeItemInput, TreeView } from "svelte-file-tree";
+	import { TreeItem, TreeItemInput, TreeView } from "svelte-file-tree";
 	import data from "./data.json";
-
-	const tree = new Tree({
-		items: data,
-	});
 </script>
 
 <main class="p-8">
-	<TreeView {tree} class="rounded border">
+	<TreeView id="preview-tree" items={data} class="rounded border">
 		{#snippet item(node)}
 			<TreeItem
 				{node}
 				editable
 				data-leaf={node.children.length === 0 ? "" : undefined}
-				style="--indent: calc({node.depth + 1} * var(--spacing-4))"
+				style="--indent: calc({node.level} * var(--spacing-4))"
 				class="group flex gap-2 ps-[var(--indent)] pe-4 py-2 hover:bg-current/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current active:bg-current/12 aria-selected:bg-blue-100 aria-selected:text-blue-800"
 			>
 				{#snippet children({ editing })}

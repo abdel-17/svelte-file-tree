@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { composeEventHandlers } from "$lib/helpers/events.js";
-	import { getContext, hasContext } from "svelte";
 	import type { HTMLInputAttributes } from "svelte/elements";
-	import { TreeItemContext, TreeViewContext } from "./context.svelte.js";
+	import { getTreeItemContext } from "./TreeItem.svelte";
 
 	interface Props extends HTMLInputAttributes {
 		value: any;
@@ -21,13 +20,7 @@
 		...props
 	}: Props = $props();
 
-	if (!hasContext(TreeItemContext.key)) {
-		throw new Error(
-			"<TreeItemInput> must be used within a <TreeItem> component.",
-		);
-	}
-	const itemContext: TreeItemContext = getContext(TreeItemContext.key);
-	const treeContext: TreeViewContext = getContext(TreeViewContext.key);
+	const { treeItemElement, onEditingChange } = getTreeItemContext();
 
 	const originalValue = value;
 	let commited = false;
@@ -38,14 +31,14 @@
 		switch (event.key) {
 			case "Enter": {
 				commited = true;
-				treeContext.getTreeItemElement(itemContext.node.id)!.focus();
+				treeItemElement()!.focus();
 				if (value !== originalValue) {
 					onCommit?.(value);
 				}
 				break;
 			}
 			case "Escape": {
-				treeContext.getTreeItemElement(itemContext.node.id)!.focus();
+				treeItemElement()!.focus();
 				break;
 			}
 			default: {
@@ -57,7 +50,7 @@
 	}
 
 	function handleBlur() {
-		itemContext.editing = false;
+		onEditingChange(false);
 	}
 
 	function init(input: HTMLInputElement) {

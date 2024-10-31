@@ -1,3 +1,23 @@
+<script lang="ts" module>
+	const contextKey = Symbol("TreeItemContext");
+
+	export type TreeItemContext = {
+		treeItemElement: () => HTMLDivElement | null;
+		onEditingChange: (value: boolean) => void;
+	};
+
+	export function getTreeItemContext(): TreeItemContext {
+		if (!hasContext(contextKey)) {
+			throw new Error("No parent <TreeItem> found.");
+		}
+		return getContext(contextKey);
+	}
+
+	function setTreeItemContext(context: TreeItemContext): void {
+		setContext(contextKey, context);
+	}
+</script>
+
 <script lang="ts" generics="Value">
 	import { composeEventHandlers } from "$lib/helpers/events.js";
 	import { isModifierKey } from "$lib/helpers/platform.js";
@@ -9,7 +29,7 @@
 		type Snippet,
 	} from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { TreeItemContext, TreeViewContext } from "./context.svelte.js";
+	import { getTreeViewContext } from "./TreeView.svelte";
 	import type { TreeNode } from "./tree.svelte.js";
 
 	type BaseProps = Omit<
@@ -46,22 +66,14 @@
 		...props
 	}: Props = $props();
 
-	if (!hasContext(TreeViewContext.key)) {
-		throw new Error("<TreeItem> must be used within a <TreeView> component.");
-	}
-	const treeContext: TreeViewContext = getContext(TreeViewContext.key);
+	const { tree, treeId, treeElement } = getTreeViewContext();
 
-	const itemContext = new TreeItemContext({
-		node: () => node,
-		editing: () => editing,
+	setTreeItemContext({
+		treeItemElement: () => ref,
 		onEditingChange(value) {
 			editing = value;
 		},
 	});
-	setContext(TreeItemContext.key, itemContext);
-
-	// The first node in the tree should be initially tabbable with the keyboard.
-	treeContext.tabbableId ??= node.id;
 
 	$effect.pre(() => {
 		if (!editable) {
@@ -69,10 +81,19 @@
 		}
 	});
 
-	function getTreeItemElementOrWarn(node: TreeNode<Value>): HTMLElement | null {
-		const element = treeContext.getTreeItemElement(node.id);
+	function getTreeItemElementId(nodeId: string): string {
+		return `${treeId()}:${nodeId}`;
+	}
+
+	function getTreeItemElement(nodeId: string): HTMLElement | null {
+		const elementId = getTreeItemElementId(nodeId);
+		return document.getElementById(elementId);
+	}
+
+	function getTreeItemElementOrWarn(nodeId: string): HTMLElement | null {
+		const element = getTreeItemElement(nodeId);
 		if (element === null) {
-			console.warn(`Expected the tree item ${node.id} to exist in the DOM.`);
+			console.warn(`The tree item ${nodeId} was not found in the DOM.`);
 		}
 		return element;
 	}
@@ -93,43 +114,42 @@
 				}
 
 				if (!node.expanded) {
-					node.expanded = true;
+					node.expand();
 					break;
 				}
 
-				getTreeItemElementOrWarn(node.children[0])?.focus();
+				getTreeItemElementOrWarn(node.children[0].id)?.focus();
 				break;
 			}
 			case "ArrowLeft": {
 				if (node.expanded && node.children.length !== 0) {
-					node.expanded = false;
+					node.collapse();
 					break;
 				}
 
-				if (node.parent === null) {
-					break;
+				if (node.parent !== undefined) {
+					getTreeItemElementOrWarn(node.parent.id)?.focus();
 				}
-
-				getTreeItemElementOrWarn(node.parent)?.focus();
 				break;
 			}
 			case "ArrowDown":
 			case "ArrowUp": {
 				const down = event.key === "ArrowDown";
-				const next = down ? node.next : node.previous;
-				if (next === null) {
+				const next = down ? node.next() : node.previous();
+				if (next === undefined) {
 					break;
 				}
-				const nextElement = getTreeItemElementOrWarn(next);
+				const nextElement = getTreeItemElementOrWarn(next.id);
 				if (nextElement === null) {
 					break;
 				}
 
 				const shouldSelect = event.shiftKey;
 				if (shouldSelect) {
-					node.selected = true;
-					next.selected = true;
+					node.select();
+					next.select();
 				}
+
 				nextElement.focus();
 				break;
 			}
@@ -137,23 +157,24 @@
 			case "PageUp": {
 				const down = event.key === "PageDown";
 				const shouldSelect = event.shiftKey && isModifierKey(event);
-
-				const treeHeight = treeContext.getTreeElement()!.clientHeight;
-				const maxScrollDistance = Math.min(treeHeight, window.innerHeight);
+				const maxScrollDistance = Math.min(
+					treeElement()!.clientHeight,
+					document.documentElement.clientHeight,
+				);
 				const itemTop = event.currentTarget.getBoundingClientRect().top;
 
 				let current = node;
 				let currentElement: HTMLElement = event.currentTarget;
 				while (true) {
 					if (shouldSelect) {
-						current.selected = true;
+						current.select();
 					}
 
-					const next = down ? current.next : current.previous;
-					if (next === null) {
+					const next = down ? current.next() : current.previous();
+					if (next === undefined) {
 						break;
 					}
-					const nextElement = getTreeItemElementOrWarn(next);
+					const nextElement = getTreeItemElementOrWarn(next.id);
 					if (nextElement === null) {
 						break;
 					}
@@ -167,7 +188,7 @@
 					}
 
 					if (shouldSelect) {
-						current.selected = true;
+						next.select();
 					}
 					break;
 				}
@@ -175,34 +196,42 @@
 				break;
 			}
 			case "Home": {
-				getTreeItemElementOrWarn(node.tree.first!)?.focus();
+				if (tree.roots.length === 0) {
+					break;
+				}
+
+				getTreeItemElementOrWarn(tree.roots[0].id)?.focus();
 
 				const shouldSelect = event.shiftKey && isModifierKey(event);
 				if (!shouldSelect) {
 					break;
 				}
 
-				for (const current of node.tree) {
-					current.selected = true;
+				for (const item of tree) {
+					item.select();
 
-					if (current === node) {
+					if (item === node) {
 						break;
 					}
 				}
 				break;
 			}
 			case "End": {
-				getTreeItemElementOrWarn(node.tree.last!)?.focus();
+				if (tree.roots.length === 0) {
+					break;
+				}
+
+				getTreeItemElementOrWarn(tree.last().id)?.focus();
 
 				const shouldSelect = event.shiftKey && isModifierKey(event);
 				if (!shouldSelect) {
 					break;
 				}
 
-				for (const current of node.tree.reversed()) {
-					current.selected = true;
+				for (const item of tree.reversed()) {
+					item.select();
 
-					if (current === node) {
+					if (item === node) {
 						break;
 					}
 				}
@@ -224,18 +253,19 @@
 					break;
 				}
 
-				for (const item of node.tree) {
-					item.selected = true;
+				for (const item of tree) {
+					item.select();
 				}
 				break;
 			}
 			case "*": {
 				const topBefore = event.currentTarget.getBoundingClientRect().top;
 				flushSync(() => {
-					for (const sibling of node.level) {
-						sibling.expanded = true;
+					for (const sibling of node.siblings) {
+						sibling.expand();
 					}
 				});
+
 				// After the sibling nodes are all expanded, the tree's height changes,
 				// causing a lot of layout shift. Preserve the position of the focused
 				// node relative to the viewport to avoid disorienting the user.
@@ -258,68 +288,58 @@
 			return;
 		}
 
-		const { tree } = node;
-		const { selected } = tree;
-
 		const shouldSelectMultiple = event.shiftKey;
 		if (!shouldSelectMultiple) {
-			selected.clear();
-			node.selected = true;
+			tree.selected.clear();
+			node.select();
 			return;
 		}
 
 		// The click event is fired after the focus event, so the currently
 		// tabbable element is this element. We want to select all elements
 		// starting from the previously tabbable element up to this element.
-		const tabbableId = treeContext.previousTabbableId;
-		if (tabbableId === undefined) {
+		const { previousTabbable } = tree;
+		if (previousTabbable === undefined) {
 			return;
 		}
-		const tabbableElementId = treeContext.getTreeItemElementId(tabbableId);
-		const tabbableElement = document.getElementById(tabbableElementId);
-		if (tabbableElement === null) {
+		const previousTabbableElement = getTreeItemElement(previousTabbable);
+		if (previousTabbableElement === null) {
 			return;
 		}
-		const down = tabbableElement.getBoundingClientRect().top > event.y;
+		const down = previousTabbableElement.getBoundingClientRect().top > event.y;
 
 		let current = node;
-		let currentElement: HTMLElement = event.currentTarget;
 		while (true) {
-			current.selected = true;
+			current.select();
 
-			if (current.id === tabbableId) {
+			if (current.id === previousTabbable) {
 				break;
 			}
 
-			const next = down ? current.next : current.previous;
-			if (next === null) {
-				break;
-			}
-			const nextElement = getTreeItemElementOrWarn(next);
-			if (nextElement === null) {
+			const next = down ? current.next() : current.previous();
+			if (next === undefined) {
 				break;
 			}
 			current = next;
-			currentElement = nextElement;
 		}
 	}
 
 	function handleFocusIn() {
-		treeContext.tabbableId = node.id;
+		tree.tabbable = node.id;
 	}
 </script>
 
 <div
 	{...props}
 	bind:this={ref}
-	id={treeContext.getTreeItemElementId(node.id)}
+	id={getTreeItemElementId(node.id)}
 	role="treeitem"
-	aria-level={node.depth + 1}
-	aria-posinset={node.levelIndex + 1}
-	aria-setsize={node.level.length}
+	aria-level={node.level}
+	aria-posinset={node.index + 1}
+	aria-setsize={node.siblings.length}
 	aria-expanded={node.children.length !== 0 ? node.expanded : undefined}
 	aria-selected={node.selected}
-	tabindex={node.id === treeContext.tabbableId ? 0 : -1}
+	tabindex={node.id === tree.tabbable ? 0 : -1}
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
 	onclick={composeEventHandlers(handleClick, onclick)}
 	onfocusin={composeEventHandlers(handleFocusIn, onfocusin)}
