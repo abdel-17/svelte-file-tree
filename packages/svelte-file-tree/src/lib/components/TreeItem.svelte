@@ -51,6 +51,7 @@
 		children: Snippet<[{ editing: boolean }]>;
 		editable?: boolean;
 		editing?: boolean;
+		draggable?: boolean;
 		ref?: HTMLDivElement | null;
 	}
 
@@ -59,10 +60,15 @@
 		children,
 		editable = false,
 		editing = $bindable(false),
+		draggable = false,
 		ref = $bindable(null),
 		onkeydown,
 		onclick,
 		onfocusin,
+		ondragstart,
+		ondragend,
+		ondragover,
+		ondrop,
 		...props
 	}: Props = $props();
 
@@ -81,19 +87,19 @@
 		}
 	});
 
-	function getTreeItemElementId(nodeId: string): string {
-		return `${treeId()}:${nodeId}`;
+	function getTreeItemElementId(id: string): string {
+		return `${treeId()}:${id}`;
 	}
 
-	function getTreeItemElement(nodeId: string): HTMLElement | null {
-		const elementId = getTreeItemElementId(nodeId);
+	function getTreeItemElement(id: string): HTMLElement | null {
+		const elementId = getTreeItemElementId(id);
 		return document.getElementById(elementId);
 	}
 
-	function getTreeItemElementOrWarn(nodeId: string): HTMLElement | null {
-		const element = getTreeItemElement(nodeId);
+	function getTreeItemElementOrWarn(id: string): HTMLElement | null {
+		const element = getTreeItemElement(id);
 		if (element === null) {
-			console.warn(`The tree item ${nodeId} was not found in the DOM.`);
+			console.warn(`The tree item ${id} was not found in the DOM.`);
 		}
 		return element;
 	}
@@ -217,11 +223,12 @@
 				break;
 			}
 			case "End": {
-				if (tree.roots.length === 0) {
+				const last = tree.last();
+				if (last === undefined) {
 					break;
 				}
 
-				getTreeItemElementOrWarn(tree.last().id)?.focus();
+				getTreeItemElementOrWarn(last.id)?.focus();
 
 				const shouldSelect = event.shiftKey && isModifierKey(event);
 				if (!shouldSelect) {
@@ -325,7 +332,42 @@
 	}
 
 	function handleFocusIn() {
-		tree.tabbable = node.id;
+		tree.onFocusTreeItem(node);
+	}
+
+	function handleDragStart(event: WithCurrentTarget<DragEvent>) {
+		tree.onDragStartTreeItem(node);
+
+		if (event.dataTransfer !== null) {
+			event.dataTransfer.effectAllowed = "move";
+		}
+	}
+
+	function handleDragEnd() {
+		tree.onDragEndTreeItem(node);
+	}
+
+	function handleDragOver(event: WithCurrentTarget<DragEvent>) {
+		if (!node.dropTarget) {
+			return;
+		}
+
+		// The default behavior prevents the drop event from firing.
+		event.preventDefault();
+
+		if (event.dataTransfer !== null) {
+			event.dataTransfer.dropEffect = "move";
+		}
+	}
+
+	function handleDrop(event: WithCurrentTarget<DragEvent>) {
+		const { top, height } = event.currentTarget.getBoundingClientRect();
+		const midY = top + height / 2;
+		if (event.clientY < midY) {
+			tree.onDropTreeItem(node, "before");
+		} else {
+			tree.onDropTreeItem(node, "after");
+		}
 	}
 </script>
 
@@ -340,9 +382,14 @@
 	aria-expanded={node.children.length !== 0 ? node.expanded : undefined}
 	aria-selected={node.selected}
 	tabindex={node.id === tree.tabbable ? 0 : -1}
+	{draggable}
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
 	onclick={composeEventHandlers(handleClick, onclick)}
 	onfocusin={composeEventHandlers(handleFocusIn, onfocusin)}
+	ondragstart={composeEventHandlers(handleDragStart, ondragstart)}
+	ondragend={composeEventHandlers(handleDragEnd, ondragend)}
+	ondragover={composeEventHandlers(handleDragOver, ondragover)}
+	ondrop={composeEventHandlers(handleDrop, ondrop)}
 >
 	{@render children({ editing })}
 </div>

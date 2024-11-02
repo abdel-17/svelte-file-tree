@@ -25,8 +25,24 @@ export class Tree<Value> {
 		this.#expanded = props.expanded ?? new SvelteSet(props.defaultExpanded);
 	}
 
+	#lookup = new Map<string, TreeNode<Value>>();
 	#tabbable: string | undefined = $state.raw();
 	#previousTabbable?: string;
+	#dragged: string | undefined = $state.raw();
+
+	readonly roots: Array<TreeNode<Value>> = $derived.by(() => {
+		// I know having side effects in  a $derived is "bad", but in this case,
+		// it is the most efficient way to update the lookup map.
+		//
+		// Using a $derived map will recreate the map every time a node is
+		// inserted or removed, which is not ideal. We should only recreate
+		// the map when the entire tree has to be recreated.
+		this.#lookup.clear();
+		const roots = $state(
+			this.#items().map((item, i) => new TreeNode(this, item, i)),
+		);
+		return roots;
+	});
 
 	get selected(): SvelteSet<string> {
 		return this.#selected;
@@ -36,25 +52,17 @@ export class Tree<Value> {
 		return this.#expanded;
 	}
 
-	get tabbable(): string {
-		return this.#tabbable ?? this.roots[0].id;
-	}
-
-	set tabbable(tabbable: string) {
-		this.#previousTabbable = this.tabbable;
-		this.#tabbable = tabbable;
-	}
+	readonly tabbable: string | undefined = $derived.by(
+		() => this.#tabbable ?? this.roots[0]?.id,
+	);
 
 	get previousTabbable(): string | undefined {
 		return this.#previousTabbable;
 	}
 
-	readonly roots: Array<TreeNode<Value>> = $derived.by(() => {
-		const roots = $state(
-			this.#items().map((item, i) => new TreeNode(this, item, i)),
-		);
-		return roots;
-	});
+	get dragged(): string | undefined {
+		return this.#dragged;
+	}
 
 	*traverse(): TreeNodeGenerator<Value> {
 		for (const root of this.roots) {
@@ -79,35 +87,70 @@ export class Tree<Value> {
 		return this.values();
 	}
 
-	last(): TreeNode<Value> {
-		if (this.roots.length === 0) {
-			throw new Error("The tree is empty.");
+	last(): TreeNode<Value> | undefined {
+		let last = this.roots.at(-1);
+		if (last === undefined) {
+			return;
 		}
-		let last = this.roots.at(-1)!;
 		while (last.expanded && last.children.length !== 0) {
 			last = last.children.at(-1)!;
 		}
 		return last;
 	}
 
-	onTreeNodeIdChange(previous: string, next: string): void {
-		const wasSelected = this.selected.delete(previous);
+	get(id: string): TreeNode<Value> | undefined {
+		return this.#lookup.get(id);
+	}
+
+	onCreateTreeItem(node: TreeNode<Value>, id: string): void {
+		this.#lookup.set(id, node);
+	}
+
+	onChangeTreeItemId(current: string, next: string): void {
+		const wasSelected = this.selected.delete(current);
 		if (wasSelected) {
 			this.selected.add(next);
 		}
 
-		const wasExpanded = this.expanded.delete(previous);
+		const wasExpanded = this.expanded.delete(current);
 		if (wasExpanded) {
 			this.expanded.add(next);
 		}
 
-		if (this.#tabbable === previous) {
+		if (this.#tabbable === current) {
 			this.#tabbable = next;
 		}
 
-		if (this.#previousTabbable === previous) {
+		if (this.#previousTabbable === current) {
 			this.#previousTabbable = next;
 		}
+
+		if (this.#dragged === current) {
+			this.#dragged = next;
+		}
+	}
+
+	onFocusTreeItem(node: TreeNode<Value>): void {
+		this.#previousTabbable = this.tabbable;
+		this.#tabbable = node.id;
+	}
+
+	onDragStartTreeItem(node: TreeNode<Value>): void {
+		this.#dragged = node.id;
+	}
+
+	onDragEndTreeItem(node: TreeNode<Value>): void {
+		if (this.#dragged === node.id) {
+			this.#dragged = undefined;
+		}
+	}
+
+	onDropTreeItem(node: TreeNode<Value>, position: "before" | "after"): void {
+		if (this.#dragged === undefined) {
+			return;
+		}
+		const dragged = this.get(this.#dragged);
+		dragged?.move(position, node);
 	}
 }
 
@@ -125,14 +168,16 @@ export class TreeNode<Value> {
 		index: number,
 		parent?: TreeNode<Value>,
 	) {
+		const { id, value, children } = item;
+		tree.onCreateTreeItem(this, id);
+
 		this.#tree = tree;
-		this.#id = item.id;
-		this.#value = item.value;
+		this.#id = id;
+		this.#value = value;
 		this.#index = index;
 		this.#parent = parent;
 		this.#children =
-			item.children?.map((child, i) => new TreeNode(tree, child, i, this)) ??
-			[];
+			children?.map((child, i) => new TreeNode(tree, child, i, this)) ?? [];
 	}
 
 	get id(): string {
@@ -140,9 +185,8 @@ export class TreeNode<Value> {
 	}
 
 	set id(id: string) {
-		const previous = this.#id;
+		this.#tree.onChangeTreeItemId(this.#id, id);
 		this.#id = id;
-		this.#tree.onTreeNodeIdChange(previous, id);
 	}
 
 	get value(): Value {
@@ -215,34 +259,15 @@ export class TreeNode<Value> {
 		return this.#siblings;
 	}
 
-	previous(): TreeNode<Value> | undefined {
-		if (this.index === 0) {
-			return this.parent;
-		}
-		let previous = this.siblings[this.index - 1];
-		while (previous.expanded && previous.children.length !== 0) {
-			previous = previous.children.at(-1)!;
-		}
-		return previous;
-	}
+	readonly dragged: boolean = $derived.by(() => this.#tree.dragged === this.id);
 
-	next(): TreeNode<Value> | undefined {
-		if (this.expanded && this.children.length !== 0) {
-			return this.children[0];
+	readonly dropTarget: boolean = $derived.by(() => {
+		const { dragged } = this.#tree;
+		if (dragged === undefined || dragged === this.id) {
+			return false;
 		}
-
-		let current: TreeNode<Value> = this;
-		while (true) {
-			if (current.index !== current.siblings.length - 1) {
-				return current.siblings[current.index + 1];
-			}
-
-			if (current.parent === undefined) {
-				return;
-			}
-			current = current.parent;
-		}
-	}
+		return this.parent === undefined || this.parent.dropTarget;
+	});
 
 	*traverse(): TreeNodeGenerator<Value> {
 		yield this;
@@ -272,6 +297,35 @@ export class TreeNode<Value> {
 
 	[Symbol.iterator](): TreeNodeGenerator<Value> {
 		return this.values();
+	}
+
+	previous(): TreeNode<Value> | undefined {
+		if (this.index === 0) {
+			return this.parent;
+		}
+		let previous = this.siblings[this.index - 1];
+		while (previous.expanded && previous.children.length !== 0) {
+			previous = previous.children.at(-1)!;
+		}
+		return previous;
+	}
+
+	next(): TreeNode<Value> | undefined {
+		if (this.expanded && this.children.length !== 0) {
+			return this.children[0];
+		}
+
+		let current: TreeNode<Value> = this;
+		while (true) {
+			if (current.index !== current.siblings.length - 1) {
+				return current.siblings[current.index + 1];
+			}
+
+			if (current.parent === undefined) {
+				return;
+			}
+			current = current.parent;
+		}
 	}
 
 	select(): void {

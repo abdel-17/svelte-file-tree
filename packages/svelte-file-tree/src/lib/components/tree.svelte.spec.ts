@@ -1,6 +1,6 @@
 import { effectRootScope } from "$lib/helpers/effect-root-scope.svelte.js";
 import { SvelteSet } from "svelte/reactivity";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { Tree, type TreeNode } from "./tree.svelte.js";
 
 const items = [
@@ -84,6 +84,141 @@ function map<In, Out>(
 }
 
 describe("Tree", () => {
+	test("Tree.roots", () => {
+		const tree = new Tree({ items: () => items });
+		const ids = tree.roots.map((node) => node.id);
+		expect(ids).toEqual(["1", "2", "3"]);
+	});
+
+	test("Tree.traverse() iterates over all nodes", () => {
+		const tree = new Tree({ items: () => items });
+		const ids = tree
+			.traverse()
+			.map((node) => node.id)
+			.toArray();
+		expect(ids).toEqual([
+			"1",
+			"1.1",
+			"1.1.1",
+			"1.1.2",
+			"1.1.3",
+			"1.2",
+			"1.2.1",
+			"1.2.2",
+			"2",
+			"2.1",
+			"2.2",
+			"3",
+			"3.1",
+			"3.2",
+		]);
+	});
+
+	test("Tree.values() iterates over the visible nodes", () => {
+		const tree = new Tree({
+			items: () => items,
+			defaultExpanded: ["1", "1.1", "2"],
+		});
+		const ids = tree
+			.values()
+			.map((node) => node.id)
+			.toArray();
+		expect(ids).toEqual([
+			"1",
+			"1.1",
+			"1.1.1",
+			"1.1.2",
+			"1.1.3",
+			"1.2",
+			"2",
+			"2.1",
+			"2.2",
+			"3",
+		]);
+	});
+
+	test("Tree.reversed() iterates over the visible nodes in reverse", () => {
+		const tree = new Tree({
+			items: () => items,
+			defaultExpanded: ["1", "1.1", "2"],
+		});
+		const ids = tree
+			.reversed()
+			.map((node) => node.id)
+			.toArray();
+		expect(ids).toEqual([
+			"3",
+			"2.2",
+			"2.1",
+			"2",
+			"1.2",
+			"1.1.3",
+			"1.1.2",
+			"1.1.1",
+			"1.1",
+			"1",
+		]);
+	});
+
+	test("Tree is iterable", () => {
+		const tree = new Tree({
+			items: () => items,
+			defaultExpanded: ["1", "1.1", "2"],
+		});
+		const ids = Array.from(tree).map((node) => node.id);
+		expect(ids).toEqual([
+			"1",
+			"1.1",
+			"1.1.1",
+			"1.1.2",
+			"1.1.3",
+			"1.2",
+			"2",
+			"2.1",
+			"2.2",
+			"3",
+		]);
+	});
+
+	test("Tree.get() returns the node with the given id", () => {
+		const tree = new Tree({ items: () => items });
+		for (const node of tree.traverse()) {
+			const lookup = tree.get(node.id);
+			expect(node).toBe(lookup);
+		}
+	});
+
+	test("Tree.last() where none of the nodes are expanded", () => {
+		const tree = new Tree({ items: () => items });
+		const last = tree.last();
+		expect(last?.id).toBe("3");
+	});
+
+	test("Tree.last() where the last root is expanded", () => {
+		const tree = new Tree({
+			items: () => items,
+			defaultExpanded: ["3"],
+		});
+		const last = tree.last();
+		expect(last?.id).toBe("3.2");
+	});
+
+	test("Tree.last() returns undefined when the tree is empty", () => {
+		const tree = new Tree({ items: () => [] });
+		const last = tree.last();
+		expect(last).toBeUndefined();
+	});
+
+	test("Tree.selected defaults to being empty", () => {
+		const tree = new Tree({ items: () => [] });
+		expect(tree.selected).empty;
+	});
+
+	test("Tree.expanded defaults to being empty", () => {
+		const tree = new Tree({ items: () => [] });
+		expect(tree.expanded).empty;
+	});
+
 	test("Tree.selected controlled", () => {
 		const selected = new SvelteSet<string>();
 		const tree = new Tree({
@@ -120,154 +255,151 @@ describe("Tree", () => {
 		expect(tree.expanded).toEqual(new SvelteSet(defaultExpanded));
 	});
 
-	test("Tree.tabbable and Tree.previousTabbable", () => {
+	test("TreeNode.selected setter updates the selection state", () => {
 		effectRootScope(() => {
 			const tree = new Tree({ items: () => items });
-			expect(tree.tabbable).toBe("1");
-			expect(tree.previousTabbable).toBeUndefined();
+			const first = tree.roots[0];
 
-			tree.tabbable = "2";
+			first.selected = true;
+			expect(first.selected).true;
+			expect(tree.selected).toEqual(new SvelteSet(["1"]));
+
+			first.selected = false;
+			expect(first.selected).false;
+			expect(tree.selected).empty;
+		});
+	});
+
+	test("TreeNode.select() and TreeNode.unselect() correctly update the selection state", () => {
+		effectRootScope(() => {
+			const tree = new Tree({ items: () => items });
+			const first = tree.roots[0];
+
+			first.select();
+			expect(first.selected).true;
+			expect(tree.selected).toEqual(new SvelteSet(["1"]));
+
+			first.unselect();
+			expect(first.selected).false;
+			expect(tree.selected).empty;
+		});
+	});
+
+	test("TreeNode.expanded setter updates the expansion state", () => {
+		effectRootScope(() => {
+			const tree = new Tree({ items: () => items });
+			const first = tree.roots[0];
+
+			first.expanded = true;
+			expect(first.expanded).true;
+			expect(tree.expanded).toEqual(new SvelteSet(["1"]));
+
+			first.expanded = false;
+			expect(first.expanded).false;
+			expect(tree.expanded).empty;
+		});
+	});
+
+	test("TreeNode.expand() and TreeNode.collapse() correctly update the expansion state", () => {
+		effectRootScope(() => {
+			const tree = new Tree({ items: () => items });
+			const first = tree.roots[0];
+
+			first.expand();
+			expect(first.expanded).true;
+			expect(tree.expanded).toEqual(new SvelteSet(["1"]));
+
+			first.collapse();
+			expect(first.expanded).false;
+			expect(tree.expanded).empty;
+		});
+	});
+
+	test("Tree.tabbable is initialized to the first node", () => {
+		const tree = new Tree({ items: () => items });
+		expect(tree.tabbable).toBe("1");
+		expect(tree.previousTabbable).toBeUndefined();
+	});
+
+	test("Tree.tabbable and Tree.previousTabbable correctly update when a tree item is focused", () => {
+		effectRootScope(() => {
+			const tree = new Tree({ items: () => items });
+			const second = tree.roots[1];
+
+			tree.onFocusTreeItem(second);
 			expect(tree.tabbable).toBe("2");
 			expect(tree.previousTabbable).toBe("1");
 		});
 	});
 
-	test("Tree.roots", () => {
+	test("Tree.dragged correctly updates when a tree item is dragged", () => {
+		effectRootScope(() => {
+			const tree = new Tree({ items: () => items });
+			const first = tree.roots[0];
+
+			tree.onDragStartTreeItem(first);
+			expect(tree.dragged).toBe("1");
+			expect(first.dragged).true;
+
+			tree.onDragEndTreeItem(first);
+			expect(tree.dragged).toBeUndefined();
+			expect(first.dragged).false;
+		});
+	});
+
+	test("TreeNode.dropTarget is false when there is no dragged node", () => {
 		const tree = new Tree({ items: () => items });
-		const roots = tree.roots.map((node) => node.id);
-		expect(roots).toEqual(["1", "2", "3"]);
+		const dropTargets = new Set(
+			tree
+				.traverse()
+				.filter((node) => node.dropTarget)
+				.map((node) => node.id),
+		);
+		expect(dropTargets).empty;
 	});
 
-	test("Tree.traverse()", () => {
-		const tree = new Tree({ items: () => items });
-		const nodes = tree
-			.traverse()
-			.map((node) => node.id)
-			.toArray();
-		expect(nodes).toEqual([
-			"1",
-			"1.1",
-			"1.1.1",
-			"1.1.2",
-			"1.1.3",
-			"1.2",
-			"1.2.1",
-			"1.2.2",
-			"2",
-			"2.1",
-			"2.2",
-			"3",
-			"3.1",
-			"3.2",
-		]);
-	});
+	test("TreeNode.dropTarget is true for nodes not contained in the dragged node", () => {
+		effectRootScope(() => {
+			const tree = new Tree({ items: () => items });
+			const first = tree.roots[0];
 
-	test("Tree.values()", () => {
-		const tree = new Tree({
-			items: () => items,
-			defaultExpanded: ["1", "1.1", "2"],
+			tree.onDragStartTreeItem(first);
+			const dropTargets = new Set(
+				tree
+					.traverse()
+					.filter((node) => node.dropTarget)
+					.map((node) => node.id),
+			);
+			expect(dropTargets).toEqual(
+				new Set(["2", "2.1", "2.2", "3", "3.1", "3.2"]),
+			);
 		});
-		const nodes = tree
-			.values()
-			.map((node) => node.id)
-			.toArray();
-		expect(nodes).toEqual([
-			"1",
-			"1.1",
-			"1.1.1",
-			"1.1.2",
-			"1.1.3",
-			"1.2",
-			"2",
-			"2.1",
-			"2.2",
-			"3",
-		]);
 	});
 
-	test("Tree.reversed()", () => {
-		const tree = new Tree({
-			items: () => items,
-			defaultExpanded: ["1", "1.1", "2"],
-		});
-		const nodes = tree
-			.reversed()
-			.map((node) => node.id)
-			.toArray();
-		expect(nodes).toEqual([
-			"3",
-			"2.2",
-			"2.1",
-			"2",
-			"1.2",
-			"1.1.3",
-			"1.1.2",
-			"1.1.1",
-			"1.1",
-			"1",
-		]);
-	});
-
-	test("Tree is iterable", () => {
-		const tree = new Tree({
-			items: () => items,
-			defaultExpanded: ["1", "1.1", "2"],
-		});
-		const nodes = Array.from(tree).map((node) => node.id);
-		expect(nodes).toEqual([
-			"1",
-			"1.1",
-			"1.1.1",
-			"1.1.2",
-			"1.1.3",
-			"1.2",
-			"2",
-			"2.1",
-			"2.2",
-			"3",
-		]);
-	});
-
-	test("Tree.last() where none of the nodes are expanded", () => {
-		const tree = new Tree({ items: () => items });
-		const last = tree.last();
-		expect(last?.id).toBe("3");
-	});
-
-	test("Tree.last() where the last root is expanded", () => {
-		const tree = new Tree({
-			items: () => items,
-			defaultExpanded: ["3"],
-		});
-		const last = tree.last();
-		expect(last?.id).toBe("3.2");
-	});
-
-	test("Tree.last() throws when the tree is empty", () => {
-		const tree = new Tree({ items: () => [] });
-		expect(() => tree.last()).toThrowError();
-	});
-
-	test("TreeNode.id updates references to the previous id when updated", () => {
+	test("TreeNode.id setter updates references to the previous value", () => {
 		effectRootScope(() => {
 			const tree = new Tree({
 				items: () => items,
 				defaultSelected: ["1"],
 				defaultExpanded: ["1"],
 			});
+			const [first, second] = tree.roots;
 
-			const first = tree.roots[0];
 			first.id = "first";
 			expect(tree.selected).toEqual(new SvelteSet(["first"]));
 			expect(tree.expanded).toEqual(new SvelteSet(["first"]));
 			expect(tree.tabbable).toBe("first");
 			expect(tree.previousTabbable).toBeUndefined();
+			expect(tree.dragged).toBeUndefined();
 
-			const second = tree.roots[1];
-			tree.tabbable = second.id;
+			tree.onFocusTreeItem(second);
+			tree.onDragStartTreeItem(second);
 			second.id = "second";
+			expect(tree.selected).toEqual(new SvelteSet(["first"]));
+			expect(tree.expanded).toEqual(new SvelteSet(["first"]));
 			expect(tree.tabbable).toBe("second");
 			expect(tree.previousTabbable).toBe("first");
+			expect(tree.dragged).toBe("second");
 
 			first.id = "1";
 			second.id = "2";
@@ -275,6 +407,7 @@ describe("Tree", () => {
 			expect(tree.expanded).toEqual(new SvelteSet(["1"]));
 			expect(tree.tabbable).toBe("2");
 			expect(tree.previousTabbable).toBe("1");
+			expect(tree.dragged).toBe("2");
 		});
 	});
 
@@ -364,60 +497,6 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.expanded", () => {
-		effectRootScope(() => {
-			const tree = new Tree({ items: () => items });
-			const expanded = $derived(
-				tree
-					.traverse()
-					.filter((node) => node.expanded)
-					.map((node) => node.id)
-					.toArray(),
-			);
-			expect(expanded).toHaveLength(0);
-
-			const first = tree.roots[0];
-			first.expand();
-			expect(expanded).toEqual(["1"]);
-
-			first.collapse();
-			expect(expanded).toHaveLength(0);
-
-			first.expanded = true;
-			expect(expanded).toEqual(["1"]);
-
-			first.expanded = false;
-			expect(expanded).toHaveLength(0);
-		});
-	});
-
-	test("TreeNode.selected", () => {
-		effectRootScope(() => {
-			const tree = new Tree({ items: () => items });
-			const selected = $derived(
-				tree
-					.traverse()
-					.filter((node) => node.selected)
-					.map((node) => node.id)
-					.toArray(),
-			);
-			expect(selected).toHaveLength(0);
-
-			const first = tree.roots[0];
-			first.select();
-			expect(selected).toEqual(["1"]);
-
-			first.unselect();
-			expect(selected).toHaveLength(0);
-
-			first.selected = true;
-			expect(selected).toEqual(["1"]);
-
-			first.selected = false;
-			expect(selected).toHaveLength(0);
-		});
-	});
-
 	test("TreeNode.level", () => {
 		const tree = new Tree({ items: () => items });
 		const levels = map(tree.traverse(), (node) => node.level);
@@ -502,7 +581,7 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.move() before a node on the same level", () => {
+	test("TreeNode.move() before a sibling node", () => {
 		effectRootScope(() => {
 			const tree = new Tree({ items: () => items });
 			const node_11 = tree.roots[0].children[0];
@@ -524,7 +603,7 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.move() after a node on the same level", () => {
+	test("TreeNode.move() after a sibling node", () => {
 		effectRootScope(() => {
 			const tree = new Tree({ items: () => items });
 			const node_11 = tree.roots[0].children[0];
@@ -546,7 +625,7 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.move() before a node on a different level", () => {
+	test("TreeNode.move() before a non-sibling node", () => {
 		effectRootScope(() => {
 			const tree = new Tree({ items: () => items });
 			const node_1 = tree.roots[0];
@@ -571,7 +650,7 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.move() after a node on a different level", () => {
+	test("TreeNode.move() after a non-sibling node", () => {
 		effectRootScope(() => {
 			const tree = new Tree({ items: () => items });
 			const node_1 = tree.roots[0];
@@ -594,5 +673,21 @@ describe("Tree", () => {
 			expect(nodes_11x).toEqual(["1.1.3"]);
 			expect(indices_11x).toEqual([0]);
 		});
+	});
+
+	test("TreeNode.move() is called when a tree item is dropped", () => {
+		const tree = new Tree({ items: () => items });
+		const [first, second] = tree.roots;
+		first.move = vi.fn();
+
+		tree.onDragStartTreeItem(first);
+		tree.onDropTreeItem(second, "before");
+		tree.onDragEndTreeItem(first);
+		expect(first.move).toHaveBeenCalledWith("before", second);
+
+		tree.onDragStartTreeItem(first);
+		tree.onDropTreeItem(second, "after");
+		tree.onDragEndTreeItem(first);
+		expect(first.move).toHaveBeenCalledWith("after", second);
 	});
 });
