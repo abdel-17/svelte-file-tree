@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { composeEventHandlers } from "$lib/helpers/events.js";
+	import type { ActionReturn } from "svelte/action";
 	import type { HTMLInputAttributes } from "svelte/elements";
 	import { getTreeItemContext } from "./TreeItem.svelte";
 
@@ -27,7 +28,7 @@
 
 	type WithCurrentTarget<Event> = Event & { currentTarget: HTMLInputElement };
 
-	function handleKeyDown(event: WithCurrentTarget<KeyboardEvent>) {
+	function handleKeyDown(event: WithCurrentTarget<KeyboardEvent>): void {
 		switch (event.key) {
 			case "Enter": {
 				commited = true;
@@ -49,11 +50,11 @@
 		event.preventDefault();
 	}
 
-	function handleBlur() {
+	function handleBlur(): void {
 		onEditingChange(false);
 	}
 
-	function init(input: HTMLInputElement) {
+	function init(input: HTMLInputElement): ActionReturn {
 		input.focus();
 		input.select();
 		return {

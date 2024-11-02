@@ -68,6 +68,7 @@
 		ondragstart,
 		ondragend,
 		ondragover,
+		ondragleave,
 		ondrop,
 		...props
 	}: Props = $props();
@@ -106,7 +107,7 @@
 
 	type WithCurrentTarget<Event> = Event & { currentTarget: HTMLDivElement };
 
-	function handleKeyDown(event: WithCurrentTarget<KeyboardEvent>) {
+	function handleKeyDown(event: WithCurrentTarget<KeyboardEvent>): void {
 		if (event.target !== event.currentTarget) {
 			// Don't handle keydown events that bubble up from child elements
 			// to avoid conflict with the input during editing mode.
@@ -288,7 +289,7 @@
 		event.preventDefault();
 	}
 
-	function handleClick(event: WithCurrentTarget<MouseEvent>) {
+	function handleClick(event: WithCurrentTarget<MouseEvent>): void {
 		const shouldToggleSelection = isModifierKey(event);
 		if (shouldToggleSelection) {
 			node.selected = !node.selected;
@@ -331,11 +332,11 @@
 		}
 	}
 
-	function handleFocusIn() {
+	function handleFocusIn(): void {
 		tree.onFocusTreeItem(node);
 	}
 
-	function handleDragStart(event: WithCurrentTarget<DragEvent>) {
+	function handleDragStart(event: WithCurrentTarget<DragEvent>): void {
 		tree.onDragStartTreeItem(node);
 
 		if (event.dataTransfer !== null) {
@@ -343,11 +344,31 @@
 		}
 	}
 
-	function handleDragEnd() {
+	function handleDragEnd(): void {
 		tree.onDragEndTreeItem(node);
 	}
 
-	function handleDragOver(event: WithCurrentTarget<DragEvent>) {
+	function calculateDropPosition(
+		rect: DOMRect,
+		clientY: number,
+	): "before" | "after" | "inside" {
+		const { top, bottom, height } = rect;
+		const topBoundary = top + height / 3;
+		const bottomBoundary = bottom - height / 3;
+		if (clientY <= topBoundary) {
+			return "before";
+		}
+		if (clientY >= bottomBoundary) {
+			return "after";
+		}
+		return "inside";
+	}
+
+	let dropPosition: "before" | "after" | "inside" | undefined = $state();
+	let draggedOver = false;
+	let dragOverThrottled = false;
+
+	function handleDragOver(event: WithCurrentTarget<DragEvent>): void {
 		if (!node.dropTarget) {
 			return;
 		}
@@ -358,16 +379,57 @@
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.dropEffect = "move";
 		}
+		draggedOver = true;
+
+		// The dragover event fires at a high rate. It needs to be throttled
+		// to avoid performance issues.
+		if (dragOverThrottled) {
+			return;
+		}
+
+		dragOverThrottled = true;
+		const { currentTarget, clientY } = event;
+		window.requestAnimationFrame(() => {
+			if (draggedOver) {
+				const rect = currentTarget.getBoundingClientRect();
+				dropPosition = calculateDropPosition(rect, clientY);
+			}
+			dragOverThrottled = false;
+		});
 	}
 
-	function handleDrop(event: WithCurrentTarget<DragEvent>) {
-		const { top, height } = event.currentTarget.getBoundingClientRect();
-		const midY = top + height / 2;
-		if (event.clientY < midY) {
-			tree.onDropTreeItem(node, "before");
-		} else {
-			tree.onDropTreeItem(node, "after");
+	function handleDragLeave(event: WithCurrentTarget<DragEvent>): void {
+		if (!node.dropTarget) {
+			return;
 		}
+
+		const { currentTarget, relatedTarget } = event;
+		if (
+			relatedTarget instanceof Node &&
+			currentTarget.contains(relatedTarget)
+		) {
+			return;
+		}
+
+		draggedOver = false;
+		dropPosition = undefined;
+	}
+
+	function handleDrop(event: WithCurrentTarget<DragEvent>): void {
+		if (tree.dragged === undefined) {
+			return;
+		}
+
+		const { currentTarget, clientY } = event;
+		const rect = currentTarget.getBoundingClientRect();
+		dropPosition = calculateDropPosition(rect, clientY);
+		tree.onDropTreeItem(node, dropPosition);
+
+		flushSync();
+		getTreeItemElementOrWarn(tree.dragged)?.focus();
+
+		draggedOver = false;
+		dropPosition = undefined;
 	}
 </script>
 
@@ -383,12 +445,15 @@
 	aria-selected={node.selected}
 	tabindex={node.id === tree.tabbable ? 0 : -1}
 	{draggable}
+	data-dragged={node.dragged ? "" : undefined}
+	data-drop-position={dropPosition}
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
 	onclick={composeEventHandlers(handleClick, onclick)}
 	onfocusin={composeEventHandlers(handleFocusIn, onfocusin)}
 	ondragstart={composeEventHandlers(handleDragStart, ondragstart)}
 	ondragend={composeEventHandlers(handleDragEnd, ondragend)}
 	ondragover={composeEventHandlers(handleDragOver, ondragover)}
+	ondragleave={composeEventHandlers(handleDragLeave, ondragleave)}
 	ondrop={composeEventHandlers(handleDrop, ondrop)}
 >
 	{@render children({ editing })}

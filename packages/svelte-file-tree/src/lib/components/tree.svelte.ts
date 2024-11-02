@@ -146,12 +146,35 @@ export class Tree<Value> {
 		}
 	}
 
-	onDropTreeItem(node: TreeNode<Value>, position: "before" | "after"): void {
+	onDropTreeItem(
+		node: TreeNode<Value>,
+		position: "before" | "after" | "inside",
+	): void {
 		if (this.#dragged === undefined) {
 			return;
 		}
 		const dragged = this.get(this.#dragged);
-		dragged?.move(position, node);
+		if (dragged === undefined) {
+			return;
+		}
+
+		switch (position) {
+			case "before":
+			case "after": {
+				dragged.move(position, node);
+				break;
+			}
+			case "inside": {
+				node.append(dragged);
+				// TODO: test this
+				node.expand();
+				break;
+			}
+		}
+
+		// TODO: test this
+		this.selected.clear();
+		dragged.select();
 	}
 }
 
@@ -350,6 +373,19 @@ export class TreeNode<Value> {
 		this.#index = index;
 	}
 
+	// TODO: remove when this bug is fixed: https://github.com/sveltejs/svelte/issues/13965
+	#revalidateParent(parent: TreeNode<Value>): void {
+		this.#parent = parent;
+	}
+
+	#remove(): void {
+		const siblings = this.#siblings;
+		siblings.splice(this.index, 1);
+		for (let i = this.index; i < siblings.length; i++) {
+			siblings[i].#revalidateIndex(i);
+		}
+	}
+
 	move(position: "before" | "after", target: TreeNode<Value>): void {
 		let nextLevelIndex: number;
 		switch (position) {
@@ -364,12 +400,7 @@ export class TreeNode<Value> {
 		}
 
 		if (this.parent !== target.parent) {
-			// Remove this node from its current location.
-			const siblings = this.#siblings;
-			siblings.splice(this.index, 1);
-			for (let i = this.index; i < siblings.length; i++) {
-				siblings[i].#revalidateIndex(i);
-			}
+			this.#remove();
 
 			// Insert this node into its new location.
 			const targetSiblings = target.#siblings;
@@ -402,6 +433,13 @@ export class TreeNode<Value> {
 			siblings[i - 1] = this;
 			this.#index = i - 1;
 		}
+	}
+
+	append(node: TreeNode<Value>): void {
+		node.#remove();
+		this.#children.push(node);
+		node.#revalidateIndex(this.#children.length - 1);
+		node.#revalidateParent(this);
 	}
 }
 

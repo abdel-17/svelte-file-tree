@@ -586,20 +586,24 @@ describe("Tree", () => {
 			const tree = new Tree({ items: () => items });
 			const node_11 = tree.roots[0].children[0];
 			const [node_111, node_112, node_113] = node_11.children;
-			const nodes_11x = $derived(node_11.children.map((node) => node.id));
-			const indices_11x = $derived(node_11.children.map((node) => node.index));
 
 			node_111.move("before", node_113);
-			expect(nodes_11x).toEqual(["1.1.2", "1.1.1", "1.1.3"]);
-			expect(indices_11x).toEqual([0, 1, 2]);
+			expect(node_11.children).toEqual([node_112, node_111, node_113]);
+			expect(node_112.index).toBe(0);
+			expect(node_111.index).toBe(1);
+			expect(node_113.index).toBe(2);
 
 			node_113.move("before", node_112);
-			expect(nodes_11x).toEqual(["1.1.3", "1.1.2", "1.1.1"]);
-			expect(indices_11x).toEqual([0, 1, 2]);
+			expect(node_11.children).toEqual([node_113, node_112, node_111]);
+			expect(node_113.index).toBe(0);
+			expect(node_112.index).toBe(1);
+			expect(node_111.index).toBe(2);
 
 			node_112.move("before", node_112);
-			expect(nodes_11x).toEqual(["1.1.3", "1.1.2", "1.1.1"]);
-			expect(indices_11x).toEqual([0, 1, 2]);
+			expect(node_11.children).toEqual([node_113, node_112, node_111]);
+			expect(node_113.index).toBe(0);
+			expect(node_112.index).toBe(1);
+			expect(node_111.index).toBe(2);
 		});
 	});
 
@@ -608,20 +612,24 @@ describe("Tree", () => {
 			const tree = new Tree({ items: () => items });
 			const node_11 = tree.roots[0].children[0];
 			const [node_111, node_112, node_113] = node_11.children;
-			const nodes_11x = $derived(node_11.children.map((node) => node.id));
-			const indices_11x = $derived(node_11.children.map((node) => node.index));
 
 			node_111.move("after", node_113);
-			expect(nodes_11x).toEqual(["1.1.2", "1.1.3", "1.1.1"]);
-			expect(indices_11x).toEqual([0, 1, 2]);
+			expect(node_11.children).toEqual([node_112, node_113, node_111]);
+			expect(node_112.index).toBe(0);
+			expect(node_113.index).toBe(1);
+			expect(node_111.index).toBe(2);
 
 			node_113.move("after", node_112);
-			expect(nodes_11x).toEqual(["1.1.2", "1.1.3", "1.1.1"]);
-			expect(indices_11x).toEqual([0, 1, 2]);
+			expect(node_11.children).toEqual([node_112, node_113, node_111]);
+			expect(node_112.index).toBe(0);
+			expect(node_113.index).toBe(1);
+			expect(node_111.index).toBe(2);
 
 			node_112.move("after", node_112);
-			expect(nodes_11x).toEqual(["1.1.2", "1.1.3", "1.1.1"]);
-			expect(indices_11x).toEqual([0, 1, 2]);
+			expect(node_11.children).toEqual([node_112, node_113, node_111]);
+			expect(node_112.index).toBe(0);
+			expect(node_113.index).toBe(1);
+			expect(node_111.index).toBe(2);
 		});
 	});
 
@@ -630,23 +638,25 @@ describe("Tree", () => {
 			const tree = new Tree({ items: () => items });
 			const node_1 = tree.roots[0];
 			const [node_11, node_12] = node_1.children;
-			const nodes_1x = $derived(node_1.children.map((node) => node.id));
-			const indices_1x = $derived(node_1.children.map((node) => node.index));
-			const [node_111, node_112] = node_11.children;
-			const nodes_11x = $derived(node_11.children.map((node) => node.id));
-			const indices_11x = $derived(node_11.children.map((node) => node.index));
+			const [node_111, node_112, node_113] = node_11.children;
 
 			node_111.move("before", node_12);
-			expect(nodes_1x).toEqual(["1.1", "1.1.1", "1.2"]);
-			expect(indices_1x).toEqual([0, 1, 2]);
-			expect(nodes_11x).toEqual(["1.1.2", "1.1.3"]);
-			expect(indices_11x).toEqual([0, 1]);
+			expect(node_1.children).toEqual([node_11, node_111, node_12]);
+			expect(node_11.index).toBe(0);
+			expect(node_111.index).toBe(1);
+			expect(node_12.index).toBe(2);
+			expect(node_11.children).toEqual([node_112, node_113]);
+			expect(node_112.index).toBe(0);
+			expect(node_113.index).toBe(1);
 
 			node_112.move("before", node_11);
-			expect(nodes_1x).toEqual(["1.1.2", "1.1", "1.1.1", "1.2"]);
-			expect(indices_1x).toEqual([0, 1, 2, 3]);
-			expect(nodes_11x).toEqual(["1.1.3"]);
-			expect(indices_11x).toEqual([0]);
+			expect(node_1.children).toEqual([node_112, node_11, node_111, node_12]);
+			expect(node_112.index).toBe(0);
+			expect(node_11.index).toBe(1);
+			expect(node_111.index).toBe(2);
+			expect(node_12.index).toBe(3);
+			expect(node_11.children).toEqual([node_113]);
+			expect(node_113.index).toBe(0);
 		});
 	});
 
@@ -655,39 +665,81 @@ describe("Tree", () => {
 			const tree = new Tree({ items: () => items });
 			const node_1 = tree.roots[0];
 			const [node_11, node_12] = node_1.children;
-			const nodes_1x = $derived(node_1.children.map((node) => node.id));
-			const indices_1x = $derived(node_1.children.map((node) => node.index));
-			const [node_111, node_112] = node_11.children;
-			const nodes_11x = $derived(node_11.children.map((node) => node.id));
-			const indices_11x = $derived(node_11.children.map((node) => node.index));
+			const [node_111, node_112, node_113] = node_11.children;
 
 			node_111.move("after", node_12);
-			expect(nodes_1x).toEqual(["1.1", "1.2", "1.1.1"]);
-			expect(indices_1x).toEqual([0, 1, 2]);
-			expect(nodes_11x).toEqual(["1.1.2", "1.1.3"]);
-			expect(indices_11x).toEqual([0, 1]);
+			expect(node_1.children).toEqual([node_11, node_12, node_111]);
+			expect(node_11.index).toBe(0);
+			expect(node_12.index).toBe(1);
+			expect(node_111.index).toBe(2);
+			expect(node_11.children).toEqual([node_112, node_113]);
+			expect(node_112.index).toBe(0);
+			expect(node_113.index).toBe(1);
 
 			node_112.move("after", node_11);
-			expect(nodes_1x).toEqual(["1.1", "1.1.2", "1.2", "1.1.1"]);
-			expect(indices_1x).toEqual([0, 1, 2, 3]);
-			expect(nodes_11x).toEqual(["1.1.3"]);
-			expect(indices_11x).toEqual([0]);
+			expect(node_1.children).toEqual([node_11, node_112, node_12, node_111]);
+			expect(node_11.index).toBe(0);
+			expect(node_112.index).toBe(1);
+			expect(node_12.index).toBe(2);
+			expect(node_111.index).toBe(3);
+			expect(node_11.children).toEqual([node_113]);
+			expect(node_113.index).toBe(0);
 		});
 	});
 
-	test("TreeNode.move() is called when a tree item is dropped", () => {
-		const tree = new Tree({ items: () => items });
-		const [first, second] = tree.roots;
-		first.move = vi.fn();
+	test("Tree.append() adds the given node to the end of the subtree", () => {
+		effectRootScope(() => {
+			const tree = new Tree({ items: () => items });
+			const [node_1, node_2, node_3] = tree.roots;
+			const [node_11, node_12] = node_1.children;
 
-		tree.onDragStartTreeItem(first);
-		tree.onDropTreeItem(second, "before");
-		tree.onDragEndTreeItem(first);
-		expect(first.move).toHaveBeenCalledWith("before", second);
+			node_1.append(node_2);
+			expect(tree.roots).toEqual([node_1, node_3]);
+			expect(node_1.index).toBe(0);
+			expect(node_3.index).toBe(1);
+			expect(node_1.children).toEqual([node_11, node_12, node_2]);
+			expect(node_11.index).toBe(0);
+			expect(node_12.index).toBe(1);
+			expect(node_2.index).toBe(2);
+		});
+	});
 
-		tree.onDragStartTreeItem(first);
-		tree.onDropTreeItem(second, "after");
-		tree.onDragEndTreeItem(first);
-		expect(first.move).toHaveBeenCalledWith("after", second);
+	test("TreeNode.move() is called with the correct arguments when a tree item is dropped before", () => {
+		effectRootScope(() => {
+			const tree = new Tree({ items: () => items });
+			const [first, second] = tree.roots;
+			first.move = vi.fn();
+
+			tree.onDragStartTreeItem(first);
+			tree.onDropTreeItem(second, "before");
+			tree.onDragEndTreeItem(first);
+			expect(first.move).toHaveBeenCalledWith("before", second);
+		});
+	});
+
+	test("TreeNode.move() is called with the correct arguments when a tree item is dropped after", () => {
+		effectRootScope(() => {
+			const tree = new Tree({ items: () => items });
+			const [first, second] = tree.roots;
+			first.move = vi.fn();
+
+			tree.onDragStartTreeItem(first);
+			tree.onDropTreeItem(second, "after");
+			tree.onDragEndTreeItem(first);
+			expect(first.move).toHaveBeenCalledWith("after", second);
+		});
+	});
+
+	test("TreeNode.append() is called with the correct arguments when a tree item is dropped inside", () => {
+		effectRootScope(() => {
+			const tree = new Tree({ items: () => items });
+			const [first, second] = tree.roots;
+			second.append = vi.fn();
+
+			tree.onDragStartTreeItem(first);
+			tree.onDropTreeItem(second, "inside");
+			tree.onDragEndTreeItem(first);
+			expect(second.append).toHaveBeenCalledWith(first);
+		});
 	});
 });
