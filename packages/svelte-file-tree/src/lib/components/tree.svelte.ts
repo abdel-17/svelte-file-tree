@@ -31,13 +31,14 @@ export class Tree<Value> {
 	#dragged: string | undefined = $state.raw();
 
 	readonly roots: Array<TreeNode<Value>> = $derived.by(() => {
-		// I know having side effects in  a $derived is "bad", but in this case,
+		// I know having side effects in a $derived is "bad", but in this case,
 		// it is the most efficient way to update the lookup map.
 		//
 		// Using a $derived map will recreate the map every time a node is
 		// inserted or removed, which is not ideal. We should only recreate
 		// the map when the entire tree has to be recreated.
 		this.#lookup.clear();
+
 		const roots = $state(
 			this.#items().map((item, i) => new TreeNode(this, item, i)),
 		);
