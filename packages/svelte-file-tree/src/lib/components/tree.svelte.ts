@@ -45,6 +45,22 @@ export class Tree<Value> {
 		return roots;
 	});
 
+	get last(): TreeNode<Value> | undefined {
+		let last = this.roots.at(-1);
+		if (last === undefined) {
+			return;
+		}
+
+		while (last.expanded) {
+			const lastChild = last.children.at(-1);
+			if (lastChild === undefined) {
+				break;
+			}
+			last = lastChild;
+		}
+		return last;
+	}
+
 	get selected(): SvelteSet<string> {
 		return this.#selected;
 	}
@@ -53,9 +69,14 @@ export class Tree<Value> {
 		return this.#expanded;
 	}
 
-	readonly tabbable: string | undefined = $derived.by(
-		() => this.#tabbable ?? this.roots[0]?.id,
-	);
+	get tabbable(): string | undefined {
+		return this.#tabbable ?? this.roots[0]?.id;
+	}
+
+	set tabbable(tabbable: string) {
+		this.#previousTabbable = this.tabbable;
+		this.#tabbable = tabbable;
+	}
 
 	get previousTabbable(): string | undefined {
 		return this.#previousTabbable;
@@ -63,6 +84,10 @@ export class Tree<Value> {
 
 	get dragged(): string | undefined {
 		return this.#dragged;
+	}
+
+	set dragged(dragged: string | undefined) {
+		this.#dragged = dragged;
 	}
 
 	*traverse(): TreeNodeGenerator<Value> {
@@ -80,7 +105,8 @@ export class Tree<Value> {
 	*reversed(): TreeNodeGenerator<Value> {
 		const { roots } = this;
 		for (let i = roots.length - 1; i >= 0; i--) {
-			yield* roots[i].reversed();
+			const root = roots[i]!;
+			yield* root.reversed();
 		}
 	}
 
@@ -88,34 +114,25 @@ export class Tree<Value> {
 		return this.values();
 	}
 
-	last(): TreeNode<Value> | undefined {
-		let last = this.roots.at(-1);
-		if (last === undefined) {
-			return;
-		}
-		while (last.expanded && last.children.length !== 0) {
-			last = last.children.at(-1)!;
-		}
-		return last;
-	}
-
 	get(id: string): TreeNode<Value> | undefined {
 		return this.#lookup.get(id);
 	}
 
-	onCreateTreeItem(node: TreeNode<Value>, id: string): void {
+	onCreateTreeNode(id: string, node: TreeNode<Value>): void {
 		this.#lookup.set(id, node);
 	}
 
-	onChangeTreeItemId(current: string, next: string): void {
-		const wasSelected = this.selected.delete(current);
+	onChangeTreeNodeId(current: string, next: string): void {
+		const { selected } = this;
+		const wasSelected = selected.delete(current);
 		if (wasSelected) {
-			this.selected.add(next);
+			selected.add(next);
 		}
 
-		const wasExpanded = this.expanded.delete(current);
+		const { expanded } = this;
+		const wasExpanded = expanded.delete(current);
 		if (wasExpanded) {
-			this.expanded.add(next);
+			expanded.add(next);
 		}
 
 		if (this.#tabbable === current) {
@@ -129,52 +146,6 @@ export class Tree<Value> {
 		if (this.#dragged === current) {
 			this.#dragged = next;
 		}
-	}
-
-	onFocusTreeItem(node: TreeNode<Value>): void {
-		this.#previousTabbable = this.tabbable;
-		this.#tabbable = node.id;
-	}
-
-	onDragStartTreeItem(node: TreeNode<Value>): void {
-		this.#dragged = node.id;
-	}
-
-	onDragEndTreeItem(node: TreeNode<Value>): void {
-		if (this.#dragged === node.id) {
-			this.#dragged = undefined;
-		}
-	}
-
-	onDropTreeItem(
-		node: TreeNode<Value>,
-		position: "before" | "after" | "inside",
-	): void {
-		if (this.#dragged === undefined) {
-			return;
-		}
-		const dragged = this.get(this.#dragged);
-		if (dragged === undefined) {
-			return;
-		}
-
-		switch (position) {
-			case "before":
-			case "after": {
-				dragged.move(position, node);
-				break;
-			}
-			case "inside": {
-				node.append(dragged);
-				// TODO: test this
-				node.expand();
-				break;
-			}
-		}
-
-		// TODO: test this
-		this.selected.clear();
-		dragged.select();
 	}
 }
 
@@ -193,7 +164,7 @@ export class TreeNode<Value> {
 		parent?: TreeNode<Value>,
 	) {
 		const { id, value, children } = item;
-		tree.onCreateTreeItem(this, id);
+		tree.onCreateTreeNode(id, this);
 
 		this.#tree = tree;
 		this.#id = id;
@@ -209,7 +180,7 @@ export class TreeNode<Value> {
 	}
 
 	set id(id: string) {
-		this.#tree.onChangeTreeItemId(this.#id, id);
+		this.#tree.onChangeTreeNodeId(this.id, id);
 		this.#id = id;
 	}
 
@@ -265,33 +236,87 @@ export class TreeNode<Value> {
 		}
 	}
 
-	readonly level: number = $derived.by(() => {
-		if (this.parent === undefined) {
-			return 1;
-		}
-		return this.parent.level + 1;
-	});
-
-	readonly #siblings: Array<TreeNode<Value>> = $derived.by(() => {
-		if (this.parent === undefined) {
-			return this.#tree.roots;
-		}
-		return this.parent.#children;
-	});
-
-	get siblings(): ReadonlyArray<TreeNode<Value>> {
-		return this.#siblings;
+	get dragged(): boolean {
+		return this.#tree.dragged === this.id;
 	}
-
-	readonly dragged: boolean = $derived.by(() => this.#tree.dragged === this.id);
 
 	readonly dropTarget: boolean = $derived.by(() => {
 		const { dragged } = this.#tree;
 		if (dragged === undefined || dragged === this.id) {
 			return false;
 		}
-		return this.parent === undefined || this.parent.dropTarget;
+
+		const { parent } = this;
+		return parent === undefined || parent.dropTarget;
 	});
+
+	readonly level: number = $derived.by(() => {
+		const { parent } = this;
+		if (parent === undefined) {
+			return 1;
+		}
+		return parent.level + 1;
+	});
+
+	get #siblings(): Array<TreeNode<Value>> {
+		const { parent } = this;
+		if (parent === undefined) {
+			return this.#tree.roots;
+		}
+		return parent.#children;
+	}
+
+	get siblings(): ReadonlyArray<TreeNode<Value>> {
+		return this.#siblings;
+	}
+
+	get previousSibling(): TreeNode<Value> | undefined {
+		return this.siblings[this.index - 1];
+	}
+
+	get nextSibling(): TreeNode<Value> | undefined {
+		return this.siblings[this.index + 1];
+	}
+
+	get previous(): TreeNode<Value> | undefined {
+		const { previousSibling } = this;
+		if (previousSibling === undefined) {
+			return this.parent;
+		}
+
+		let current = previousSibling;
+		while (current.expanded) {
+			const lastChild = current.children.at(-1);
+			if (lastChild === undefined) {
+				break;
+			}
+			current = lastChild;
+		}
+		return current;
+	}
+
+	get next(): TreeNode<Value> | undefined {
+		if (this.expanded) {
+			const firstChild = this.children[0];
+			if (firstChild !== undefined) {
+				return firstChild;
+			}
+		}
+
+		let current: TreeNode<Value> = this;
+		while (true) {
+			const { nextSibling } = current;
+			if (nextSibling !== undefined) {
+				return nextSibling;
+			}
+
+			const { parent } = current;
+			if (parent === undefined) {
+				return;
+			}
+			current = parent;
+		}
+	}
 
 	*traverse(): TreeNodeGenerator<Value> {
 		yield this;
@@ -313,7 +338,8 @@ export class TreeNode<Value> {
 		if (this.expanded) {
 			const { children } = this;
 			for (let i = children.length - 1; i >= 0; i--) {
-				yield* children[i].reversed();
+				const child = children[i]!;
+				yield* child.reversed();
 			}
 		}
 		yield this;
@@ -321,35 +347,6 @@ export class TreeNode<Value> {
 
 	[Symbol.iterator](): TreeNodeGenerator<Value> {
 		return this.values();
-	}
-
-	previous(): TreeNode<Value> | undefined {
-		if (this.index === 0) {
-			return this.parent;
-		}
-		let previous = this.siblings[this.index - 1];
-		while (previous.expanded && previous.children.length !== 0) {
-			previous = previous.children.at(-1)!;
-		}
-		return previous;
-	}
-
-	next(): TreeNode<Value> | undefined {
-		if (this.expanded && this.children.length !== 0) {
-			return this.children[0];
-		}
-
-		let current: TreeNode<Value> = this;
-		while (true) {
-			if (current.index !== current.siblings.length - 1) {
-				return current.siblings[current.index + 1];
-			}
-
-			if (current.parent === undefined) {
-				return;
-			}
-			current = current.parent;
-		}
 	}
 
 	select(): void {
@@ -369,47 +366,49 @@ export class TreeNode<Value> {
 	}
 
 	// TODO: remove when this bug is fixed: https://github.com/sveltejs/svelte/issues/13965
-	#revalidateIndex(index: number): void {
+	#setIndex(index: number): void {
 		this.#index = index;
 	}
 
-	// TODO: remove when this bug is fixed: https://github.com/sveltejs/svelte/issues/13965
-	#revalidateParent(parent: TreeNode<Value>): void {
-		this.#parent = parent;
-	}
-
-	#remove(): void {
+	#spliceSiblings(
+		index: number,
+		deleteCount: number,
+		...items: Array<TreeNode<Value>>
+	): void {
 		const siblings = this.#siblings;
-		siblings.splice(this.index, 1);
-		for (let i = this.index; i < siblings.length; i++) {
-			siblings[i].#revalidateIndex(i);
+		siblings.splice(index, deleteCount, ...items);
+		for (let i = index; i < siblings.length; i++) {
+			const sibling = siblings[i]!;
+			sibling.#setIndex(i);
 		}
 	}
 
-	move(position: "before" | "after", target: TreeNode<Value>): void {
-		let nextLevelIndex: number;
+	move(position: "before" | "after" | "inside", target: TreeNode<Value>): void {
+		if (position === "inside") {
+			this.#spliceSiblings(this.index, 1);
+			const targetChildren = target.#children;
+			targetChildren.push(this);
+			this.#index = targetChildren.length - 1;
+			this.#parent = target;
+			return;
+		}
+
+		let nextIndex: number;
 		switch (position) {
 			case "before": {
-				nextLevelIndex = target.#index;
+				nextIndex = target.index;
 				break;
 			}
 			case "after": {
-				nextLevelIndex = target.#index + 1;
+				nextIndex = target.index + 1;
 				break;
 			}
 		}
 
 		if (this.parent !== target.parent) {
-			this.#remove();
-
-			// Insert this node into its new location.
-			const targetSiblings = target.#siblings;
-			targetSiblings.splice(nextLevelIndex, 0, this);
-			for (let i = nextLevelIndex; i < targetSiblings.length; i++) {
-				targetSiblings[i].#revalidateIndex(i);
-			}
-
-			this.#parent = target.#parent;
+			this.#spliceSiblings(this.index, 1);
+			target.#spliceSiblings(nextIndex, 0, this);
+			this.#parent = target.parent;
 			return;
 		}
 
@@ -418,28 +417,21 @@ export class TreeNode<Value> {
 		//
 		// Case 1: The node is being moved to a position after itself.
 		const siblings = this.#siblings;
-		for (let i = this.#index + 1; i < nextLevelIndex; i++) {
-			const current = siblings[i];
+		for (let i = this.index + 1; i < nextIndex; i++) {
+			const current = siblings[i]!;
 			siblings[i - 1] = current;
-			current.#revalidateIndex(i - 1);
+			current.#setIndex(i - 1);
 			siblings[i] = this;
 			this.#index = i;
 		}
 		// Case 2: The node is being moved to a position before itself.
-		for (let i = this.index; i > nextLevelIndex; i--) {
-			const previous = siblings[i - 1];
+		for (let i = this.index; i > nextIndex; i--) {
+			const previous = siblings[i - 1]!;
 			siblings[i] = previous;
-			previous.#revalidateIndex(i);
+			previous.#setIndex(i);
 			siblings[i - 1] = this;
 			this.#index = i - 1;
 		}
-	}
-
-	append(node: TreeNode<Value>): void {
-		node.#remove();
-		this.#children.push(node);
-		node.#revalidateIndex(this.#children.length - 1);
-		node.#revalidateParent(this);
 	}
 }
 

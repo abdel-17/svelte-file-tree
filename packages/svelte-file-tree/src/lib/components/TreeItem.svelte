@@ -36,11 +36,11 @@
 		HTMLAttributes<HTMLDivElement>,
 		| "id"
 		| "role"
+		| "aria-selected"
+		| "aria-expanded"
 		| "aria-level"
 		| "aria-posinset"
 		| "aria-setsize"
-		| "aria-expanded"
-		| "aria-selected"
 		| "hidden"
 		| "tabindex"
 		| "children"
@@ -92,15 +92,16 @@
 		return `${treeId()}:${id}`;
 	}
 
-	function getTreeItemElement(id: string): HTMLElement | null {
+	function getTreeItemElementById(id: string): HTMLElement | null {
 		const elementId = getTreeItemElementId(id);
 		return document.getElementById(elementId);
 	}
 
-	function getTreeItemElementOrWarn(id: string): HTMLElement | null {
-		const element = getTreeItemElement(id);
+	function getTreeItemElement(node: TreeNode<unknown>): HTMLElement {
+		const { id } = node;
+		const element = getTreeItemElementById(id);
 		if (element === null) {
-			console.warn(`The tree item ${id} was not found in the DOM.`);
+			throw new Error(`Tree item ${id} was not found in the DOM.`);
 		}
 		return element;
 	}
@@ -116,16 +117,16 @@
 
 		switch (event.key) {
 			case "ArrowRight": {
-				if (node.children.length === 0) {
+				const firstChild = node.children[0];
+				if (firstChild === undefined) {
 					break;
 				}
 
 				if (!node.expanded) {
 					node.expand();
-					break;
+				} else {
+					getTreeItemElement(firstChild).focus();
 				}
-
-				getTreeItemElementOrWarn(node.children[0].id)?.focus();
 				break;
 			}
 			case "ArrowLeft": {
@@ -134,80 +135,77 @@
 					break;
 				}
 
-				if (node.parent !== undefined) {
-					getTreeItemElementOrWarn(node.parent.id)?.focus();
+				const { parent } = node;
+				if (parent !== undefined) {
+					getTreeItemElement(parent).focus();
 				}
 				break;
 			}
 			case "ArrowDown":
 			case "ArrowUp": {
 				const down = event.key === "ArrowDown";
-				const next = down ? node.next() : node.previous();
+				const next = down ? node.next : node.previous;
 				if (next === undefined) {
 					break;
 				}
-				const nextElement = getTreeItemElementOrWarn(next.id);
-				if (nextElement === null) {
-					break;
-				}
+				getTreeItemElement(next).focus();
 
 				const shouldSelect = event.shiftKey;
 				if (shouldSelect) {
 					node.select();
 					next.select();
 				}
-
-				nextElement.focus();
 				break;
 			}
 			case "PageDown":
 			case "PageUp": {
 				const down = event.key === "PageDown";
+				const next = down ? node.next : node.previous;
+				if (next === undefined) {
+					break;
+				}
+
 				const shouldSelect = event.shiftKey && isModifierKey(event);
+				if (shouldSelect) {
+					node.select();
+					next.select();
+				}
+
 				const maxScrollDistance = Math.min(
 					treeElement()!.clientHeight,
 					document.documentElement.clientHeight,
 				);
 				const itemTop = event.currentTarget.getBoundingClientRect().top;
 
-				let current = node;
-				let currentElement: HTMLElement = event.currentTarget;
+				let current = next;
+				let currentElement = getTreeItemElement(current);
 				while (true) {
+					const next = down ? current.next : current.previous;
+					if (next === undefined) {
+						break;
+					}
+					current = next;
+					currentElement = getTreeItemElement(current);
+
 					if (shouldSelect) {
 						current.select();
 					}
 
-					const next = down ? current.next() : current.previous();
-					if (next === undefined) {
-						break;
-					}
-					const nextElement = getTreeItemElementOrWarn(next.id);
-					if (nextElement === null) {
-						break;
-					}
-					current = next;
-					currentElement = nextElement;
-
 					const currentTop = currentElement.getBoundingClientRect().top;
 					const distance = Math.abs(currentTop - itemTop);
-					if (distance < maxScrollDistance) {
-						continue;
+					if (distance >= maxScrollDistance) {
+						break;
 					}
-
-					if (shouldSelect) {
-						next.select();
-					}
-					break;
 				}
 				currentElement.focus();
 				break;
 			}
 			case "Home": {
-				if (tree.roots.length === 0) {
+				const first = tree.roots[0];
+				if (first === undefined) {
 					break;
 				}
-
-				getTreeItemElementOrWarn(tree.roots[0].id)?.focus();
+				getTreeItemElement(first).focus();
 
 				const shouldSelect = event.shiftKey && isModifierKey(event);
 				if (!shouldSelect) {
@@ -224,12 +222,11 @@
 				break;
 			}
 			case "End": {
-				const last = tree.last();
+				const { last } = tree;
 				if (last === undefined) {
 					break;
 				}
-
-				getTreeItemElementOrWarn(last.id)?.focus();
+				getTreeItemElement(last).focus();
 
 				const shouldSelect = event.shiftKey && isModifierKey(event);
 				if (!shouldSelect) {
@@ -268,15 +265,14 @@
 			}
 			case "*": {
 				const topBefore = event.currentTarget.getBoundingClientRect().top;
-				flushSync(() => {
-					for (const sibling of node.siblings) {
-						sibling.expand();
-					}
-				});
+				for (const sibling of node.siblings) {
+					sibling.expand();
+				}
 
 				// After the sibling nodes are all expanded, the tree's height changes,
 				// causing a lot of layout shift. Preserve the position of the focused
 				// node relative to the viewport to avoid disorienting the user.
+				flushSync();
 				const topAfter = event.currentTarget.getBoundingClientRect().top;
 				window.scrollBy(0, topAfter - topBefore);
 				break;
@@ -310,7 +306,8 @@
 		if (previousTabbable === undefined) {
 			return;
 		}
-		const previousTabbableElement = getTreeItemElement(previousTabbable);
+
+		const previousTabbableElement = getTreeItemElementById(previousTabbable);
 		if (previousTabbableElement === null) {
 			return;
 		}
@@ -324,7 +321,7 @@
 				break;
 			}
 
-			const next = down ? current.next() : current.previous();
+			const next = down ? current.next : current.previous;
 			if (next === undefined) {
 				break;
 			}
@@ -333,11 +330,11 @@
 	}
 
 	function handleFocusIn(): void {
-		tree.onFocusTreeItem(node);
+		tree.tabbable = node.id;
 	}
 
 	function handleDragStart(event: WithCurrentTarget<DragEvent>): void {
-		tree.onDragStartTreeItem(node);
+		tree.dragged = node.id;
 
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.effectAllowed = "move";
@@ -345,14 +342,14 @@
 	}
 
 	function handleDragEnd(): void {
-		tree.onDragEndTreeItem(node);
+		tree.dragged = undefined;
 	}
 
 	function calculateDropPosition(
-		rect: DOMRect,
+		dropTarget: HTMLElement,
 		clientY: number,
 	): "before" | "after" | "inside" {
-		const { top, bottom, height } = rect;
+		const { top, bottom, height } = dropTarget.getBoundingClientRect();
 		const topBoundary = top + height / 3;
 		const bottomBoundary = bottom - height / 3;
 		if (clientY <= topBoundary) {
@@ -391,8 +388,7 @@
 		const { currentTarget, clientY } = event;
 		window.requestAnimationFrame(() => {
 			if (draggedOver) {
-				const rect = currentTarget.getBoundingClientRect();
-				dropPosition = calculateDropPosition(rect, clientY);
+				dropPosition = calculateDropPosition(currentTarget, clientY);
 			}
 			dragOverThrottled = false;
 		});
@@ -416,17 +412,29 @@
 	}
 
 	function handleDrop(event: WithCurrentTarget<DragEvent>): void {
-		if (tree.dragged === undefined) {
+		const draggedId = tree.dragged;
+		if (draggedId === undefined) {
+			return;
+		}
+
+		const dragged = tree.get(draggedId);
+		if (dragged === undefined) {
 			return;
 		}
 
 		const { currentTarget, clientY } = event;
-		const rect = currentTarget.getBoundingClientRect();
-		dropPosition = calculateDropPosition(rect, clientY);
-		tree.onDropTreeItem(node, dropPosition);
+		dropPosition = calculateDropPosition(currentTarget, clientY);
+		dragged.move(dropPosition, node);
+
+		if (dropPosition === "inside") {
+			node.expand();
+		}
+
+		tree.selected.clear();
+		dragged.select();
 
 		flushSync();
-		getTreeItemElementOrWarn(tree.dragged)?.focus();
+		getTreeItemElement(dragged).focus();
 
 		draggedOver = false;
 		dropPosition = undefined;
@@ -438,11 +446,11 @@
 	bind:this={ref}
 	id={getTreeItemElementId(node.id)}
 	role="treeitem"
+	aria-selected={node.selected}
+	aria-expanded={node.children.length !== 0 ? node.expanded : undefined}
 	aria-level={node.level}
 	aria-posinset={node.index + 1}
 	aria-setsize={node.siblings.length}
-	aria-expanded={node.children.length !== 0 ? node.expanded : undefined}
-	aria-selected={node.selected}
 	tabindex={node.id === tree.tabbable ? 0 : -1}
 	{draggable}
 	data-dragged={node.dragged ? "" : undefined}
