@@ -1,18 +1,17 @@
 <script lang="ts">
-	import type { ComponentProps } from "svelte";
 	import TreeItem from "$lib/components/TreeItem.svelte";
 	import TreeItemInput from "$lib/components/TreeItemInput.svelte";
 	import TreeView from "$lib/components/TreeView.svelte";
 	import type { TreeNode } from "$lib/components/tree.svelte.js";
+	import type { ComponentProps } from "svelte";
 
 	type TreeViewProps = ComponentProps<typeof TreeView<string>>;
 	type TreeItemProps = ComponentProps<typeof TreeItem<string>>;
+	type TreeItemInputProps = ComponentProps<typeof TreeItemInput>;
 
 	interface Props extends TreeViewProps {
-		treeItemProps?: (node: TreeNode<string>) => Omit<TreeItemProps, "node">;
-		treeItemInputProps?: (
-			node: TreeNode<string>,
-		) => Omit<ComponentProps<typeof TreeItemInput>, "value">;
+		treeItemProps?: (node: TreeNode<string>) => TreeItemProps;
+		treeItemInputProps?: (node: TreeNode<string>) => TreeItemInputProps;
 	}
 
 	const { treeItemProps, treeItemInputProps, ...props }: Props = $props();
@@ -23,7 +22,6 @@
 		<TreeItem
 			{...treeItemProps?.(node)}
 			{node}
-			data-node-id={node.id}
 			data-testid="tree-item:{node.id}"
 		>
 			{#snippet children({ editing })}

@@ -1,10 +1,11 @@
 import { Tree, type TreeNode } from "$lib/components/tree.svelte.js";
-import { getAllByRole, render, screen } from "@testing-library/svelte";
+import { render, screen } from "@testing-library/svelte";
+import { userEvent } from "@testing-library/user-event";
+import { flushSync } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { describe, expect, test } from "vitest";
 import TreeView from "./TreeView.svelte";
 import { effectRootScope } from "./helpers.svelte.js";
-import { flushSync } from "svelte";
 
 const items = [
 	{
@@ -791,102 +792,103 @@ describe("Tree", () => {
 });
 
 describe("TreeView", () => {
-	function getTree(): HTMLElement {
-		return screen.getByRole("tree");
-	}
-
-	function getTreeItems(tree: HTMLElement): Array<HTMLElement> {
-		return getAllByRole(tree, "treeitem");
-	}
-
 	function getTreeItem(id: string): HTMLElement {
 		return screen.getByTestId(`tree-item:${id}`);
-	}
-
-	function getNodeId(treeItem: HTMLElement): string {
-		const { nodeId } = treeItem.dataset;
-		if (nodeId === undefined) {
-			throw new Error("The tree item does not have a data-node-id attribute.");
-		}
-		return nodeId;
-	}
-
-	function map<Out>(
-		treeItems: Iterable<HTMLElement>,
-		transform: (item: HTMLElement) => Out,
-	): Record<string, Out> {
-		const result: Record<string, Out> = {};
-		for (const item of treeItems) {
-			const id = getNodeId(item);
-			result[id] = transform(item);
-		}
-		return result;
 	}
 
 	test("TreeView has aria-mutliselectable set to true", () => {
 		render(TreeView, {
 			props: { items },
 		});
-		const tree = getTree();
+		const tree = screen.getByRole("tree");
 		expect(tree).toHaveAttribute("aria-multiselectable", "true");
 	});
 
-	test("TreeView renders the visible nodes in the tree in the correct order", () => {
+	test("TreeView renders the visible items in the correct order", () => {
 		const expanded = new SvelteSet();
 		render(TreeView, {
 			props: { items, expanded },
 		});
-		const tree = getTree();
-		let treeItems = getTreeItems(tree);
-		let nodeIds = treeItems.map(getNodeId);
-		expect(nodeIds).toEqual(["1", "2", "3"]);
+		let treeItems = screen.getAllByRole("treeitem");
+		expect(treeItems).toHaveLength(3);
+		expect(treeItems[0]).toHaveTextContent("Section 1");
+		expect(treeItems[1]).toHaveTextContent("Section 2");
+		expect(treeItems[2]).toHaveTextContent("Section 3");
 
 		expanded.add("1");
 		flushSync();
-		treeItems = getTreeItems(tree);
-		nodeIds = treeItems.map(getNodeId);
-		expect(nodeIds).toEqual(["1", "1.1", "1.2", "2", "3"]);
+		treeItems = screen.getAllByRole("treeitem");
+		expect(treeItems).toHaveLength(5);
+		expect(treeItems[0]).toHaveTextContent("Section 1");
+		expect(treeItems[1]).toHaveTextContent("Section 1.1");
+		expect(treeItems[2]).toHaveTextContent("Section 1.2");
+		expect(treeItems[3]).toHaveTextContent("Section 2");
+		expect(treeItems[4]).toHaveTextContent("Section 3");
 	});
 
-	test("TreeItem has aria-selected set to true when the node is selected and false otherwise", () => {
+	test("TreeItem has aria-selected set to true when the item is selected and false otherwise", () => {
 		render(TreeView, {
 			props: {
 				items,
 				defaultSelected: ["1"],
 			},
 		});
-		const tree = getTree();
-		const treeItems = getTreeItems(tree);
-		const ariaSelected = map(treeItems, (item) => item.ariaSelected);
-		expect(ariaSelected).toEqual({
-			"1": "true",
-			"2": "false",
-			"3": "false",
-		});
+		expect(getTreeItem("1")).toHaveAttribute("aria-selected", "true");
+		expect(getTreeItem("2")).toHaveAttribute("aria-selected", "false");
+		expect(getTreeItem("3")).toHaveAttribute("aria-selected", "false");
 	});
 
-	test("TreeItem has aria-expanded set to true when the node is expanded and false otherwise for all non-leaf nodes", () => {
+	test("TreeItem updates aria-selected when the item is selected", () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: { items, selected },
+		});
+		const first = getTreeItem("1");
+		expect(first).toHaveAttribute("aria-selected", "false");
+
+		selected.add("1");
+		flushSync();
+		expect(first).toHaveAttribute("aria-selected", "true");
+
+		selected.delete("1");
+		flushSync();
+		expect(first).toHaveAttribute("aria-selected", "false");
+	});
+
+	test("TreeItem has aria-expanded set to true when the item is expanded and false otherwise for all non-leaf items", () => {
 		render(TreeView, {
 			props: {
 				items,
 				defaultExpanded: ["1", "1.1", "2"],
 			},
 		});
-		const tree = getTree();
-		const treeItems = getTreeItems(tree);
-		const ariaExpanded = map(treeItems, (item) => item.ariaExpanded);
-		expect(ariaExpanded).toEqual({
-			"1": "true",
-			"2": "true",
-			"3": "false",
-			"1.1": "true",
-			"1.2": "false",
-			"2.1": null,
-			"2.2": null,
-			"1.1.1": null,
-			"1.1.2": null,
-			"1.1.3": null,
+		expect(getTreeItem("1")).toHaveAttribute("aria-expanded", "true");
+		expect(getTreeItem("2")).toHaveAttribute("aria-expanded", "true");
+		expect(getTreeItem("3")).toHaveAttribute("aria-expanded", "false");
+		expect(getTreeItem("1.1")).toHaveAttribute("aria-expanded", "true");
+		expect(getTreeItem("1.2")).toHaveAttribute("aria-expanded", "false");
+		expect(getTreeItem("2.1")).not.toHaveAttribute("aria-expanded");
+		expect(getTreeItem("2.2")).not.toHaveAttribute("aria-expanded");
+		expect(getTreeItem("1.1.1")).not.toHaveAttribute("aria-expanded");
+		expect(getTreeItem("1.1.2")).not.toHaveAttribute("aria-expanded");
+		expect(getTreeItem("1.1.3")).not.toHaveAttribute("aria-expanded");
+	});
+
+	test("TreeItem updates aria-expanded when the item is expanded", () => {
+		const expanded = new SvelteSet();
+		render(TreeView, {
+			props: { items, expanded },
 		});
+		const first = getTreeItem("1");
+		expect(first).toHaveAttribute("aria-expanded", "false");
+
+		expanded.add("1");
+		flushSync();
+		expect(first).toHaveAttribute("aria-expanded", "true");
+
+		expanded.delete("1");
+		flushSync();
+		expect(first).toHaveAttribute("aria-expanded", "false");
 	});
 
 	test("TreeItem has aria-level set correctly", () => {
@@ -896,21 +898,16 @@ describe("TreeView", () => {
 				defaultExpanded: ["1", "1.1", "2"],
 			},
 		});
-		const tree = getTree();
-		const treeItems = getTreeItems(tree);
-		const ariaLevel = map(treeItems, (item) => item.ariaLevel);
-		expect(ariaLevel).toEqual({
-			"1": "1",
-			"2": "1",
-			"3": "1",
-			"1.1": "2",
-			"1.2": "2",
-			"2.1": "2",
-			"2.2": "2",
-			"1.1.1": "3",
-			"1.1.2": "3",
-			"1.1.3": "3",
-		});
+		expect(getTreeItem("1")).toHaveAttribute("aria-level", "1");
+		expect(getTreeItem("2")).toHaveAttribute("aria-level", "1");
+		expect(getTreeItem("3")).toHaveAttribute("aria-level", "1");
+		expect(getTreeItem("1.1")).toHaveAttribute("aria-level", "2");
+		expect(getTreeItem("1.2")).toHaveAttribute("aria-level", "2");
+		expect(getTreeItem("2.1")).toHaveAttribute("aria-level", "2");
+		expect(getTreeItem("2.2")).toHaveAttribute("aria-level", "2");
+		expect(getTreeItem("1.1.1")).toHaveAttribute("aria-level", "3");
+		expect(getTreeItem("1.1.2")).toHaveAttribute("aria-level", "3");
+		expect(getTreeItem("1.1.3")).toHaveAttribute("aria-level", "3");
 	});
 
 	test("TreeItem has aria-posinset set correctly", () => {
@@ -920,19 +917,14 @@ describe("TreeView", () => {
 				defaultExpanded: ["1", "1.1"],
 			},
 		});
-		const tree = getTree();
-		const treeItems = getTreeItems(tree);
-		const ariaPosInSet = map(treeItems, (item) => item.ariaPosInSet);
-		expect(ariaPosInSet).toEqual({
-			"1": "1",
-			"2": "2",
-			"3": "3",
-			"1.1": "1",
-			"1.2": "2",
-			"1.1.1": "1",
-			"1.1.2": "2",
-			"1.1.3": "3",
-		});
+		expect(getTreeItem("1")).toHaveAttribute("aria-posinset", "1");
+		expect(getTreeItem("2")).toHaveAttribute("aria-posinset", "2");
+		expect(getTreeItem("3")).toHaveAttribute("aria-posinset", "3");
+		expect(getTreeItem("1.1")).toHaveAttribute("aria-posinset", "1");
+		expect(getTreeItem("1.2")).toHaveAttribute("aria-posinset", "2");
+		expect(getTreeItem("1.1.1")).toHaveAttribute("aria-posinset", "1");
+		expect(getTreeItem("1.1.2")).toHaveAttribute("aria-posinset", "2");
+		expect(getTreeItem("1.1.3")).toHaveAttribute("aria-posinset", "3");
 	});
 
 	test("TreeItem has aria-setsize set correctly", () => {
@@ -942,32 +934,105 @@ describe("TreeView", () => {
 				defaultExpanded: ["1", "1.1"],
 			},
 		});
-		const tree = getTree();
-		const treeItems = getTreeItems(tree);
-		const ariaSetSize = map(treeItems, (item) => item.ariaSetSize);
-		expect(ariaSetSize).toEqual({
-			"1": "3",
-			"2": "3",
-			"3": "3",
-			"1.1": "2",
-			"1.2": "2",
-			"1.1.1": "3",
-			"1.1.2": "3",
-			"1.1.3": "3",
-		});
+		expect(getTreeItem("1")).toHaveAttribute("aria-setsize", "3");
+		expect(getTreeItem("2")).toHaveAttribute("aria-setsize", "3");
+		expect(getTreeItem("3")).toHaveAttribute("aria-setsize", "3");
+		expect(getTreeItem("1.1")).toHaveAttribute("aria-setsize", "2");
+		expect(getTreeItem("1.2")).toHaveAttribute("aria-setsize", "2");
+		expect(getTreeItem("1.1.1")).toHaveAttribute("aria-setsize", "3");
+		expect(getTreeItem("1.1.2")).toHaveAttribute("aria-setsize", "3");
+		expect(getTreeItem("1.1.3")).toHaveAttribute("aria-setsize", "3");
 	});
 
-	test("TreeItem initially has tabindex set to 0 for the first item only", () => {
+	test("TreeItem initially has tabindex set to 0 for the first item and -1 otherwise", () => {
 		render(TreeView, {
 			props: { items },
 		});
-		const tree = getTree();
-		const treeItems = getTreeItems(tree);
-		const tabindex = map(treeItems, (item) => item.tabIndex);
-		expect(tabindex).toEqual({
-			"1": 0,
-			"2": -1,
-			"3": -1,
+		expect(getTreeItem("1")).toHaveAttribute("tabindex", "0");
+		expect(getTreeItem("2")).toHaveAttribute("tabindex", "-1");
+		expect(getTreeItem("3")).toHaveAttribute("tabindex", "-1");
+	});
+
+	test("TreeItem has tabindex set to 0 for the focused item and -1 otherwise", () => {
+		render(TreeView, {
+			props: { items },
 		});
+
+		getTreeItem("2").focus();
+		flushSync();
+		expect(getTreeItem("1")).toHaveAttribute("tabindex", "-1");
+		expect(getTreeItem("2")).toHaveAttribute("tabindex", "0");
+		expect(getTreeItem("3")).toHaveAttribute("tabindex", "-1");
+	});
+
+	test("TreeItem expands collapsed items when the ArrowRight key is pressed", async () => {
+		const expanded = new SvelteSet();
+		render(TreeView, {
+			props: { items, expanded },
+		});
+
+		getTreeItem("2").focus();
+		await userEvent.keyboard("{ArrowRight}");
+		expect(expanded).toEqual(new SvelteSet(["2"]));
+	});
+
+	test("TreeItem navigates to the first child when the ArrowRight key is pressed on an expanded item", async () => {
+		render(TreeView, {
+			props: {
+				items,
+				defaultExpanded: ["1"],
+			},
+		});
+
+		getTreeItem("1").focus();
+		await userEvent.keyboard("{ArrowRight}");
+		expect(getTreeItem("1.1")).toHaveFocus();
+	});
+
+	test("TreeItem does nothing when the ArrowRight key is pressed on a leaf item", async () => {
+		const expanded = new SvelteSet(["1", "1.1"]);
+		render(TreeView, {
+			props: { items, expanded },
+		});
+
+		const item_111 = getTreeItem("1.1.1");
+		item_111.focus();
+		await userEvent.keyboard("{ArrowRight}");
+		expect(expanded).toEqual(new SvelteSet(["1", "1.1"]));
+		expect(item_111).toHaveFocus();
+	});
+
+	test("TreeItem collapses expanded items when the ArrowLeft key is pressed", async () => {
+		const expanded = new SvelteSet(["1"]);
+		render(TreeView, {
+			props: { items, expanded },
+		});
+
+		getTreeItem("1").focus();
+		await userEvent.keyboard("{ArrowLeft}");
+		expect(expanded).toEqual(new SvelteSet());
+	});
+
+	test("TreeItem navigates to the parent when the ArrowLeft key is pressed on a collapsed item", async () => {
+		render(TreeView, {
+			props: {
+				items,
+				defaultExpanded: ["1"],
+			},
+		});
+
+		getTreeItem("1.2").focus();
+		await userEvent.keyboard("{ArrowLeft}");
+		expect(getTreeItem("1")).toHaveFocus();
+	});
+
+	test("TreeItem does nothing when the ArrowLeft key is pressed on a root item", async () => {
+		render(TreeView, {
+			props: { items },
+		});
+
+		getTreeItem("1").focus();
+		await userEvent.keyboard("{ArrowLeft}");
+		expect(getTreeItem("1")).toHaveFocus();
 	});
 });

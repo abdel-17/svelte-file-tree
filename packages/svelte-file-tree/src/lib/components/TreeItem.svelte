@@ -41,7 +41,6 @@
 		| "aria-level"
 		| "aria-posinset"
 		| "aria-setsize"
-		| "hidden"
 		| "tabindex"
 		| "children"
 	>;
