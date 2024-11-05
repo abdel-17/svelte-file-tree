@@ -10,24 +10,24 @@
 	type TreeItemInputProps = ComponentProps<typeof TreeItemInput>;
 
 	interface Props extends TreeViewProps {
-		treeItemProps?: (node: TreeNode<string>) => TreeItemProps;
-		treeItemInputProps?: (node: TreeNode<string>) => TreeItemInputProps;
+		getTreeItemProps?: (node: TreeNode<string>) => TreeItemProps;
+		getTreeItemInputProps?: (node: TreeNode<string>) => TreeItemInputProps;
 	}
 
-	const { treeItemProps, treeItemInputProps, ...props }: Props = $props();
+	let { getTreeItemProps, getTreeItemInputProps, ...props }: Props = $props();
 </script>
 
 <TreeView {...props}>
 	{#snippet item(node)}
 		<TreeItem
-			{...treeItemProps?.(node)}
+			{...getTreeItemProps?.(node)}
 			{node}
 			data-testid="tree-item:{node.id}"
 		>
 			{#snippet children({ editing })}
 				{#if editing}
 					<TreeItemInput
-						{...treeItemInputProps?.(node)}
+						{...getTreeItemInputProps?.(node)}
 						bind:value={node.value}
 					/>
 				{:else}

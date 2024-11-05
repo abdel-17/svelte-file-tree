@@ -201,7 +201,7 @@
 			}
 			case "Home": {
 				const first = tree.roots[0];
-				if (first === undefined) {
+				if (first === undefined || first === node) {
 					break;
 				}
 				getTreeItemElement(first).focus();
@@ -222,7 +222,7 @@
 			}
 			case "End": {
 				const { last } = tree;
-				if (last === undefined) {
+				if (last === undefined || last === node) {
 					break;
 				}
 				getTreeItemElement(last).focus();

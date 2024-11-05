@@ -971,22 +971,23 @@ describe("TreeView", () => {
 			props: { items, expanded },
 		});
 
-		getTreeItem("2").focus();
+		const item_1 = getTreeItem("1");
+		item_1.focus();
 		await userEvent.keyboard("{ArrowRight}");
-		expect(expanded).toEqual(new SvelteSet(["2"]));
+		expect(item_1).toHaveFocus();
+		expect(expanded).toEqual(new SvelteSet(["1"]));
 	});
 
 	test("TreeItem navigates to the first child when the ArrowRight key is pressed on an expanded item", async () => {
+		const expanded = new SvelteSet(["1"]);
 		render(TreeView, {
-			props: {
-				items,
-				defaultExpanded: ["1"],
-			},
+			props: { items, expanded },
 		});
 
 		getTreeItem("1").focus();
 		await userEvent.keyboard("{ArrowRight}");
 		expect(getTreeItem("1.1")).toHaveFocus();
+		expect(expanded).toEqual(new SvelteSet(["1"]));
 	});
 
 	test("TreeItem does nothing when the ArrowRight key is pressed on a leaf item", async () => {
@@ -998,8 +999,8 @@ describe("TreeView", () => {
 		const item_111 = getTreeItem("1.1.1");
 		item_111.focus();
 		await userEvent.keyboard("{ArrowRight}");
-		expect(expanded).toEqual(new SvelteSet(["1", "1.1"]));
 		expect(item_111).toHaveFocus();
+		expect(expanded).toEqual(new SvelteSet(["1", "1.1"]));
 	});
 
 	test("TreeItem collapses expanded items when the ArrowLeft key is pressed", async () => {
@@ -1008,31 +1009,344 @@ describe("TreeView", () => {
 			props: { items, expanded },
 		});
 
-		getTreeItem("1").focus();
+		const item_1 = getTreeItem("1");
+		item_1.focus();
 		await userEvent.keyboard("{ArrowLeft}");
+		expect(item_1).toHaveFocus();
 		expect(expanded).toEqual(new SvelteSet());
 	});
 
 	test("TreeItem navigates to the parent when the ArrowLeft key is pressed on a collapsed item", async () => {
+		const expanded = new SvelteSet(["1"]);
 		render(TreeView, {
-			props: {
-				items,
-				defaultExpanded: ["1"],
-			},
+			props: { items, expanded },
 		});
 
 		getTreeItem("1.2").focus();
 		await userEvent.keyboard("{ArrowLeft}");
 		expect(getTreeItem("1")).toHaveFocus();
+		expect(expanded).toEqual(new SvelteSet(["1"]));
 	});
 
-	test("TreeItem does nothing when the ArrowLeft key is pressed on a root item", async () => {
+	test("TreeItem does nothing when the ArrowLeft key is pressed on a collapsed root item", async () => {
+		const expanded = new SvelteSet(["1"]);
+		render(TreeView, {
+			props: { items, expanded },
+		});
+
+		const item_2 = getTreeItem("2");
+		item_2.focus();
+		await userEvent.keyboard("{ArrowLeft}");
+		expect(item_2).toHaveFocus();
+		expect(expanded).toEqual(new SvelteSet(["1"]));
+	});
+
+	test("TreeItem navigates to the next item when the ArrowDown key is pressed", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: {
+				items,
+				selected,
+				defaultExpanded: ["1", "1.1"],
+			},
+		});
+
+		getTreeItem("1").focus();
+		await userEvent.keyboard("{ArrowDown}");
+		expect(getTreeItem("1.1")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowDown}");
+		expect(getTreeItem("1.1.1")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowDown}");
+		expect(getTreeItem("1.1.2")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowDown}");
+		expect(getTreeItem("1.1.3")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowDown}");
+		expect(getTreeItem("1.2")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowDown}");
+		expect(getTreeItem("2")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowDown}");
+		expect(getTreeItem("3")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+	});
+
+	test("TreeItem selects and navigates to the next item when the ArrowDown key is pressed while holding shift", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: {
+				items,
+				selected,
+				defaultExpanded: ["1"],
+			},
+		});
+
+		getTreeItem("1").focus();
+		await userEvent.keyboard("{Shift>}{ArrowDown}");
+		expect(getTreeItem("1.1")).toHaveFocus();
+		expect(selected).toEqual(new SvelteSet(["1", "1.1"]));
+
+		await userEvent.keyboard("{Shift>}{ArrowDown}");
+		expect(getTreeItem("1.2")).toHaveFocus();
+		expect(selected).toEqual(new SvelteSet(["1", "1.1", "1.2"]));
+	});
+
+	test("TreeItem does nothing when the ArrowDown key is pressed on the last item", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: { items, selected },
+		});
+
+		const item_3 = getTreeItem("3");
+		item_3.focus();
+		await userEvent.keyboard("{ArrowDown}");
+		expect(item_3).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{Shift>}{ArrowDown}");
+		expect(item_3).toHaveFocus();
+		expect(selected).toHaveLength(0);
+	});
+
+	test("TreeItem navigates to the previous item when the ArrowUp key is pressed", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: {
+				items,
+				selected,
+				defaultExpanded: ["1", "1.1"],
+			},
+		});
+
+		getTreeItem("3").focus();
+		await userEvent.keyboard("{ArrowUp}");
+		expect(getTreeItem("2")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowUp}");
+		expect(getTreeItem("1.2")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowUp}");
+		expect(getTreeItem("1.1.3")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowUp}");
+		expect(getTreeItem("1.1.2")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowUp}");
+		expect(getTreeItem("1.1.1")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowUp}");
+		expect(getTreeItem("1.1")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{ArrowUp}");
+		expect(getTreeItem("1")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+	});
+
+	test("TreeItem selects and navigates to the previous item when the ArrowUp key is pressed while holding shift", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: {
+				items,
+				selected,
+				defaultExpanded: ["1"],
+			},
+		});
+
+		getTreeItem("2").focus();
+		await userEvent.keyboard("{Shift>}{ArrowUp}");
+		expect(getTreeItem("1.2")).toHaveFocus();
+		expect(selected).toEqual(new SvelteSet(["1.2", "2"]));
+
+		await userEvent.keyboard("{Shift>}{ArrowUp}");
+		expect(getTreeItem("1.1")).toHaveFocus();
+		expect(selected).toEqual(new SvelteSet(["1.1", "1.2", "2"]));
+	});
+
+	test("TreeItem does nothing when the ArrowUp key is pressed on the first item", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: { items, selected },
+		});
+
+		const item_1 = getTreeItem("1");
+		item_1.focus();
+		await userEvent.keyboard("{ArrowUp}");
+		expect(item_1).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{Shift>}{ArrowUp}");
+		expect(item_1).toHaveFocus();
+		expect(selected).toHaveLength(0);
+	});
+
+	// TODO: figure out how to test PageUp and PageDown keys
+
+	test("TreeItem navigates to the first item when the Home key is pressed", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: {
+				items,
+				selected,
+				defaultExpanded: ["1"],
+			},
+		});
+
+		getTreeItem("3").focus();
+		await userEvent.keyboard("{Home}");
+		expect(getTreeItem("1")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+	});
+
+	test("TreeItem selects and navigates to the first item when the Home key is pressed while holding shift and control together", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: {
+				items,
+				selected,
+				defaultExpanded: ["1"],
+			},
+		});
+
+		getTreeItem("3").focus();
+		await userEvent.keyboard("{Shift>}{Control>}{Home}");
+		expect(getTreeItem("1")).toHaveFocus();
+		expect(selected).toEqual(new SvelteSet(["1", "1.1", "1.2", "2", "3"]));
+	});
+
+	test("TreeItem does nothing when the Home key is pressed on the first item", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: { items, selected },
+		});
+
+		getTreeItem("1").focus();
+		await userEvent.keyboard("{Home}");
+		expect(getTreeItem("1")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{Shift>}{Control>}{Home}");
+		expect(getTreeItem("1")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+	});
+
+	test("TreeItem navigates to the last item when the End key is pressed", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: { items, selected },
+		});
+
+		getTreeItem("1").focus();
+		await userEvent.keyboard("{End}");
+		expect(getTreeItem("3")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+	});
+
+	test("TreeItem selects and navigates to the last item when the End key is pressed while holding shift and control together", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: {
+				items,
+				selected,
+				defaultExpanded: ["1"],
+			},
+		});
+
+		getTreeItem("1").focus();
+		await userEvent.keyboard("{Shift>}{Control>}{End}");
+		expect(getTreeItem("3")).toHaveFocus();
+		expect(selected).toEqual(new SvelteSet(["1", "1.1", "1.2", "2", "3"]));
+	});
+
+	test("TreeItem does nothing when the End key is pressed on the last item", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: { items, selected },
+		});
+
+		getTreeItem("3").focus();
+		await userEvent.keyboard("{End}");
+		expect(getTreeItem("3")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+
+		await userEvent.keyboard("{Shift>}{Control>}{End}");
+		expect(getTreeItem("3")).toHaveFocus();
+		expect(selected).toHaveLength(0);
+	});
+
+	test("TreeItem selection is toggled when the Space key is pressed", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: { items, selected },
+		});
+
+		const item_1 = getTreeItem("1");
+		item_1.focus();
+		await userEvent.keyboard(" ");
+		expect(selected).toEqual(new SvelteSet(["1"]));
+
+		await userEvent.keyboard(" ");
+		expect(selected).toEqual(new SvelteSet());
+	});
+
+	test("TreeItem enters editing mode when the F2 key is pressed", async () => {
+		render(TreeView, {
+			props: {
+				items,
+				getTreeItemProps() {
+					return { editable: true };
+				},
+			},
+		});
+
+		const item_1 = getTreeItem("1");
+		item_1.focus();
+		await userEvent.keyboard("{F2}");
+		const input = screen.getByRole("textbox");
+		expect(item_1).toContainElement(input);
+		expect(input).toHaveFocus();
+	});
+
+	test("TreeItem does nothing when the F2 key is pressed on a non-editable item", async () => {
 		render(TreeView, {
 			props: { items },
 		});
 
+		const item_1 = getTreeItem("1");
+		item_1.focus();
+		await userEvent.keyboard("{F2}");
+		const input = screen.queryByRole("textbox");
+		expect(item_1).toHaveFocus();
+		expect(input).toBeNull();
+	});
+
+	test("TreeItem selects all visible nodes when the a key is pressed while holding control", async () => {
+		const selected = new SvelteSet();
+		render(TreeView, {
+			props: {
+				items,
+				selected,
+				defaultExpanded: ["1"],
+			},
+		});
+
 		getTreeItem("1").focus();
-		await userEvent.keyboard("{ArrowLeft}");
-		expect(getTreeItem("1")).toHaveFocus();
+		await userEvent.keyboard("{Control>}a");
+		expect(selected).toEqual(new SvelteSet(["1", "1.1", "1.2", "2", "3"]));
 	});
 });
