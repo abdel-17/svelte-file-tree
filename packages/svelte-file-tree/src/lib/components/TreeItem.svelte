@@ -267,7 +267,9 @@
 			case "*": {
 				const topBefore = event.currentTarget.getBoundingClientRect().top;
 				for (const sibling of node.siblings) {
-					sibling.expand();
+					if (sibling.children.length !== 0) {
+						sibling.expand();
+					}
 				}
 
 				// After the sibling nodes are all expanded, the tree's height changes,

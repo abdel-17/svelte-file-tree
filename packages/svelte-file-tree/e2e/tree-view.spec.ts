@@ -590,4 +590,80 @@ test.describe("TreeView", () => {
 		await expect(item_11).toHaveAttribute("aria-expanded", "true");
 		await expect(item_12).toHaveAttribute("aria-expanded", "true");
 	});
+
+	test("Clicking on an item moves selection to it", async ({ page }) => {
+		await page.goto(ROUTE);
+		const item_1 = getTreeItem(page, "1");
+		const item_2 = getTreeItem(page, "2");
+		const item_3 = getTreeItem(page, "3");
+		await item_1.click();
+		await expect(item_1).toBeFocused();
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "false");
+		await expect(item_3).toHaveAttribute("aria-selected", "false");
+
+		await item_2.click();
+		await expect(item_2).toBeFocused();
+		await expect(item_1).toHaveAttribute("aria-selected", "false");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+		await expect(item_3).toHaveAttribute("aria-selected", "false");
+
+		await item_3.click();
+		await expect(item_3).toBeFocused();
+		await expect(item_1).toHaveAttribute("aria-selected", "false");
+		await expect(item_2).toHaveAttribute("aria-selected", "false");
+		await expect(item_3).toHaveAttribute("aria-selected", "true");
+	});
+
+	test("Clicking on an item while holding Command/Control selects it without unselecting other items", async ({
+		page,
+	}) => {
+		await page.goto(ROUTE);
+		const item_1 = getTreeItem(page, "1");
+		const item_2 = getTreeItem(page, "2");
+		const item_3 = getTreeItem(page, "3");
+		await item_1.click({ modifiers: ["ControlOrMeta"] });
+
+		await expect(item_1).toBeFocused();
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "false");
+		await expect(item_3).toHaveAttribute("aria-selected", "false");
+
+		await item_2.click({ modifiers: ["ControlOrMeta"] });
+		await expect(item_2).toBeFocused();
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+		await expect(item_3).toHaveAttribute("aria-selected", "false");
+
+		await item_3.click({ modifiers: ["ControlOrMeta"] });
+		await expect(item_3).toBeFocused();
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+		await expect(item_3).toHaveAttribute("aria-selected", "true");
+	});
+
+	test("Clicking on an item while holding Shift selects it and all items between it and the last focused item", async ({
+		page,
+	}) => {
+		await page.goto(ROUTE);
+		const item_1 = getTreeItem(page, "1");
+		const item_2 = getTreeItem(page, "2");
+		const item_3 = getTreeItem(page, "3");
+		await item_1.focus();
+
+		await item_3.click({ modifiers: ["Shift"] });
+		await expect(item_3).toBeFocused();
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+		await expect(item_3).toHaveAttribute("aria-selected", "true");
+
+		await item_1.press(" ");
+		await item_2.press(" ");
+		await item_3.press(" ");
+		await item_2.click({ modifiers: ["Shift"] });
+		await expect(item_2).toBeFocused();
+		await expect(item_3).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+		await expect(item_1).toHaveAttribute("aria-selected", "false");
+	});
 });
