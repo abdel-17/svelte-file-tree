@@ -183,17 +183,19 @@
 					if (next === undefined) {
 						break;
 					}
+
+					const nextElement = getTreeItemElement(next);
+					const nextTop = nextElement.getBoundingClientRect().top;
+					const distance = Math.abs(nextTop - itemTop);
+					if (distance > maxScrollDistance) {
+						break;
+					}
+
 					current = next;
-					currentElement = getTreeItemElement(current);
+					currentElement = nextElement;
 
 					if (shouldSelect) {
 						current.select();
-					}
-
-					const currentTop = currentElement.getBoundingClientRect().top;
-					const distance = Math.abs(currentTop - itemTop);
-					if (distance >= maxScrollDistance) {
-						break;
 					}
 				}
 				currentElement.focus();
@@ -452,7 +454,6 @@
 	aria-setsize={node.siblings.length}
 	tabindex={node.id === tree.tabbable ? 0 : -1}
 	{draggable}
-	data-dragged={node.dragged ? "" : undefined}
 	data-drop-position={dropPosition}
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
 	onclick={composeEventHandlers(handleClick, onclick)}

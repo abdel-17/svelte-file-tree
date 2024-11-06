@@ -12,6 +12,7 @@
 				editable
 				draggable
 				data-leaf={node.children.length === 0 ? "" : undefined}
+				data-dragged={node.dragged ? "" : undefined}
 				style="--indent: calc({node.level - 1} * var(--spacing-4))"
 				class="group relative ms-[var(--indent)] flex gap-2 rounded bg-current/10 p-3 hover:bg-current/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current active:bg-current/20 aria-selected:bg-blue-100 aria-selected:text-blue-800 data-dragged:opacity-50 data-[drop-position='before']:before:absolute data-[drop-position='before']:before:inset-x-0 data-[drop-position='before']:before:top-0 data-[drop-position='before']:before:h-0.5 data-[drop-position='before']:before:bg-red-500 data-[drop-position='after']:before:absolute data-[drop-position='after']:before:inset-x-0 data-[drop-position='after']:before:bottom-0 data-[drop-position='after']:before:h-0.5 data-[drop-position='after']:before:bg-red-500 data-[drop-position='inside']:ring-2 data-[drop-position='inside']:ring-red-500 data-[drop-position='inside']:ring-inset"
 			>

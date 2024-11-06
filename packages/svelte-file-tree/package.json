@@ -12,16 +12,13 @@
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"test": "vitest --run",
-		"test:watch": "vitest"
+		"test:watch": "vitest",
+		"test:e2e": "playwright test"
 	},
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
 			"svelte": "./dist/index.js"
-		},
-		"./types": {
-			"types": "./dist/types.d.ts",
-			"svelte": "./dist/types.js"
 		}
 	},
 	"sideEffects": [
@@ -29,24 +26,23 @@
 	],
 	"files": [
 		"dist",
-		"!dist/test"
+		"!dist/**/*.spec.*",
+		"!dist/**/*.test.*"
 	],
 	"peerDependencies": {
 		"svelte": "^5.0.0"
 	},
 	"devDependencies": {
-		"@sveltejs/kit": "^2.7.3",
+		"@playwright/test": "^1.48.2",
+		"@sveltejs/kit": "^2.7.7",
 		"@sveltejs/package": "^2.3.7",
 		"@sveltejs/vite-plugin-svelte": "4.0.0",
-		"@testing-library/jest-dom": "^6.6.3",
-		"@testing-library/svelte": "^5.2.4",
-		"@testing-library/user-event": "^14.5.2",
-		"@types/node": "^22.8.5",
+		"@types/node": "^22.9.0",
 		"jsdom": "^25.0.1",
 		"prettier": "^3.3.3",
 		"prettier-plugin-svelte": "^3.2.7",
 		"publint": "^0.2.12",
-		"svelte": "5.1.6",
+		"svelte": "5.1.10",
 		"svelte-check": "^4.0.5",
 		"typescript": "^5.6.3",
 		"vite": "^5.4.10",

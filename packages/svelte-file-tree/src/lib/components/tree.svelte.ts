@@ -1,13 +1,13 @@
 import { SvelteSet } from "svelte/reactivity";
 
-export type TreeItem<Value> = {
+export type TreeItemData<Value> = {
 	id: string;
 	value: Value;
-	children?: ReadonlyArray<TreeItem<Value>>;
+	children?: ReadonlyArray<TreeItemData<Value>>;
 };
 
 export type TreeProps<Value> = {
-	items: () => ReadonlyArray<TreeItem<Value>>;
+	items: () => ReadonlyArray<TreeItemData<Value>>;
 	selected?: SvelteSet<string>;
 	expanded?: SvelteSet<string>;
 	defaultExpanded?: Iterable<string>;
@@ -15,7 +15,7 @@ export type TreeProps<Value> = {
 };
 
 export class Tree<Value> {
-	#items: () => ReadonlyArray<TreeItem<Value>>;
+	#items: () => ReadonlyArray<TreeItemData<Value>>;
 	#selected: SvelteSet<string>;
 	#expanded: SvelteSet<string>;
 
@@ -159,7 +159,7 @@ export class TreeNode<Value> {
 
 	constructor(
 		tree: Tree<Value>,
-		item: TreeItem<Value>,
+		item: TreeItemData<Value>,
 		index: number,
 		parent?: TreeNode<Value>,
 	) {

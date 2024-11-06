@@ -23,7 +23,7 @@
 	import { getContext, hasContext, setContext, type Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
 	import type { SvelteSet } from "svelte/reactivity";
-	import { Tree, type TreeItem, type TreeNode } from "./tree.svelte.js";
+	import { Tree, type TreeItemData, type TreeNode } from "./tree.svelte.js";
 
 	type BaseProps = Omit<
 		HTMLAttributes<HTMLDivElement>,
@@ -32,7 +32,7 @@
 
 	interface Props extends BaseProps {
 		id: string;
-		items: ReadonlyArray<TreeItem<Value>>;
+		items: ReadonlyArray<TreeItemData<Value>>;
 		item: Snippet<[TreeNode<Value>]>;
 		selected?: SvelteSet<string>;
 		expanded?: SvelteSet<string>;
