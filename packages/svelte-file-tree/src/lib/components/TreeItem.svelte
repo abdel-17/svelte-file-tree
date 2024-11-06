@@ -247,6 +247,10 @@
 				node.selected = !node.selected;
 				break;
 			}
+			case "Escape": {
+				tree.selected.clear();
+				break;
+			}
 			case "F2": {
 				if (editable) {
 					editing = true;

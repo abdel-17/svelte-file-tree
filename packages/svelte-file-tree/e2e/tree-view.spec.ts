@@ -50,18 +50,6 @@ test.describe("TreeView", () => {
 		await expect(item_3).toHaveAttribute("tabindex", "0");
 	});
 
-	test("Space toggles selection", async ({ page }) => {
-		await page.goto(ROUTE);
-		const item_1 = getTreeItem(page, "1");
-		await expect(item_1).toHaveAttribute("aria-selected", "false");
-
-		await item_1.press("Space");
-		await expect(item_1).toHaveAttribute("aria-selected", "true");
-
-		await item_1.press("Space");
-		await expect(item_1).toHaveAttribute("aria-selected", "false");
-	});
-
 	test("ArrowRight expands and ArrowLeft collapses", async ({ page }) => {
 		await page.goto(ROUTE);
 		const item_1 = getTreeItem(page, "1");
@@ -107,6 +95,66 @@ test.describe("TreeView", () => {
 		await item_1.press("ArrowLeft");
 		await expect(item_1).toHaveAttribute("aria-expanded", "false");
 		await expect(items).toHaveText(["Section 1", "Section 2", "Section 3"]);
+	});
+
+	test("Space toggles selection", async ({ page }) => {
+		await page.goto(ROUTE);
+		const item_1 = getTreeItem(page, "1");
+		const item_2 = getTreeItem(page, "2");
+		await expect(item_1).toHaveAttribute("aria-selected", "false");
+		await expect(item_2).toHaveAttribute("aria-selected", "false");
+
+		await item_1.press("Space");
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "false");
+
+		await item_2.press("Space");
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+
+		await item_1.press("Space");
+		await expect(item_1).toHaveAttribute("aria-selected", "false");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+
+		await item_2.press("Space");
+		await expect(item_1).toHaveAttribute("aria-selected", "false");
+		await expect(item_2).toHaveAttribute("aria-selected", "false");
+	});
+
+	test("Control/Command + a selects all visible items and Escape unselects all items", async ({
+		page,
+	}) => {
+		await page.goto(ROUTE);
+		const item_1 = getTreeItem(page, "1");
+		const item_2 = getTreeItem(page, "2");
+		const item_3 = getTreeItem(page, "3");
+		await item_1.press("ControlOrMeta+a");
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+		await expect(item_3).toHaveAttribute("aria-selected", "true");
+
+		await item_1.press("ArrowRight");
+		const item_11 = getTreeItem(page, "1.1");
+		const item_12 = getTreeItem(page, "1.2");
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_11).toHaveAttribute("aria-selected", "false");
+		await expect(item_12).toHaveAttribute("aria-selected", "false");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+		await expect(item_3).toHaveAttribute("aria-selected", "true");
+
+		await item_1.press("ControlOrMeta+a");
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_11).toHaveAttribute("aria-selected", "true");
+		await expect(item_12).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+		await expect(item_3).toHaveAttribute("aria-selected", "true");
+
+		await item_1.press("Escape");
+		await expect(item_1).toHaveAttribute("aria-selected", "false");
+		await expect(item_11).toHaveAttribute("aria-selected", "false");
+		await expect(item_12).toHaveAttribute("aria-selected", "false");
+		await expect(item_2).toHaveAttribute("aria-selected", "false");
+		await expect(item_3).toHaveAttribute("aria-selected", "false");
 	});
 
 	test("Tree items have the correct aria attributes", async ({ page }) => {
@@ -422,15 +470,11 @@ test.describe("TreeView", () => {
 		await expect(item_2).toHaveAttribute("aria-selected", "true");
 		await expect(item_3).toHaveAttribute("aria-selected", "true");
 
-		await item_3.press(" ");
+		await item_3.press("Escape");
 		await item_3.press("Shift+ControlOrMeta+PageDown");
 		await expect(item_3).toBeFocused();
 		await expect(item_3).toHaveAttribute("aria-selected", "false");
 
-		await item_1.press(" ");
-		await item_11.press(" ");
-		await item_12.press(" ");
-		await item_2.press(" ");
 		await item_3.press("Shift+ControlOrMeta+PageUp");
 		await expect(item_11).toBeFocused();
 		await expect(item_3).toHaveAttribute("aria-selected", "true");
@@ -443,7 +487,7 @@ test.describe("TreeView", () => {
 		await expect(item_11).toHaveAttribute("aria-selected", "true");
 		await expect(item_1).toHaveAttribute("aria-selected", "true");
 
-		await item_1.press(" ");
+		await item_1.press("Escape");
 		await item_1.press("Shift+ControlOrMeta+PageUp");
 		await expect(item_1).toBeFocused();
 		await expect(item_1).toHaveAttribute("aria-selected", "false");
@@ -527,12 +571,14 @@ test.describe("TreeView", () => {
 		await expect(item_2).toHaveText("Section 2.0");
 		await expect(item_2).toBeFocused();
 
+		await item_2.press("Space");
 		await item_2.press("F2");
 		await input.press("Backspace");
 		await input.fill("Section 2");
 		await input.press("Escape");
 		await expect(item_2).toHaveText("Section 2.0");
 		await expect(item_2).toBeFocused();
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
 		await expect(input).not.toBeVisible();
 
 		await item_2.press("F2");
@@ -542,33 +588,6 @@ test.describe("TreeView", () => {
 		await expect(item_2).toHaveText("Section 2.0");
 		await expect(item_2).not.toBeFocused();
 		await expect(input).not.toBeVisible();
-	});
-
-	test("Control/Command + a selects all visible items", async ({ page }) => {
-		await page.goto(ROUTE);
-		const item_1 = getTreeItem(page, "1");
-		await item_1.press("ControlOrMeta+a");
-		const item_2 = getTreeItem(page, "2");
-		const item_3 = getTreeItem(page, "3");
-		await expect(item_1).toHaveAttribute("aria-selected", "true");
-		await expect(item_2).toHaveAttribute("aria-selected", "true");
-		await expect(item_3).toHaveAttribute("aria-selected", "true");
-
-		await item_1.press("ArrowRight");
-		const item_11 = getTreeItem(page, "1.1");
-		const item_12 = getTreeItem(page, "1.2");
-		await expect(item_1).toHaveAttribute("aria-selected", "true");
-		await expect(item_11).toHaveAttribute("aria-selected", "false");
-		await expect(item_12).toHaveAttribute("aria-selected", "false");
-		await expect(item_2).toHaveAttribute("aria-selected", "true");
-		await expect(item_3).toHaveAttribute("aria-selected", "true");
-
-		await item_1.press("ControlOrMeta+a");
-		await expect(item_1).toHaveAttribute("aria-selected", "true");
-		await expect(item_11).toHaveAttribute("aria-selected", "true");
-		await expect(item_12).toHaveAttribute("aria-selected", "true");
-		await expect(item_2).toHaveAttribute("aria-selected", "true");
-		await expect(item_3).toHaveAttribute("aria-selected", "true");
 	});
 
 	test("Asterik expands all sibling items", async ({ page }) => {
@@ -657,9 +676,7 @@ test.describe("TreeView", () => {
 		await expect(item_2).toHaveAttribute("aria-selected", "true");
 		await expect(item_3).toHaveAttribute("aria-selected", "true");
 
-		await item_1.press(" ");
-		await item_2.press(" ");
-		await item_3.press(" ");
+		await item_3.press("Escape");
 		await item_2.click({ modifiers: ["Shift"] });
 		await expect(item_2).toBeFocused();
 		await expect(item_3).toHaveAttribute("aria-selected", "true");
