@@ -72,7 +72,7 @@
 		...props
 	}: Props = $props();
 
-	const { tree, treeId, treeElement } = getTreeViewContext();
+	const { tree, treeId, treeElement } = getTreeViewContext<Value>();
 
 	setTreeItemContext({
 		treeItemElement: () => ref,
@@ -91,14 +91,10 @@
 		return `${treeId()}:${id}`;
 	}
 
-	function getTreeItemElementById(id: string): HTMLElement | null {
-		const elementId = getTreeItemElementId(id);
-		return document.getElementById(elementId);
-	}
-
-	function getTreeItemElement(node: TreeNode<unknown>): HTMLElement {
+	function getTreeItemElement(node: TreeNode<Value>): HTMLElement {
 		const { id } = node;
-		const element = getTreeItemElementById(id);
+		const elementId = getTreeItemElementId(id);
+		const element = document.getElementById(elementId);
 		if (element === null) {
 			throw new Error(`Tree item ${id} was not found in the DOM.`);
 		}
@@ -147,13 +143,14 @@
 				if (next === undefined) {
 					break;
 				}
-				getTreeItemElement(next).focus();
 
 				const shouldSelect = event.shiftKey;
 				if (shouldSelect) {
 					node.select();
 					next.select();
 				}
+
+				getTreeItemElement(next).focus();
 				break;
 			}
 			case "PageDown":
@@ -206,20 +203,13 @@
 				if (first === undefined || first === node) {
 					break;
 				}
-				getTreeItemElement(first).focus();
 
 				const shouldSelect = event.shiftKey && isModifierKey(event);
-				if (!shouldSelect) {
-					break;
+				if (shouldSelect) {
+					tree.selectUntil(node);
 				}
 
-				for (const item of tree) {
-					item.select();
-
-					if (item === node) {
-						break;
-					}
-				}
+				getTreeItemElement(first).focus();
 				break;
 			}
 			case "End": {
@@ -227,28 +217,17 @@
 				if (last === undefined || last === node) {
 					break;
 				}
-				getTreeItemElement(last).focus();
 
 				const shouldSelect = event.shiftKey && isModifierKey(event);
-				if (!shouldSelect) {
-					break;
+				if (shouldSelect) {
+					tree.selectFrom(node);
 				}
 
-				for (const item of tree.reversed()) {
-					item.select();
-
-					if (item === node) {
-						break;
-					}
-				}
+				getTreeItemElement(last).focus();
 				break;
 			}
 			case " ": {
 				node.selected = !node.selected;
-				break;
-			}
-			case "Escape": {
-				tree.selected.clear();
 				break;
 			}
 			case "F2": {
@@ -259,22 +238,18 @@
 			}
 			case "a": {
 				const shouldSelectAll = isModifierKey(event);
-				if (!shouldSelectAll) {
-					break;
+				if (shouldSelectAll) {
+					tree.selectAll();
 				}
-
-				for (const item of tree) {
-					item.select();
-				}
+				break;
+			}
+			case "Escape": {
+				tree.selected.clear();
 				break;
 			}
 			case "*": {
 				const topBefore = event.currentTarget.getBoundingClientRect().top;
-				for (const sibling of node.siblings) {
-					if (sibling.children.length !== 0) {
-						sibling.expand();
-					}
-				}
+				node.expandSiblings();
 
 				// After the sibling nodes are all expanded, the tree's height changes,
 				// causing a lot of layout shift. Preserve the position of the focused
@@ -282,6 +257,16 @@
 				flushSync();
 				const topAfter = event.currentTarget.getBoundingClientRect().top;
 				window.scrollBy(0, topAfter - topBefore);
+				break;
+			}
+			case "Delete": {
+				// TODO: delete all selected nodes
+				const fallback = node.next ?? node.previous;
+				node.delete();
+
+				if (fallback !== undefined) {
+					getTreeItemElement(fallback).focus();
+				}
 				break;
 			}
 			default: {
@@ -314,17 +299,14 @@
 			return;
 		}
 
-		const previousTabbableElement = getTreeItemElementById(previousTabbable);
-		if (previousTabbableElement === null) {
-			return;
-		}
+		const previousTabbableElement = getTreeItemElement(previousTabbable);
 		const down = previousTabbableElement.getBoundingClientRect().top > event.y;
 
 		let current = node;
 		while (true) {
 			current.select();
 
-			if (current.id === previousTabbable) {
+			if (current === previousTabbable) {
 				break;
 			}
 
@@ -337,11 +319,11 @@
 	}
 
 	function handleFocusIn(): void {
-		tree.tabbable = node.id;
+		tree.tabbable = node;
 	}
 
 	function handleDragStart(event: WithCurrentTarget<DragEvent>): void {
-		tree.dragged = node.id;
+		tree.dragged = node;
 
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.effectAllowed = "move";
@@ -355,7 +337,7 @@
 	function calculateDropPosition(
 		dropTarget: HTMLElement,
 		clientY: number,
-	): "before" | "after" | "inside" {
+	): "before" | "inside" | "after" {
 		const { top, bottom, height } = dropTarget.getBoundingClientRect();
 		const topBoundary = top + height / 3;
 		const bottomBoundary = bottom - height / 3;
@@ -368,12 +350,15 @@
 		return "inside";
 	}
 
+	const withinDragged = $derived(
+		tree.dragged !== undefined && tree.dragged.contains(node),
+	);
 	let dropPosition: "before" | "after" | "inside" | undefined = $state();
 	let draggedOver = false;
 	let dragOverThrottled = false;
 
 	function handleDragOver(event: WithCurrentTarget<DragEvent>): void {
-		if (!node.dropTarget) {
+		if (withinDragged) {
 			return;
 		}
 
@@ -402,7 +387,7 @@
 	}
 
 	function handleDragLeave(event: WithCurrentTarget<DragEvent>): void {
-		if (!node.dropTarget) {
+		if (withinDragged) {
 			return;
 		}
 
@@ -419,12 +404,7 @@
 	}
 
 	function handleDrop(event: WithCurrentTarget<DragEvent>): void {
-		const draggedId = tree.dragged;
-		if (draggedId === undefined) {
-			return;
-		}
-
-		const dragged = tree.get(draggedId);
+		const { dragged } = tree;
 		if (dragged === undefined) {
 			return;
 		}
@@ -458,7 +438,7 @@
 	aria-level={node.level}
 	aria-posinset={node.index + 1}
 	aria-setsize={node.siblings.length}
-	tabindex={node.id === tree.tabbable ? 0 : -1}
+	tabindex={node === tree.tabbable ? 0 : -1}
 	{draggable}
 	data-drop-position={dropPosition}
 	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}

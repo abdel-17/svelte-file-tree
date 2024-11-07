@@ -1,20 +1,20 @@
 <script lang="ts" module>
 	const contextKey = Symbol("TreeViewContext");
 
-	export type TreeViewContext = {
-		tree: Tree<unknown>;
+	export type TreeViewContext<Value> = {
+		tree: Tree<Value>;
 		treeId: () => string;
 		treeElement: () => HTMLDivElement | null;
 	};
 
-	export function getTreeViewContext(): TreeViewContext {
+	export function getTreeViewContext<Value>(): TreeViewContext<Value> {
 		if (!hasContext(contextKey)) {
 			throw new Error("No parent <TreeView> found.");
 		}
 		return getContext(contextKey);
 	}
 
-	function setTreeViewContext(context: TreeViewContext): void {
+	function setTreeViewContext<Value>(context: TreeViewContext<Value>): void {
 		setContext(contextKey, context);
 	}
 </script>
@@ -22,44 +22,40 @@
 <script lang="ts" generics="Value">
 	import { getContext, hasContext, setContext, type Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
-	import type { SvelteSet } from "svelte/reactivity";
-	import { Tree, type TreeItemData, type TreeNode } from "./tree.svelte.js";
+	import { Tree, type TreeNode, type TreeProps } from "./tree.svelte.js";
 
 	type BaseProps = Omit<
 		HTMLAttributes<HTMLDivElement>,
 		"role" | "aria-multiselectable" | "children"
 	>;
 
-	interface Props extends BaseProps {
+	interface Props extends BaseProps, TreeProps<Value> {
 		id: string;
-		items: ReadonlyArray<TreeItemData<Value>>;
 		item: Snippet<[TreeNode<Value>]>;
-		selected?: SvelteSet<string>;
-		expanded?: SvelteSet<string>;
-		defaultSelected?: Iterable<string>;
-		defaultExpanded?: Iterable<string>;
 		ref?: HTMLDivElement | null;
 	}
 
 	let {
 		id,
-		items,
 		item,
+		ref = $bindable(null),
+		items,
 		selected,
 		expanded,
 		defaultSelected,
 		defaultExpanded,
-		ref = $bindable(null),
 		...props
 	}: Props = $props();
 
+	// TODO: handle changes to the `items` prop
 	const tree = new Tree({
-		items: () => items,
+		items,
 		selected,
 		expanded,
 		defaultSelected,
 		defaultExpanded,
 	});
+
 	setTreeViewContext({
 		tree,
 		treeId: () => id,
