@@ -1,460 +1,474 @@
 import { SvelteSet } from "svelte/reactivity";
 
-export type TreeItemData<Value> = {
+export type LinkedTreeItemData<TValue> = {
 	id: string;
-	value: Value;
-	children?: ReadonlyArray<TreeItemData<Value>>;
+	value: TValue;
+	children?: Iterable<LinkedTreeItemData<TValue>>;
 };
 
-function createNodes<Value>(
-	tree: Tree<Value>,
-	items: ReadonlyArray<TreeItemData<Value>>,
-	parent?: TreeNode<Value>,
-): Array<TreeNode<Value>> {
-	const nodes = Array<TreeNode<Value>>(items.length);
-	for (let i = 0; i < items.length; i++) {
-		const item = items[i]!;
-		nodes[i] = new TreeNode(tree, item, i, parent);
-	}
-	return nodes;
-}
-
-export type TreeProps<Value> = {
-	items: ReadonlyArray<TreeItemData<Value>>;
-	selected?: SvelteSet<string>;
+export type LinkedTreeProps<TValue> = {
+	items: Iterable<LinkedTreeItemData<TValue>>;
 	expanded?: SvelteSet<string>;
-	defaultSelected?: Iterable<string>;
+	selected?: SvelteSet<string>;
 	defaultExpanded?: Iterable<string>;
+	defaultSelected?: Iterable<string>;
 };
 
-export class Tree<Value> {
-	#roots: Array<TreeNode<Value>> = $state()!;
-	#selected: SvelteSet<string>;
+export class LinkedTree<TValue> {
+	#items: LinkedTreeItemListState<TValue>;
 	#expanded: SvelteSet<string>;
+	#selected: SvelteSet<string>;
 
-	#tabbable: TreeNode<Value> | undefined = $state.raw();
-	#previousTabbable?: TreeNode<Value>;
-	#dragged: TreeNode<Value> | undefined = $state.raw();
-
-	constructor(props: TreeProps<Value>) {
-		this.#roots = createNodes(this, props.items);
-		this.#selected = props.selected ?? new SvelteSet(props.defaultSelected);
+	constructor(props: LinkedTreeProps<TValue>) {
+		this.#items = new LinkedTreeItemListState(this, props.items);
 		this.#expanded = props.expanded ?? new SvelteSet(props.defaultExpanded);
+		this.#selected = props.selected ?? new SvelteSet(props.defaultSelected);
 	}
 
-	get roots(): Array<TreeNode<Value>> {
-		return this.#roots;
+	get items() {
+		return this.#items.list;
 	}
 
-	get last(): TreeNode<Value> | undefined {
-		let last = this.#roots.at(-1);
-		if (last === undefined) {
-			return;
-		}
-
-		while (last.expanded) {
-			const lastChild = last.children.at(-1);
-			if (lastChild === undefined) {
-				break;
-			}
-			last = lastChild;
-		}
-		return last;
-	}
-
-	get selected(): SvelteSet<string> {
-		return this.#selected;
-	}
-
-	get expanded(): SvelteSet<string> {
+	get expanded() {
 		return this.#expanded;
 	}
 
-	get tabbable(): TreeNode<Value> | undefined {
-		return this.#tabbable ?? this.#roots[0];
+	get selected() {
+		return this.#selected;
 	}
 
-	set tabbable(tabbable: TreeNode<Value>) {
-		this.#previousTabbable = this.tabbable;
-		this.#tabbable = tabbable;
+	selectAll() {
+		this.#selectAll(this.#items.head);
 	}
 
-	get previousTabbable(): TreeNode<Value> | undefined {
-		return this.#previousTabbable;
-	}
-
-	get dragged(): TreeNode<Value> | undefined {
-		return this.#dragged;
-	}
-
-	set dragged(dragged: TreeNode<Value> | undefined) {
-		this.#dragged = dragged;
-	}
-
-	#selectAll<Value>(nodes: ReadonlyArray<TreeNode<Value>>): void {
-		for (let i = 0; i < nodes.length; i++) {
-			const node = nodes[i]!;
-			node.select();
-
-			if (node.expanded) {
-				this.#selectAll(node.children);
+	#selectAll(head: LinkedTreeItem<TValue> | undefined) {
+		let current = head;
+		while (current !== undefined) {
+			this.selected.add(current.id);
+			if (current.expanded) {
+				this.#selectAll(current.children.head);
 			}
-		}
-	}
-
-	selectAll(): void {
-		this.#selectAll(this.#roots);
-	}
-
-	#selectUntil(
-		end: TreeNode<Value>,
-		nodes: ReadonlyArray<TreeNode<Value>>,
-	): boolean {
-		for (let i = 0; i < nodes.length; i++) {
-			const node = nodes[i]!;
-			node.select();
-
-			if (node === end) {
-				return true;
-			}
-
-			if (node.expanded) {
-				const found = this.#selectUntil(end, node.children);
-				if (found) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	selectUntil(end: TreeNode<Value>): void {
-		this.#selectUntil(end, this.#roots);
-	}
-
-	#selectFrom(
-		start: TreeNode<Value>,
-		nodes: ReadonlyArray<TreeNode<Value>>,
-	): boolean {
-		for (let i = nodes.length - 1; i >= 0; i--) {
-			const node = nodes[i]!;
-			if (node.expanded) {
-				const found = this.#selectFrom(start, node.children);
-				if (found) {
-					return true;
-				}
-			}
-
-			node.select();
-
-			if (node === start) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	selectFrom(start: TreeNode<Value>): void {
-		this.#selectFrom(start, this.#roots);
-	}
-
-	onChangeTreeNodeId(current: string, next: string): void {
-		const selected = this.#selected;
-		const wasSelected = selected.delete(current);
-		if (wasSelected) {
-			selected.add(next);
-		}
-
-		const expanded = this.#expanded;
-		const wasExpanded = expanded.delete(current);
-		if (wasExpanded) {
-			expanded.add(next);
-		}
-	}
-
-	onDeleteTreeNode(node: TreeNode<Value>): void {
-		const { id, children } = node;
-
-		this.#selected.delete(id);
-		this.#expanded.delete(id);
-
-		if (this.#tabbable === node) {
-			this.#tabbable = undefined;
-			this.#previousTabbable = undefined;
-		} else if (this.#previousTabbable === node) {
-			this.#previousTabbable = undefined;
-		}
-
-		if (this.#dragged === node) {
-			this.#dragged = undefined;
-		}
-
-		for (let i = 0; i < children.length; i++) {
-			const child = children[i]!;
-			this.onDeleteTreeNode(child);
+			current = current.nextSibling;
 		}
 	}
 }
 
-export class TreeNode<Value> {
-	#tree: Tree<Value>;
-	#id: string = $state.raw()!;
-	#value: Value = $state()!;
-	#index: number = $state.raw()!;
-	#parent: TreeNode<Value> | undefined = $state.raw();
-	#children: Array<TreeNode<Value>> = $state()!;
+export class LinkedTreeItemList<TValue> {
+	#state: LinkedTreeItemListState<TValue>;
+
+	/** @internal */
+	constructor(state: LinkedTreeItemListState<TValue>) {
+		this.#state = state;
+	}
+
+	get head() {
+		return this.#state.head;
+	}
+
+	get tail() {
+		return this.#state.tail;
+	}
+
+	get length() {
+		return this.#state.length;
+	}
+
+	prepend(item: LinkedTreeItemData<TValue>) {
+		return LinkedTreeItem.prepend(item, this.#state);
+	}
+
+	append(item: LinkedTreeItemData<TValue>) {
+		return LinkedTreeItem.append(item, this.#state);
+	}
+
+	toArray() {
+		const result: LinkedTreeItem<TValue>[] = Array(this.length);
+		let current = this.head;
+		for (let i = 0; current !== undefined; i++) {
+			result[i] = current;
+			current = current.nextSibling;
+		}
+		return result;
+	}
+
+	[Symbol.iterator](): Iterator<LinkedTreeItem<TValue>, void> {
+		return new LinkedTreeItemListIterator(this.#state);
+	}
+}
+
+class LinkedTreeItemListState<TValue> {
+	#tree: LinkedTree<TValue>;
+	#depth: number;
+	#parent?: LinkedTreeItem<TValue>;
 
 	constructor(
-		tree: Tree<Value>,
-		item: TreeItemData<Value>,
-		index: number,
-		parent?: TreeNode<Value>,
+		tree: LinkedTree<TValue>,
+		items: Iterable<LinkedTreeItemData<TValue>>,
+		depth = 0,
+		parent?: LinkedTreeItem<TValue>,
 	) {
-		const { id, value, children = [] } = item;
 		this.#tree = tree;
-		this.#id = id;
-		this.#value = value;
-		this.#index = index;
+		this.#depth = depth;
 		this.#parent = parent;
-		this.#children = createNodes(tree, children, this);
+
+		for (const item of items) {
+			LinkedTreeItem.append(item, this);
+		}
 	}
 
-	get id(): string {
-		return this.#id;
+	#list = new LinkedTreeItemList(this);
+	head?: LinkedTreeItem<TValue> = $state.raw();
+	tail?: LinkedTreeItem<TValue> = $state.raw();
+	length = $state(0);
+
+	get tree() {
+		return this.#tree;
 	}
 
-	set id(id: string) {
-		this.#tree.onChangeTreeNodeId(this.#id, id);
-		this.#id = id;
+	get depth() {
+		return this.#depth;
 	}
 
-	get value(): Value {
-		return this.#value;
-	}
-
-	set value(value: Value) {
-		this.#value = value;
-	}
-
-	get index(): number {
-		return this.#index;
-	}
-
-	get parent(): TreeNode<Value> | undefined {
+	get parent() {
 		return this.#parent;
 	}
 
-	get children(): ReadonlyArray<TreeNode<Value>> {
-		return this.#children;
+	get list() {
+		return this.#list;
+	}
+}
+
+class LinkedTreeItemListIterator<TValue> {
+	#value?: LinkedTreeItem<TValue>;
+
+	constructor(state: LinkedTreeItemListState<TValue>) {
+		this.#value = state.head;
 	}
 
-	readonly #selected: boolean = $derived.by(() =>
-		this.#tree.selected.has(this.#id),
-	);
-
-	get selected(): boolean {
-		return this.#selected;
-	}
-
-	set selected(selected: boolean) {
-		if (selected) {
-			this.select();
-		} else {
-			this.unselect();
+	next() {
+		const value = this.#value;
+		if (value === undefined) {
+			return { done: true as const, value };
 		}
+
+		this.#value = value.nextSibling;
+		return { value };
+	}
+}
+
+export class LinkedTreeItem<TValue> {
+	#tree: LinkedTree<TValue>;
+	#id: string;
+	#value: TValue = $state()!;
+	#siblings: LinkedTreeItemListState<TValue> = $state.raw()!;
+	#children: LinkedTreeItemListState<TValue>;
+
+	/** @internal */
+	constructor(
+		siblings: LinkedTreeItemListState<TValue>,
+		{ id, value, children = [] }: LinkedTreeItemData<TValue>,
+	) {
+		this.#tree = siblings.tree;
+		this.#id = id;
+		this.#value = value;
+		this.#siblings = siblings;
+		this.#children = new LinkedTreeItemListState(
+			this.#tree,
+			children,
+			siblings.depth + 1,
+			this,
+		);
 	}
 
-	readonly #expanded: boolean = $derived.by(() =>
-		this.#tree.expanded.has(this.#id),
-	);
+	#previousSibling?: LinkedTreeItem<TValue> = $state.raw();
+	#nextSibling?: LinkedTreeItem<TValue> = $state.raw();
 
-	get expanded(): boolean {
+	get id() {
+		return this.#id;
+	}
+
+	get value() {
+		return this.#value;
+	}
+
+	set value(value) {
+		this.#value = value;
+	}
+
+	get depth() {
+		return this.#siblings.depth;
+	}
+
+	get parent() {
+		return this.#siblings.parent;
+	}
+
+	get siblings() {
+		return this.#siblings.list;
+	}
+
+	get previousSibling() {
+		return this.#previousSibling;
+	}
+
+	get nextSibling() {
+		return this.#nextSibling;
+	}
+
+	get children() {
+		return this.#children.list;
+	}
+
+	readonly #expanded = $derived.by(() => this.#tree.expanded.has(this.id));
+
+	get expanded() {
 		return this.#expanded;
 	}
 
-	set expanded(expanded: boolean) {
-		if (expanded) {
-			this.expand();
+	set expanded(value) {
+		if (value) {
+			this.#tree.expanded.add(this.id);
 		} else {
-			this.collapse();
+			this.#tree.expanded.delete(this.id);
 		}
 	}
 
-	readonly level: number = $derived.by(() => {
-		const parent = this.#parent;
-		if (parent === undefined) {
-			return 1;
-		}
-		return parent.level + 1;
-	});
+	readonly #selected = $derived.by(() => this.#tree.selected.has(this.id));
 
-	get #siblings(): Array<TreeNode<Value>> {
-		const parent = this.#parent;
-		if (parent === undefined) {
-			return this.#tree.roots;
-		}
-		return parent.#children;
+	get selected() {
+		return this.#selected;
 	}
 
-	get siblings(): ReadonlyArray<TreeNode<Value>> {
-		return this.#siblings;
-	}
-
-	get previousSibling(): TreeNode<Value> | undefined {
-		return this.#siblings[this.#index - 1];
-	}
-
-	get nextSibling(): TreeNode<Value> | undefined {
-		return this.#siblings[this.#index + 1];
-	}
-
-	get previous(): TreeNode<Value> | undefined {
-		const { previousSibling } = this;
-		if (previousSibling === undefined) {
-			return this.#parent;
-		}
-
-		let current = previousSibling;
-		while (current.#expanded) {
-			const lastChild = current.#children.at(-1);
-			if (lastChild === undefined) {
-				break;
-			}
-			current = lastChild;
-		}
-		return current;
-	}
-
-	get next(): TreeNode<Value> | undefined {
-		if (this.#expanded) {
-			const firstChild = this.#children[0];
-			if (firstChild !== undefined) {
-				return firstChild;
-			}
-		}
-
-		let current: TreeNode<Value> = this;
-		while (true) {
-			const { nextSibling } = current;
-			if (nextSibling !== undefined) {
-				return nextSibling;
-			}
-
-			const parent = current.#parent;
-			if (parent === undefined) {
-				return;
-			}
-			current = parent;
+	set selected(value) {
+		if (value) {
+			this.#tree.selected.add(this.id);
+		} else {
+			this.#tree.selected.delete(this.id);
 		}
 	}
 
-	contains(node: TreeNode<Value>): boolean {
-		let current = node;
-		while (current.level > this.level) {
-			current = current.#parent!;
+	expand() {
+		this.#tree.expanded.add(this.id);
+	}
+
+	collapse() {
+		this.#tree.expanded.delete(this.id);
+	}
+
+	select() {
+		this.#tree.selected.add(this.id);
+	}
+
+	unselect() {
+		this.#tree.selected.delete(this.id);
+	}
+
+	contains(item: LinkedTreeItem<TValue>) {
+		const { depth } = this;
+		let current = item;
+		while (current.depth > depth) {
+			current = current.parent!;
 		}
 		return current === this;
 	}
 
-	select(): void {
-		this.#tree.selected.add(this.#id);
+	insertBefore(item: LinkedTreeItemData<TValue>) {
+		const inserted = new LinkedTreeItem(this.#siblings, item);
+		inserted.#linkBefore(this);
+		return inserted;
 	}
 
-	unselect(): void {
-		this.#tree.selected.delete(this.#id);
+	insertAfter(item: LinkedTreeItemData<TValue>) {
+		const inserted = new LinkedTreeItem(this.#siblings, item);
+		inserted.#linkAfter(this);
+		return inserted;
 	}
 
-	expand(): void {
-		this.#tree.expanded.add(this.#id);
+	moveBefore(sibling: LinkedTreeItem<TValue>) {
+		if (this.contains(sibling)) {
+			throw new Error("Cannot move an item before its descendant.");
+		}
+
+		this.#unlink();
+		this.#siblings = sibling.#siblings;
+		this.#linkBefore(sibling);
 	}
 
-	expandSiblings(): void {
-		const siblings = this.#siblings;
-		for (let i = 0; i < siblings.length; i++) {
-			const sibling = siblings[i]!;
-			if (sibling.children.length !== 0) {
-				sibling.expand();
-			}
+	moveAfter(sibling: LinkedTreeItem<TValue>) {
+		if (this.contains(sibling)) {
+			throw new Error("Cannot move an item after its descendant.");
+		}
+
+		this.#unlink();
+		this.#siblings = sibling.#siblings;
+		this.#linkAfter(sibling);
+	}
+
+	prependTo(parent: LinkedTreeItem<TValue>) {
+		if (this.contains(parent)) {
+			throw new Error("Cannot move an item inside one of its descendants.");
+		}
+
+		this.#unlink();
+		this.#siblings = parent.#children;
+		this.#linkBeforeHead();
+	}
+
+	appendTo(parent: LinkedTreeItem<TValue>) {
+		if (this.contains(parent)) {
+			throw new Error("Cannot move an item inside one of its descendants.");
+		}
+
+		this.#unlink();
+		this.#siblings = parent.#children;
+		this.#linkAfterTail();
+	}
+
+	remove() {
+		this.#unlink();
+		this.#onRemoved();
+	}
+
+	#onRemoved() {
+		this.#tree.selected.delete(this.id);
+		this.#tree.expanded.delete(this.id);
+
+		let current = this.#children.head;
+		while (current !== undefined) {
+			current.#onRemoved();
+			current = current.nextSibling;
 		}
 	}
 
-	collapse(): void {
-		this.#tree.expanded.delete(this.#id);
+	#linkBefore(sibling: LinkedTreeItem<TValue>) {
+		// previous ->      -> sibling
+		// previous -> this -> sibling
+		const siblings = sibling.#siblings;
+		const { previousSibling } = sibling;
+
+		this.#previousSibling = previousSibling;
+		this.#nextSibling = sibling;
+		siblings.length++;
+
+		if (previousSibling !== undefined) {
+			previousSibling.#setNextSibling(this);
+		} else {
+			// `sibling` is the head.
+			siblings.head = this;
+		}
+		sibling.#setPreviousSibling(this);
 	}
 
-	// TODO: remove when this bug is fixed: https://github.com/sveltejs/svelte/issues/13965
-	#setIndex(index: number): void {
-		this.#index = index;
+	#linkAfter(sibling: LinkedTreeItem<TValue>) {
+		// sibling ->      -> next
+		// sibling -> this -> next
+		const siblings = sibling.#siblings;
+		const { nextSibling } = sibling;
+
+		this.#previousSibling = sibling;
+		this.#nextSibling = nextSibling;
+		siblings.length++;
+
+		if (nextSibling !== undefined) {
+			nextSibling.#setPreviousSibling(this);
+		} else {
+			// `sibling` is the tail.
+			siblings.tail = this;
+		}
+		sibling.#setNextSibling(this);
 	}
 
-	#spliceSiblings(
-		index: number,
-		deleteCount: number,
-		...items: ReadonlyArray<TreeNode<Value>>
-	): void {
+	#linkBeforeHead() {
+		//         head
+		// this -> head
 		const siblings = this.#siblings;
-		siblings.splice(index, deleteCount, ...items);
-		for (let i = index; i < siblings.length; i++) {
-			const sibling = siblings[i]!;
-			sibling.#setIndex(i);
+		const { head } = siblings;
+
+		this.#nextSibling = head;
+		siblings.head = this;
+		siblings.length++;
+
+		if (head !== undefined) {
+			head.#setPreviousSibling(this);
+		} else {
+			// `children` is empty.
+			siblings.tail = this;
 		}
 	}
 
-	move(position: "before" | "inside" | "after", target: TreeNode<Value>): void {
-		if (position === "inside") {
-			this.#spliceSiblings(this.#index, 1);
-			const count = target.#children.push(this);
-			this.#index = count - 1;
-			this.#parent = target;
+	#linkAfterTail() {
+		// tail
+		// tail -> this
+		const siblings = this.#siblings;
+		const { tail } = siblings;
+
+		this.#previousSibling = tail;
+		siblings.tail = this;
+		siblings.length++;
+
+		if (tail !== undefined) {
+			tail.#setNextSibling(this);
+		} else {
+			// `children` is empty.
+			siblings.head = this;
+		}
+	}
+
+	#unlink() {
+		// previous -> this -> next
+		// previous ->      -> next
+		const siblings = this.#siblings;
+		const { previousSibling, nextSibling } = this;
+
+		const removed = previousSibling === undefined && siblings.head !== this;
+		if (removed) {
 			return;
 		}
 
-		let nextIndex: number;
-		switch (position) {
-			case "before": {
-				nextIndex = target.#index;
-				break;
-			}
-			case "after": {
-				nextIndex = target.#index + 1;
-				break;
-			}
+		this.#previousSibling = undefined;
+		this.#nextSibling = undefined;
+		siblings.length--;
+
+		if (previousSibling !== undefined) {
+			previousSibling.#setNextSibling(nextSibling);
+		} else {
+			// `this` is the head.
+			siblings.head = nextSibling;
 		}
 
-		if (this.#parent !== target.#parent) {
-			this.#spliceSiblings(this.#index, 1);
-			target.#spliceSiblings(nextIndex, 0, this);
-			this.#parent = target.#parent;
-			return;
-		}
-
-		// Instead of removing and inserting the node back to the same array,
-		// swap the nodes to achieve the same effect in a more efficient way.
-		//
-		// Case 1: The node is being moved to a position after itself.
-		const index = this.#index;
-		const siblings = this.#siblings;
-		for (let i = index + 1; i < nextIndex; i++) {
-			const current = siblings[i]!;
-			siblings[i - 1] = current;
-			current.#setIndex(i - 1);
-			siblings[i] = this;
-			this.#index = i;
-		}
-		// Case 2: The node is being moved to a position before itself.
-		for (let i = index; i > nextIndex; i--) {
-			const previous = siblings[i - 1]!;
-			siblings[i] = previous;
-			previous.#setIndex(i);
-			siblings[i - 1] = this;
-			this.#index = i - 1;
+		if (nextSibling !== undefined) {
+			nextSibling.#setPreviousSibling(previousSibling);
+		} else {
+			// `this` is the tail.
+			siblings.tail = previousSibling;
 		}
 	}
 
-	delete(): void {
-		this.#tree.onDeleteTreeNode(this);
-		this.#spliceSiblings(this.#index, 1);
-		this.#index = -1;
-		this.#parent = undefined;
+	#setPreviousSibling(previousSibling: LinkedTreeItem<TValue> | undefined) {
+		this.#previousSibling = previousSibling;
+	}
+
+	#setNextSibling(nextSibling: LinkedTreeItem<TValue> | undefined) {
+		this.#nextSibling = nextSibling;
+	}
+
+	/** @internal */
+	static prepend<TValue>(
+		item: LinkedTreeItemData<TValue>,
+		siblings: LinkedTreeItemListState<TValue>,
+	) {
+		const prepended = new LinkedTreeItem(siblings, item);
+		prepended.#linkBeforeHead();
+		return prepended;
+	}
+
+	/** @internal */
+	static append<TValue>(
+		item: LinkedTreeItemData<TValue>,
+		siblings: LinkedTreeItemListState<TValue>,
+	) {
+		const appended = new LinkedTreeItem(siblings, item);
+		appended.#linkAfterTail();
+		return appended;
 	}
 }

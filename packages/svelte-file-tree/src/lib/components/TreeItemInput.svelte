@@ -1,45 +1,38 @@
 <script lang="ts">
-	import { composeEventHandlers } from "$lib/helpers/events.js";
-	import type { ActionReturn } from "svelte/action";
-	import type { HTMLInputAttributes } from "svelte/elements";
-	import { getTreeItemContext } from "./TreeItem.svelte";
-
-	interface Props extends HTMLInputAttributes {
-		value: any;
-		ref?: HTMLInputElement | null;
-		onCommit?: (value: any) => void;
-		onRollback?: (originalValue: any) => void;
-	}
+	import type { Action } from "svelte/action";
+	import type { EventHandler } from "svelte/elements";
+	import type { TreeItemInputProps } from "./types.js";
+	import { TreeItemContext } from "./context.svelte.js";
 
 	let {
 		value = $bindable(),
-		ref = $bindable(null),
+		element = $bindable(null),
 		onCommit,
 		onRollback,
 		onkeydown,
 		onblur,
-		...props
-	}: Props = $props();
+		...attributes
+	}: TreeItemInputProps = $props();
 
-	const { treeItemElement, onEditingChange } = getTreeItemContext();
+	const context = TreeItemContext.get();
+	const initialValue = value;
+	let committed = false;
 
-	const originalValue = value;
-	let commited = false;
+	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (
+		event,
+	) => {
+		onkeydown?.(event);
 
-	type WithCurrentTarget<Event> = Event & { currentTarget: HTMLInputElement };
-
-	function handleKeyDown(event: WithCurrentTarget<KeyboardEvent>): void {
 		switch (event.key) {
 			case "Enter": {
-				commited = true;
-				treeItemElement()!.focus();
-				if (value !== originalValue) {
+				committed = true;
+				if (value !== initialValue) {
 					onCommit?.(value);
 				}
-				break;
+				context.element()?.focus();
 			}
 			case "Escape": {
-				treeItemElement()!.focus();
+				context.element()?.focus();
 				break;
 			}
 			default: {
@@ -48,31 +41,32 @@
 		}
 
 		event.preventDefault();
-	}
+	};
 
-	function handleBlur(): void {
-		onEditingChange(false);
-	}
+	const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
+		onblur?.(event);
+		context.editing = false;
+	};
 
-	function init(input: HTMLInputElement): ActionReturn {
+	const init: Action<HTMLInputElement> = (input) => {
 		input.focus();
 		input.select();
 		return {
 			destroy() {
-				if (!commited && value !== originalValue) {
-					value = originalValue;
-					onRollback?.(originalValue);
+				if (!committed) {
+					value = initialValue;
+					onRollback?.(value);
 				}
 			},
 		};
-	}
+	};
 </script>
 
 <input
-	{...props}
-	bind:this={ref}
+	{...attributes}
+	bind:this={element}
 	bind:value
-	onkeydown={composeEventHandlers(handleKeyDown, onkeydown)}
-	onblur={composeEventHandlers(handleBlur, onblur)}
+	onkeydown={handleKeyDown}
+	onblur={handleBlur}
 	use:init
 />

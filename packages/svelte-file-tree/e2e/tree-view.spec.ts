@@ -661,26 +661,58 @@ test.describe("TreeView", () => {
 		await expect(item_3).toHaveAttribute("aria-selected", "true");
 	});
 
-	test("Clicking on an item while holding Shift selects it and all items between it and the last focused item", async ({
+	test("Clicking on an item while holding Shift selects it and all items between it and the last selected item", async ({
 		page,
 	}) => {
 		await page.goto(ROUTE);
 		const item_1 = getTreeItem(page, "1");
+		const item_11 = getTreeItem(page, "1.1");
+		const item_12 = getTreeItem(page, "1.2");
 		const item_2 = getTreeItem(page, "2");
 		const item_3 = getTreeItem(page, "3");
-		await item_1.focus();
 
+		await item_1.press("ArrowRight");
+		await item_11.press("Space");
 		await item_3.click({ modifiers: ["Shift"] });
 		await expect(item_3).toBeFocused();
-		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_1).toHaveAttribute("aria-selected", "false");
+		await expect(item_11).toHaveAttribute("aria-selected", "true");
+		await expect(item_12).toHaveAttribute("aria-selected", "true");
 		await expect(item_2).toHaveAttribute("aria-selected", "true");
 		await expect(item_3).toHaveAttribute("aria-selected", "true");
 
 		await item_3.press("Escape");
-		await item_2.click({ modifiers: ["Shift"] });
-		await expect(item_2).toBeFocused();
+		await item_3.press("Space");
+		await item_11.click({ modifiers: ["Shift"] });
+		await expect(item_11).toBeFocused();
 		await expect(item_3).toHaveAttribute("aria-selected", "true");
 		await expect(item_2).toHaveAttribute("aria-selected", "true");
+		await expect(item_12).toHaveAttribute("aria-selected", "true");
+		await expect(item_11).toHaveAttribute("aria-selected", "true");
 		await expect(item_1).toHaveAttribute("aria-selected", "false");
 	});
+
+	test("Clicking on an item while holding Shift when none of the items are selected selects it and all items between it and the first item", async ({
+		page,
+	}) => {
+		await page.goto(ROUTE);
+		const item_1 = getTreeItem(page, "1");
+		const item_11 = getTreeItem(page, "1.1");
+		const item_12 = getTreeItem(page, "1.2");
+		const item_2 = getTreeItem(page, "2");
+		const item_3 = getTreeItem(page, "3");
+
+		await item_1.press("ArrowRight");
+		await item_3.click({ modifiers: ["Shift"] });
+		await expect(item_3).toBeFocused();
+		await expect(item_1).toHaveAttribute("aria-selected", "true");
+		await expect(item_11).toHaveAttribute("aria-selected", "true");
+		await expect(item_12).toHaveAttribute("aria-selected", "true");
+		await expect(item_2).toHaveAttribute("aria-selected", "true");
+		await expect(item_3).toHaveAttribute("aria-selected", "true");
+	});
+
+	// TODO: test dnd
+
+	// TODO: test Delete
 });

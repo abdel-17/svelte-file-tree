@@ -1,5 +1,4 @@
 {
 	"useTabs": true,
-	"plugins": ["prettier-plugin-svelte", "prettier-plugin-tailwindcss"],
-	"tailwindEntryPoint": "./src/app.css"
+	"plugins": ["prettier-plugin-svelte"]
 }

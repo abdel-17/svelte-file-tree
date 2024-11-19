@@ -14,18 +14,15 @@
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-static": "^3.0.6",
-		"@sveltejs/kit": "^2.7.7",
-		"@sveltejs/vite-plugin-svelte": "4.0.0",
-		"@tailwindcss/vite": "4.0.0-alpha.26",
-		"lucide-svelte": "^0.454.0",
+		"@sveltejs/kit": "^2.8.1",
+		"@sveltejs/vite-plugin-svelte": "4.0.1",
+		"lucide-svelte": "^0.460.1",
 		"prettier": "^3.3.3",
-		"prettier-plugin-svelte": "^3.2.7",
-		"prettier-plugin-tailwindcss": "^0.6.8",
-		"svelte": "5.1.11",
-		"svelte-check": "^4.0.5",
+		"prettier-plugin-svelte": "^3.2.8",
+		"svelte": "5.2.3",
+		"svelte-check": "^4.0.9",
 		"svelte-file-tree": "workspace:^",
-		"tailwindcss": "4.0.0-alpha.26",
 		"typescript": "^5.6.3",
-		"vite": "^5.4.10"
+		"vite": "^5.4.11"
 	}
 }

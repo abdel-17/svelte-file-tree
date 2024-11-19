@@ -1,45 +1,128 @@
 <script lang="ts">
 	import ChevronDown from "lucide-svelte/icons/chevron-down";
-	import { TreeItem, TreeItemInput, TreeView } from "svelte-file-tree";
+	import { LinkedTree, Tree, TreeItem, TreeItemInput } from "svelte-file-tree";
 	import data from "./data.json";
+
+	const tree = new LinkedTree({ items: data });
 </script>
 
-<main class="p-8">
-	<TreeView id="preview-tree" items={data} class="space-y-3">
-		{#snippet item(node)}
+<main class="container">
+	<Tree id="preview-tree" {tree} class="tree">
+		{#snippet item(item, index)}
 			<TreeItem
-				{node}
+				{item}
+				{index}
 				editable
 				draggable
-				data-leaf={node.children.length === 0 ? "" : undefined}
-				data-dragged={node.dragged ? "" : undefined}
-				style="--indent: calc({node.level - 1} * var(--spacing-4))"
-				class="group relative ms-[var(--indent)] flex gap-2 rounded bg-current/10 p-3 hover:bg-current/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current active:bg-current/20 aria-selected:bg-blue-100 aria-selected:text-blue-800 data-dragged:opacity-50 data-[drop-position='before']:before:absolute data-[drop-position='before']:before:inset-x-0 data-[drop-position='before']:before:top-0 data-[drop-position='before']:before:h-0.5 data-[drop-position='before']:before:bg-red-500 data-[drop-position='after']:before:absolute data-[drop-position='after']:before:inset-x-0 data-[drop-position='after']:before:bottom-0 data-[drop-position='after']:before:h-0.5 data-[drop-position='after']:before:bg-red-500 data-[drop-position='inside']:ring-2 data-[drop-position='inside']:ring-red-500 data-[drop-position='inside']:ring-inset"
+				style="--depth: {item.depth}"
+				class="tree-item"
 			>
 				{#snippet children({ editing })}
 					<ChevronDown
 						aria-hidden="true"
-						class="transition-transform duration-300 group-aria-expanded:rotate-180 group-data-leaf:invisible"
+						data-hidden={item.children.length === 0 ? "" : undefined}
+						data-expanded={item.expanded ? "" : undefined}
+						class="tree-item-expand"
 						onclick={() => {
-							node.expanded = !node.expanded;
+							item.expanded = !item.expanded;
 						}}
 					/>
 					{#if editing}
-						<TreeItemInput
-							bind:value={node.value}
-							onCommit={(value: string) => {
-								console.log("onCommit:", value);
-							}}
-							onRollback={(value: string) => {
-								console.log("onRollback:", value);
-							}}
-							class="bg-white focus:outline-none"
-						/>
+						<TreeItemInput bind:value={item.value} class="tree-item-input" />
 					{:else}
-						<span class="select-none">{node.value}</span>
+						<span class="tree-item-text">{item.value}</span>
 					{/if}
 				{/snippet}
 			</TreeItem>
 		{/snippet}
-	</TreeView>
+	</Tree>
 </main>
+
+<style>
+	.container {
+		padding: 24px;
+	}
+
+	:global(.tree) {
+		display: grid;
+		gap: 12px;
+	}
+
+	:global(.tree-item) {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-inline-start: calc(var(--depth) * 16px);
+		border-radius: 4px;
+		padding: 12px;
+		background-color: rgb(0 0 0 / 10%);
+
+		&:hover {
+			background-color: rgb(0 0 0 / 15%);
+		}
+
+		&:focus-visible {
+			outline: 2px solid currentColor;
+		}
+
+		&:active {
+			background-color: rgb(0 0 0 / 20%);
+		}
+
+		&[aria-selected="true"] {
+			background-color: #dbeafe;
+			color: #1e40af;
+		}
+
+		&[data-dragged] {
+			opacity: 0.5;
+		}
+
+		&[data-drop-position="before"]::before,
+		&[data-drop-position="after"]::before {
+			content: "";
+			position: absolute;
+			left: 0;
+			right: 0;
+			height: 2px;
+			background-color: #f43f5e;
+		}
+
+		&[data-drop-position="before"]::before {
+			top: 0;
+		}
+
+		&[data-drop-position="after"]::before {
+			bottom: 0;
+		}
+
+		&[data-drop-position="inside"] {
+			outline: 2px solid #f43f5e;
+		}
+	}
+
+	:global(.tree-item-expand) {
+		transition: transform 300ms;
+
+		&[data-hidden] {
+			visibility: hidden;
+		}
+
+		&[data-expanded] {
+			transform: rotate(180deg);
+		}
+	}
+
+	:global(.tree-item-input) {
+		background-color: transparent;
+
+		&:focus {
+			outline: none;
+		}
+	}
+
+	.tree-item-text {
+		user-select: none;
+	}
+</style>

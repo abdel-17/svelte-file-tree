@@ -1,7 +1,9 @@
-import { effectRootScope } from "$lib/helpers/effect-root-scope.svelte.js";
-import { SvelteSet } from "svelte/reactivity";
 import { describe, expect, test } from "vitest";
-import { Tree, type TreeNode } from "./tree.svelte.js";
+import {
+	LinkedTree,
+	type LinkedTreeItem,
+	type LinkedTreeItemList,
+} from "./tree.svelte.js";
 
 const items = [
 	{
@@ -72,160 +74,45 @@ const items = [
 	},
 ];
 
-function traverse<Value>(
-	roots: Iterable<TreeNode<Value>>,
-	callback: (node: TreeNode<Value>) => void,
-): void {
-	for (const root of roots) {
-		callback(root);
-		traverse(root.children, callback);
-	}
-}
-
-function createLookup<In, Out>(
-	tree: Tree<In>,
-	transform: (node: TreeNode<In>) => Out,
-): Record<string, Out> {
-	const lookup: Record<string, Out> = {};
-	traverse(tree.roots, (node) => {
-		lookup[node.id] = transform(node);
-	});
-	return lookup;
-}
-
 describe("Tree", () => {
-	test("Tree.roots", () => {
-		const tree = new Tree({ items });
-		const ids = tree.roots.map((node) => node.id);
-		expect(ids).toEqual(["1", "2", "3"]);
+	test("LinkedTree.items", () => {
+		const tree = new LinkedTree({ items });
+		const [item_1, item_2, item_3] = tree.items;
+
+		expect(item_1.id).toBe("1");
+		expect(item_2.id).toBe("2");
+		expect(item_3.id).toBe("3");
+
+		expect(tree.items.head).toBe(item_1);
+		expect(tree.items.tail).toBe(item_3);
+		expect(tree.items.length).toBe(3);
+
+		expect(item_1.previousSibling).toBeUndefined();
+		expect(item_1.nextSibling).toBe(item_2);
+
+		expect(item_2.previousSibling).toBe(item_1);
+		expect(item_2.nextSibling).toBe(item_3);
+
+		expect(item_3.previousSibling).toBe(item_2);
+		expect(item_3.nextSibling).toBeUndefined();
 	});
 
-	test("Tree.last where none of the nodes are expanded", () => {
-		const tree = new Tree({ items });
-		const { last } = tree;
-		expect(last?.id).toBe("3");
-	});
-
-	test("Tree.last where the last root is expanded", () => {
-		const tree = new Tree({
-			items,
-			defaultExpanded: ["3"],
-		});
-		const { last } = tree;
-		expect(last?.id).toBe("3.2");
-	});
-
-	test("Tree.last is undefined when the tree is empty", () => {
-		const tree = new Tree({ items: [] });
-		const { last } = tree;
-		expect(last).toBeUndefined();
-	});
-
-	test("Tree.selected defaults to being empty", () => {
-		const tree = new Tree({ items: [] });
-		expect(tree.selected).empty;
-	});
-
-	test("Tree.selected controlled", () => {
-		const selected = new SvelteSet<string>();
-		const tree = new Tree({
-			items: [],
-			selected,
-		});
-		expect(tree.selected).toBe(selected);
-	});
-
-	test("Tree.selected uncontrolled", () => {
-		const defaultSelected = ["1.1.1"];
-		const tree = new Tree({
-			items: [],
-			defaultSelected,
-		});
-		expect(tree.selected).toEqual(new SvelteSet(defaultSelected));
-	});
-
-	test("Tree.expanded defaults to being empty", () => {
-		const tree = new Tree({ items: [] });
-		expect(tree.expanded).empty;
-	});
-
-	test("Tree.expanded controlled", () => {
-		const expanded = new SvelteSet<string>();
-		const tree = new Tree({
-			items: [],
-			expanded,
-		});
-		expect(tree.expanded).toBe(expanded);
-	});
-
-	test("Tree.expanded uncontrolled", () => {
-		const defaultExpanded = ["1.1.1"];
-		const tree = new Tree({
-			items: [],
-			defaultExpanded,
-		});
-		expect(tree.expanded).toEqual(new SvelteSet(defaultExpanded));
-	});
-
-	test("Tree.tabbable is initialized to the first node", () => {
-		const tree = new Tree({ items });
-		const node_1 = tree.roots[0]!;
-		expect(tree.tabbable).toBe(node_1);
-		expect(tree.previousTabbable).toBeUndefined();
-	});
-
-	test("Tree.tabbable setter updates itself and Tree.previousTabbable", () => {
+	test("LinkedTree.selectAll() selects all visible items", () => {
 		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_1 = tree.roots[0]!;
-			const node_2 = tree.roots[1]!;
+			const tree = new LinkedTree({ items });
+			tree.selectAll();
+			expect([...tree.selected]).toEqual(["1", "2", "3"]);
 
-			tree.tabbable = node_2;
-			expect(tree.tabbable).toBe(node_2);
-			expect(tree.previousTabbable).toBe(node_1);
+			tree.expanded.add("1");
+			tree.selected.clear();
+			tree.selectAll();
+			expect([...tree.selected]).toEqual(["1", "1.1", "1.2", "2", "3"]);
 		});
 	});
 
-	test("Tree.dragged is initialized to undefined", () => {
-		const tree = new Tree({ items });
-		expect(tree.dragged).toBeUndefined();
-	});
-
-	test("Tree.dragged setter updates itself", () => {
-		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_1 = tree.roots[0]!;
-
-			tree.dragged = node_1;
-			expect(tree.dragged).toBe(node_1);
-
-			tree.dragged = undefined;
-			expect(tree.dragged).toBeUndefined();
-		});
-	});
-
-	test("TreeNode.id setter updates itself and all references to the previous value", () => {
-		effectRootScope(() => {
-			const tree = new Tree({
-				items,
-				defaultSelected: ["1", "2"],
-				defaultExpanded: ["1", "2"],
-			});
-			const node_1 = tree.roots[0]!;
-			const node_2 = tree.roots[1]!;
-
-			node_1.id = "first";
-			node_2.id = "second";
-			expect(node_1.id).toBe("first");
-			expect(node_2.id).toBe("second");
-			expect(tree.selected).toEqual(new SvelteSet(["first", "second"]));
-			expect(tree.expanded).toEqual(new SvelteSet(["first", "second"]));
-		});
-	});
-
-	test("TreeNode.value", () => {
-		const tree = new Tree({ items });
-		const values = createLookup(tree, (node) => node.value);
+	test("LinkedTreeItem.value", () => {
+		const tree = new LinkedTree({ items });
+		const values = createMapping(tree, (item) => item.value);
 		expect(values).toEqual({
 			"1": "Section 1",
 			"2": "Section 2",
@@ -244,38 +131,30 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.value setter updates itself", () => {
-		const tree = new Tree({ items });
-		const node_1 = tree.roots[0]!;
-
-		node_1.value = "First";
-		expect(node_1.value).toBe("First");
-	});
-
-	test("TreeNode.index", () => {
-		const tree = new Tree({ items });
-		const indices = createLookup(tree, (node) => node.index);
-		expect(indices).toEqual({
+	test("LinkedTreeItem.depth", () => {
+		const tree = new LinkedTree({ items });
+		const depths = createMapping(tree, (item) => item.depth);
+		expect(depths).toEqual({
 			"1": 0,
-			"2": 1,
-			"3": 2,
-			"1.1": 0,
+			"2": 0,
+			"3": 0,
+			"1.1": 1,
 			"1.2": 1,
-			"2.1": 0,
+			"2.1": 1,
 			"2.2": 1,
-			"3.1": 0,
+			"3.1": 1,
 			"3.2": 1,
-			"1.1.1": 0,
-			"1.1.2": 1,
+			"1.1.1": 2,
+			"1.1.2": 2,
 			"1.1.3": 2,
-			"1.2.1": 0,
-			"1.2.2": 1,
+			"1.2.1": 2,
+			"1.2.2": 2,
 		});
 	});
 
-	test("TreeNode.parent", () => {
-		const tree = new Tree({ items });
-		const parents = createLookup(tree, (node) => node.parent?.id);
+	test("LinkedTreeItem.parent", () => {
+		const tree = new LinkedTree({ items });
+		const parents = createMapping(tree, (item) => item.parent?.id);
 		expect(parents).toEqual({
 			"1": undefined,
 			"2": undefined,
@@ -294,179 +173,10 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.children", () => {
-		const tree = new Tree({ items });
-		const children = createLookup(tree, (node) =>
-			node.children.map((child) => child.id),
-		);
-		expect(children).toEqual({
-			"1": ["1.1", "1.2"],
-			"2": ["2.1", "2.2"],
-			"3": ["3.1", "3.2"],
-			"1.1": ["1.1.1", "1.1.2", "1.1.3"],
-			"1.2": ["1.2.1", "1.2.2"],
-			"2.1": [],
-			"2.2": [],
-			"3.1": [],
-			"3.2": [],
-			"1.1.1": [],
-			"1.1.2": [],
-			"1.1.3": [],
-			"1.2.1": [],
-			"1.2.2": [],
-		});
-	});
-
-	test("TreeNode.selected setter updates the selection state", () => {
-		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_1 = tree.roots[0]!;
-
-			node_1.selected = true;
-			expect(node_1.selected).true;
-			expect(tree.selected).toEqual(new SvelteSet(["1"]));
-
-			node_1.selected = false;
-			expect(node_1.selected).false;
-			expect(tree.selected).empty;
-		});
-	});
-
-	test("TreeNode.select() and TreeNode.unselect() update the selection state", () => {
-		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_1 = tree.roots[0]!;
-
-			node_1.select();
-			expect(node_1.selected).true;
-			expect(tree.selected).toEqual(new SvelteSet(["1"]));
-
-			node_1.unselect();
-			expect(node_1.selected).false;
-			expect(tree.selected).empty;
-		});
-	});
-
-	test("Tree.selectAll() selects all visible nodes", () => {
-		effectRootScope(() => {
-			const tree = new Tree({
-				items,
-				defaultExpanded: ["1", "1.1", "3"],
-			});
-
-			tree.selectAll();
-			expect(tree.selected).toEqual(
-				new SvelteSet([
-					"1",
-					"1.1",
-					"1.1.1",
-					"1.1.2",
-					"1.1.3",
-					"1.2",
-					"2",
-					"3",
-					"3.1",
-					"3.2",
-				]),
-			);
-		});
-	});
-
-	test("Tree.selectUntil() selects all nodes between the first node and the given node", () => {
-		effectRootScope(() => {
-			const tree = new Tree({
-				items,
-				defaultExpanded: ["1", "1.1", "3"],
-			});
-			const node_3 = tree.roots[2]!;
-
-			tree.selectUntil(node_3);
-			expect(tree.selected).toEqual(
-				new SvelteSet(["1", "1.1", "1.1.1", "1.1.2", "1.1.3", "1.2", "2", "3"]),
-			);
-		});
-	});
-
-	test("Tree.selectFrom() selects all nodes between the given node and the last node", () => {
-		effectRootScope(() => {
-			const tree = new Tree({
-				items,
-				defaultExpanded: ["1", "1.1", "3"],
-			});
-			const node_11 = tree.roots[0]!.children[0]!;
-
-			tree.selectFrom(node_11);
-			expect(tree.selected).toEqual(
-				new SvelteSet([
-					"1.1",
-					"1.1.1",
-					"1.1.2",
-					"1.1.3",
-					"1.2",
-					"2",
-					"3",
-					"3.1",
-					"3.2",
-				]),
-			);
-		});
-	});
-
-	test("TreeNode.expanded setter updates the expansion state", () => {
-		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_1 = tree.roots[0]!;
-
-			node_1.expanded = true;
-			expect(node_1.expanded).true;
-			expect(tree.expanded).toEqual(new SvelteSet(["1"]));
-
-			node_1.expanded = false;
-			expect(node_1.expanded).false;
-			expect(tree.expanded).empty;
-		});
-	});
-
-	test("TreeNode.expand() and TreeNode.collapse() update the expansion state", () => {
-		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_1 = tree.roots[0]!;
-
-			node_1.expand();
-			expect(node_1.expanded).true;
-			expect(tree.expanded).toEqual(new SvelteSet(["1"]));
-
-			node_1.collapse();
-			expect(node_1.expanded).false;
-			expect(tree.expanded).empty;
-		});
-	});
-
-	test("TreeNode.level", () => {
-		const tree = new Tree({ items });
-		const levels = createLookup(tree, (node) => node.level);
-		expect(levels).toEqual({
-			"1": 1,
-			"2": 1,
-			"3": 1,
-			"1.1": 2,
-			"1.2": 2,
-			"2.1": 2,
-			"2.2": 2,
-			"3.1": 2,
-			"3.2": 2,
-			"1.1.1": 3,
-			"1.1.2": 3,
-			"1.1.3": 3,
-			"1.2.1": 3,
-			"1.2.2": 3,
-		});
-	});
-
-	test("TreeNode.siblings", () => {
-		const tree = new Tree({ items });
-		const siblings = createLookup(tree, (node) =>
-			node.siblings.map((sibling) => sibling.id),
+	test("LinkedTreeItem.siblings", () => {
+		const tree = new LinkedTree({ items });
+		const siblings = createMapping(tree, (item) =>
+			item.siblings.toArray().map((sibling) => sibling.id),
 		);
 		expect(siblings).toEqual({
 			"1": ["1", "2", "3"],
@@ -486,11 +196,11 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.previousSibling", () => {
-		const tree = new Tree({ items });
-		const previousSiblings = createLookup(
+	test("LinkedTree.previousSibling", () => {
+		const tree = new LinkedTree({ items });
+		const previousSiblings = createMapping(
 			tree,
-			(node) => node.previousSibling?.id,
+			(item) => item.previousSibling?.id,
 		);
 		expect(previousSiblings).toEqual({
 			"1": undefined,
@@ -510,9 +220,9 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.nextSibling", () => {
-		const tree = new Tree({ items });
-		const nextSiblings = createLookup(tree, (node) => node.nextSibling?.id);
+	test("LinkedTreeItem.nextSibling", () => {
+		const tree = new LinkedTree({ items });
+		const nextSiblings = createMapping(tree, (item) => item.nextSibling?.id);
 		expect(nextSiblings).toEqual({
 			"1": "2",
 			"2": "3",
@@ -531,290 +241,716 @@ describe("Tree", () => {
 		});
 	});
 
-	test("TreeNode.previous", () => {
-		const tree = new Tree({
-			items,
-			defaultExpanded: ["1", "1.1", "2"],
-		});
-		const previous = createLookup(tree, (node) => node.previous?.id);
-		expect(previous).toEqual({
-			"1": undefined,
-			"1.1": "1",
-			"1.1.1": "1.1",
-			"1.1.2": "1.1.1",
-			"1.1.3": "1.1.2",
-			"1.2": "1.1.3",
-			"1.2.1": "1.2", // hidden
-			"1.2.2": "1.2.1", // hidden
-			"2": "1.2",
-			"2.1": "2",
-			"2.2": "2.1",
-			"3": "2.2",
-			"3.1": "3", // hidden
-			"3.2": "3.1", // hidden
-		});
-	});
-
-	test("TreeNode.next", () => {
-		const tree = new Tree({
-			items,
-			defaultExpanded: ["1", "1.1", "2"],
-		});
-		const next = createLookup(tree, (node) => node.next?.id);
-		expect(next).toEqual({
-			"1": "1.1",
-			"1.1": "1.1.1",
-			"1.1.1": "1.1.2",
-			"1.1.2": "1.1.3",
-			"1.1.3": "1.2",
-			"1.2": "2",
-			"1.2.1": "1.2.2", // hidden
-			"1.2.2": "2", // hidden
-			"2": "2.1",
-			"2.1": "2.2",
-			"2.2": "3",
-			"3": undefined,
-			"3.1": "3.2", // hidden
-			"3.2": undefined, // hidden
+	test("LinkedTreeItem.children", () => {
+		const tree = new LinkedTree({ items });
+		const children = createMapping(tree, (item) =>
+			item.children.toArray().map((child) => child.id),
+		);
+		expect(children).toEqual({
+			"1": ["1.1", "1.2"],
+			"2": ["2.1", "2.2"],
+			"3": ["3.1", "3.2"],
+			"1.1": ["1.1.1", "1.1.2", "1.1.3"],
+			"1.2": ["1.2.1", "1.2.2"],
+			"2.1": [],
+			"2.2": [],
+			"3.1": [],
+			"3.2": [],
+			"1.1.1": [],
+			"1.1.2": [],
+			"1.1.3": [],
+			"1.2.1": [],
+			"1.2.2": [],
 		});
 	});
 
-	test("TreeNode.contains() returns true if the given node is a descendant", () => {
-		const tree = new Tree({ items });
-		const node_1 = tree.roots[0]!;
-		const node_11 = node_1.children[0]!;
-		const node_12 = node_1.children[1]!;
-		const node_111 = node_11.children[0]!;
-		const node_112 = node_11.children[1]!;
-		const node_113 = node_11.children[2]!;
-
-		expect(node_1.contains(node_1)).true;
-		expect(node_1.contains(node_11)).true;
-		expect(node_1.contains(node_12)).true;
-		expect(node_1.contains(node_111)).true;
-		expect(node_1.contains(node_112)).true;
-		expect(node_1.contains(node_113)).true;
-
-		expect(node_11.contains(node_111)).true;
-		expect(node_11.contains(node_112)).true;
-		expect(node_11.contains(node_113)).true;
-	});
-
-	test("TreeNode.contains() returns false if the given node is in another subtree", () => {
-		const tree = new Tree({ items });
-		const node_1 = tree.roots[0]!;
-		const node_2 = tree.roots[1]!;
-		const node_11 = node_1.children[0]!;
-		const node_12 = node_1.children[1]!;
-		const node_21 = node_2.children[0]!;
-		const node_22 = node_2.children[1]!;
-
-		expect(node_1.contains(node_2)).false;
-		expect(node_1.contains(node_21)).false;
-		expect(node_1.contains(node_22)).false;
-
-		expect(node_11.contains(node_2)).false;
-		expect(node_11.contains(node_21)).false;
-		expect(node_11.contains(node_22)).false;
-
-		expect(node_12.contains(node_2)).false;
-		expect(node_12.contains(node_21)).false;
-		expect(node_12.contains(node_22)).false;
-	});
-
-	test("TreeNode.contains() returns false if the given node is a parent", () => {
-		const tree = new Tree({ items });
-		const node_1 = tree.roots[0]!;
-		const node_11 = node_1.children[0]!;
-		const node_12 = node_1.children[1]!;
-		const node_111 = node_11.children[0]!;
-		const node_112 = node_11.children[1]!;
-		const node_113 = node_11.children[2]!;
-
-		expect(node_11.contains(node_1)).false;
-		expect(node_12.contains(node_1)).false;
-		expect(node_111.contains(node_1)).false;
-		expect(node_112.contains(node_1)).false;
-		expect(node_113.contains(node_1)).false;
-
-		expect(node_111.contains(node_11)).false;
-		expect(node_112.contains(node_11)).false;
-		expect(node_113.contains(node_11)).false;
-
-		expect(node_111.contains(node_12)).false;
-		expect(node_112.contains(node_12)).false;
-		expect(node_113.contains(node_12)).false;
-	});
-
-	test("TreeNode.move() before a sibling node", () => {
+	test("Updating the tree's expansion state updates the tree item", () => {
 		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_11 = tree.roots[0]!.children[0]!;
-			const node_111 = node_11.children[0]!;
-			const node_112 = node_11.children[1]!;
-			const node_113 = node_11.children[2]!;
+			const tree = new LinkedTree({ items });
+			const item = tree.items.head!;
+			expect(item.expanded).false;
 
-			node_111.move("before", node_113);
-			expect(node_11.children).toEqual([node_112, node_111, node_113]);
-			expect(node_112.index).toBe(0);
-			expect(node_111.index).toBe(1);
-			expect(node_113.index).toBe(2);
+			tree.expanded.add("1");
+			expect(item.expanded).true;
 
-			node_113.move("before", node_112);
-			expect(node_11.children).toEqual([node_113, node_112, node_111]);
-			expect(node_113.index).toBe(0);
-			expect(node_112.index).toBe(1);
-			expect(node_111.index).toBe(2);
-
-			node_112.move("before", node_112);
-			expect(node_11.children).toEqual([node_113, node_112, node_111]);
-			expect(node_113.index).toBe(0);
-			expect(node_112.index).toBe(1);
-			expect(node_111.index).toBe(2);
+			tree.expanded.delete("1");
+			expect(item.expanded).false;
 		});
 	});
 
-	test("TreeNode.move() after a sibling node", () => {
+	test("TreeItem expansion methods update the expansion state", () => {
 		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_11 = tree.roots[0]!.children[0]!;
-			const node_111 = node_11.children[0]!;
-			const node_112 = node_11.children[1]!;
-			const node_113 = node_11.children[2]!;
+			const tree = new LinkedTree({ items });
+			const item = tree.items.head!;
+			expect(item.expanded).false;
 
-			node_111.move("after", node_113);
-			expect(node_11.children).toEqual([node_112, node_113, node_111]);
-			expect(node_112.index).toBe(0);
-			expect(node_113.index).toBe(1);
-			expect(node_111.index).toBe(2);
+			item.expand();
+			expect(item.expanded).true;
+			expect([...tree.expanded]).toEqual(["1"]);
 
-			node_113.move("after", node_112);
-			expect(node_11.children).toEqual([node_112, node_113, node_111]);
-			expect(node_112.index).toBe(0);
-			expect(node_113.index).toBe(1);
-			expect(node_111.index).toBe(2);
+			item.collapse();
+			expect(item.expanded).false;
+			expect(tree.expanded).empty;
 
-			node_112.move("after", node_112);
-			expect(node_11.children).toEqual([node_112, node_113, node_111]);
-			expect(node_112.index).toBe(0);
-			expect(node_113.index).toBe(1);
-			expect(node_111.index).toBe(2);
+			item.expanded = true;
+			expect(item.expanded).true;
+			expect([...tree.expanded]).toEqual(["1"]);
+
+			item.expanded = false;
+			expect(item.expanded).false;
+			expect(tree.expanded).empty;
 		});
 	});
 
-	test("TreeNode.move() before a non-sibling node", () => {
+	test("Updating the tree's selection state updates the tree item", () => {
 		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_1 = tree.roots[0]!;
-			const node_11 = node_1.children[0]!;
-			const node_12 = node_1.children[1]!;
-			const node_111 = node_11.children[0]!;
-			const node_112 = node_11.children[1]!;
-			const node_113 = node_11.children[2]!;
+			const tree = new LinkedTree({ items });
+			const item = tree.items.head!;
+			expect(item.selected).false;
 
-			node_111.move("before", node_12);
-			expect(node_1.children).toEqual([node_11, node_111, node_12]);
-			expect(node_11.index).toBe(0);
-			expect(node_111.index).toBe(1);
-			expect(node_12.index).toBe(2);
-			expect(node_11.children).toEqual([node_112, node_113]);
-			expect(node_112.index).toBe(0);
-			expect(node_113.index).toBe(1);
+			tree.selected.add("1");
+			expect(item.selected).true;
 
-			node_112.move("before", node_11);
-			expect(node_1.children).toEqual([node_112, node_11, node_111, node_12]);
-			expect(node_112.index).toBe(0);
-			expect(node_11.index).toBe(1);
-			expect(node_111.index).toBe(2);
-			expect(node_12.index).toBe(3);
-			expect(node_11.children).toEqual([node_113]);
-			expect(node_113.index).toBe(0);
+			tree.selected.delete("1");
+			expect(item.selected).false;
 		});
 	});
 
-	test("TreeNode.move() after a non-sibling node", () => {
+	test("TreeItem selection methods update the selection state", () => {
 		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_1 = tree.roots[0]!;
-			const node_11 = node_1.children[0]!;
-			const node_12 = node_1.children[1]!;
-			const node_111 = node_11.children[0]!;
-			const node_112 = node_11.children[1]!;
-			const node_113 = node_11.children[2]!;
+			const tree = new LinkedTree({ items });
+			const item = tree.items.head!;
+			expect(item.selected).false;
 
-			node_111.move("after", node_12);
-			expect(node_1.children).toEqual([node_11, node_12, node_111]);
-			expect(node_11.index).toBe(0);
-			expect(node_12.index).toBe(1);
-			expect(node_111.index).toBe(2);
-			expect(node_11.children).toEqual([node_112, node_113]);
-			expect(node_112.index).toBe(0);
-			expect(node_113.index).toBe(1);
+			item.select();
+			expect(item.selected).true;
+			expect([...tree.selected]).toEqual(["1"]);
 
-			node_112.move("after", node_11);
-			expect(node_1.children).toEqual([node_11, node_112, node_12, node_111]);
-			expect(node_11.index).toBe(0);
-			expect(node_112.index).toBe(1);
-			expect(node_12.index).toBe(2);
-			expect(node_111.index).toBe(3);
-			expect(node_11.children).toEqual([node_113]);
-			expect(node_113.index).toBe(0);
+			item.unselect();
+			expect(item.selected).false;
+			expect(tree.selected).empty;
+
+			item.selected = true;
+			expect(item.selected).true;
+			expect([...tree.selected]).toEqual(["1"]);
+
+			item.selected = false;
+			expect(item.selected).false;
+			expect(tree.selected).empty;
 		});
 	});
 
-	test("TreeNode.move() inside a node adds this node to the end of the node's children", () => {
-		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_1 = tree.roots[0]!;
-			const node_2 = tree.roots[1]!;
-			const node_3 = tree.roots[2]!;
-			const node_11 = node_1.children[0]!;
-			const node_12 = node_1.children[1]!;
+	test("LinkedTreeItem.contains() returns true for descendants", () => {
+		const tree = new LinkedTree({ items });
+		const item_1 = tree.items.head!;
+		const [item_11, item_12] = item_1.children;
+		const [item_111, item_112, item_113] = item_11.children;
+		const [item_121, item_122] = item_12.children;
 
-			node_2.move("inside", node_1);
-			expect(tree.roots).toEqual([node_1, node_3]);
-			expect(node_1.index).toBe(0);
-			expect(node_3.index).toBe(1);
-			expect(node_1.children).toEqual([node_11, node_12, node_2]);
-			expect(node_11.index).toBe(0);
-			expect(node_12.index).toBe(1);
-			expect(node_2.index).toBe(2);
+		expect(item_1.contains(item_1)).true;
+		expect(item_1.contains(item_11)).true;
+		expect(item_1.contains(item_12)).true;
+		expect(item_1.contains(item_111)).true;
+		expect(item_1.contains(item_112)).true;
+		expect(item_1.contains(item_113)).true;
+
+		expect(item_11.contains(item_11)).true;
+		expect(item_11.contains(item_111)).true;
+		expect(item_11.contains(item_112)).true;
+		expect(item_11.contains(item_113)).true;
+
+		expect(item_12.contains(item_12)).true;
+		expect(item_12.contains(item_121)).true;
+		expect(item_12.contains(item_122)).true;
+	});
+
+	test("LinkedTreeItem.contains() returns false for ancestors", () => {
+		const tree = new LinkedTree({ items });
+		const item_1 = tree.items.head!;
+		const [item_11, item_12] = item_1.children;
+		const [item_111, item_112, item_113] = item_11.children;
+		const [item_121, item_122] = item_12.children;
+
+		expect(item_11.contains(item_1)).false;
+		expect(item_12.contains(item_1)).false;
+		expect(item_111.contains(item_1)).false;
+		expect(item_112.contains(item_1)).false;
+		expect(item_113.contains(item_1)).false;
+
+		expect(item_111.contains(item_11)).false;
+		expect(item_112.contains(item_11)).false;
+		expect(item_113.contains(item_11)).false;
+
+		expect(item_121.contains(item_12)).false;
+		expect(item_122.contains(item_12)).false;
+	});
+
+	test("LinkedTreeItem.contains() returns false for siblings", () => {
+		const tree = new LinkedTree({ items });
+		const [item_1, item_2] = tree.items;
+		const [item_11, item_12] = item_1.children;
+		const [item_21, item_22] = item_2.children;
+		const [item_111, item_112, item_113] = item_11.children;
+		const [item_121, item_122] = item_12.children;
+
+		expect(item_1.contains(item_2)).false;
+		expect(item_1.contains(item_21)).false;
+		expect(item_1.contains(item_22)).false;
+
+		expect(item_11.contains(item_12)).false;
+		expect(item_11.contains(item_121)).false;
+		expect(item_11.contains(item_122)).false;
+		expect(item_11.contains(item_2)).false;
+		expect(item_11.contains(item_21)).false;
+		expect(item_11.contains(item_22)).false;
+
+		expect(item_12.contains(item_11)).false;
+		expect(item_12.contains(item_111)).false;
+		expect(item_12.contains(item_112)).false;
+		expect(item_12.contains(item_113)).false;
+		expect(item_12.contains(item_2)).false;
+		expect(item_12.contains(item_21)).false;
+		expect(item_12.contains(item_22)).false;
+
+		expect(item_111.contains(item_112)).false;
+		expect(item_111.contains(item_113)).false;
+		expect(item_111.contains(item_12)).false;
+		expect(item_111.contains(item_121)).false;
+		expect(item_111.contains(item_122)).false;
+		expect(item_111.contains(item_2)).false;
+		expect(item_111.contains(item_21)).false;
+		expect(item_111.contains(item_22)).false;
+
+		expect(item_112.contains(item_111)).false;
+		expect(item_112.contains(item_113)).false;
+		expect(item_112.contains(item_12)).false;
+		expect(item_112.contains(item_121)).false;
+		expect(item_112.contains(item_122)).false;
+		expect(item_112.contains(item_2)).false;
+		expect(item_112.contains(item_21)).false;
+		expect(item_112.contains(item_22)).false;
+
+		expect(item_113.contains(item_111)).false;
+		expect(item_113.contains(item_112)).false;
+		expect(item_113.contains(item_12)).false;
+		expect(item_113.contains(item_121)).false;
+		expect(item_113.contains(item_122)).false;
+		expect(item_113.contains(item_2)).false;
+		expect(item_113.contains(item_21)).false;
+		expect(item_113.contains(item_22)).false;
+	});
+
+	test("LinkedTreeItemList.prepend() inserts a new item at the start of the list", () => {
+		effectRootScope(() => {
+			const tree = new LinkedTree({ items });
+			const item_1 = tree.items.head!;
+			const [item_11, item_12] = item_1.children;
+
+			//           1
+			// 1         -- 1.3
+			// -- 1.1    -- 1.1
+			// -- 1.2    -- 1.2
+			// 2         2
+			const item_13 = item_1.children.prepend({
+				id: "1.3",
+				value: "Section 1.3",
+			});
+
+			expect(item_13.id).toBe("1.3");
+			expect(item_13.value).toBe("Section 1.3");
+			expect(item_13.depth).toBe(1);
+			expect(item_13.parent).toBe(item_1);
+			expect(item_13.siblings).toBe(item_1.children);
+
+			expect(item_1.children.head).toBe(item_13);
+			expect(item_1.children.tail).toBe(item_12);
+			expect(item_1.children.length).toBe(3);
+
+			expect(item_13.previousSibling).toBeUndefined();
+			expect(item_13.nextSibling).toBe(item_11);
+
+			expect(item_11.previousSibling).toBe(item_13);
+			expect(item_11.nextSibling).toBe(item_12);
+
+			expect(item_12.previousSibling).toBe(item_11);
+			expect(item_12.nextSibling).toBeUndefined();
 		});
 	});
 
-	test("TreeNode.delete() deletes the node from the tree", () => {
+	test("LinkedTreeItemList.append() inserts a new item at the end of the list", () => {
 		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_11 = tree.roots[0]!.children[0]!;
-			const node_111 = node_11.children[0]!;
-			const node_112 = node_11.children[1]!;
-			const node_113 = node_11.children[2]!;
+			const tree = new LinkedTree({ items });
+			const item_1 = tree.items.head!;
+			const [item_11, item_12] = item_1.children;
 
-			node_111.delete();
-			expect(node_11.children).toEqual([node_112, node_113]);
-			expect(node_112.index).toBe(0);
-			expect(node_113.index).toBe(1);
-			expect(node_111.parent).toBeUndefined();
-			expect(node_111.index).toBe(-1);
+			//           1
+			// 1         -- 1.1
+			// -- 1.1    -- 1.2
+			// -- 1.2    -- 1.3
+			// 2         2
+			const item_13 = item_1.children.append({
+				id: "1.3",
+				value: "Section 1.3",
+			});
+
+			expect(item_13.id).toBe("1.3");
+			expect(item_13.value).toBe("Section 1.3");
+			expect(item_13.depth).toBe(1);
+			expect(item_13.parent).toBe(item_1);
+			expect(item_13.siblings).toBe(item_1.children);
+
+			expect(item_1.children.head).toBe(item_11);
+			expect(item_1.children.tail).toBe(item_13);
+			expect(item_1.children.length).toBe(3);
+
+			expect(item_11.previousSibling).toBeUndefined();
+			expect(item_11.nextSibling).toBe(item_12);
+
+			expect(item_12.previousSibling).toBe(item_11);
+			expect(item_12.nextSibling).toBe(item_13);
+
+			expect(item_13.previousSibling).toBe(item_12);
+			expect(item_13.nextSibling).toBeUndefined();
 		});
 	});
 
-	test("TreeNode.delete() removes all references to the node", () => {
+	test("LinkedTreeItem.insertBefore() inserts a new item before this item", () => {
 		effectRootScope(() => {
-			const tree = new Tree({ items });
-			const node_1 = tree.roots[0]!;
-			const node_2 = tree.roots[1]!;
-			tree.selected.add(node_2.id);
-			tree.expanded.add(node_2.id);
-			tree.tabbable = node_2;
-			tree.dragged = node_2;
+			const tree = new LinkedTree({ items });
+			const item_1 = tree.items.head!;
+			const [item_11, item_12] = item_1.children;
 
-			node_2.delete();
-			expect(tree.selected).not.toContain(node_2.id);
-			expect(tree.expanded).not.toContain(node_2.id);
-			expect(tree.tabbable).toBe(node_1);
-			expect(tree.previousTabbable).toBeUndefined();
-			expect(tree.dragged).toBeUndefined();
+			//           1
+			// 1         -- 1.1
+			// -- 1.1    -- 1.3
+			// -- 1.2    -- 1.2
+			// 2         2
+			const item_13 = item_12.insertBefore({
+				id: "1.3",
+				value: "Section 1.3",
+			});
+
+			expect(item_13.id).toBe("1.3");
+			expect(item_13.value).toBe("Section 1.3");
+			expect(item_13.depth).toBe(1);
+			expect(item_13.parent).toBe(item_1);
+			expect(item_13.siblings).toBe(item_1.children);
+
+			expect(item_1.children.head).toBe(item_11);
+			expect(item_1.children.tail).toBe(item_12);
+			expect(item_1.children.length).toBe(3);
+
+			expect(item_11.previousSibling).toBeUndefined();
+			expect(item_11.nextSibling).toBe(item_13);
+
+			expect(item_13.previousSibling).toBe(item_11);
+			expect(item_13.nextSibling).toBe(item_12);
+
+			expect(item_12.previousSibling).toBe(item_13);
+			expect(item_12.nextSibling).toBeUndefined();
+		});
+	});
+
+	test("LinkedTreeItem.insertAfter() inserts a new item after this item", () => {
+		effectRootScope(() => {
+			const tree = new LinkedTree({ items });
+			const item_1 = tree.items.head!;
+			const [item_11, item_12] = item_1.children;
+
+			//           1
+			// 1         -- 1.1
+			// -- 1.1    -- 1.2
+			// -- 1.2    -- 1.3
+			// 2         2
+			const item_13 = item_12.insertAfter({
+				id: "1.3",
+				value: "Section 1.3",
+			});
+
+			expect(item_13.id).toBe("1.3");
+			expect(item_13.value).toBe("Section 1.3");
+			expect(item_13.depth).toBe(1);
+			expect(item_13.parent).toBe(item_1);
+			expect(item_13.siblings).toBe(item_1.children);
+
+			expect(item_1.children.head).toBe(item_11);
+			expect(item_1.children.tail).toBe(item_13);
+			expect(item_1.children.length).toBe(3);
+
+			expect(item_11.previousSibling).toBeUndefined();
+			expect(item_11.nextSibling).toBe(item_12);
+
+			expect(item_12.previousSibling).toBe(item_11);
+			expect(item_12.nextSibling).toBe(item_13);
+
+			expect(item_13.previousSibling).toBe(item_12);
+			expect(item_13.nextSibling).toBeUndefined();
+		});
+	});
+
+	test("LinkedTreeItem.moveBefore() moves this item before the given item", () => {
+		effectRootScope(() => {
+			const tree = new LinkedTree({ items });
+			const [item_1, item_2, item_3] = tree.items;
+			const [item_11, item_12] = item_1.children;
+
+			// 1         1
+			// -- 1.1    -- 1.1
+			// -- 1.2    -- 3
+			// 2         -- 1.2
+			// 3         2
+			item_3.moveBefore(item_12);
+
+			expect(item_3.depth).toBe(1);
+			expect(item_3.parent).toBe(item_1);
+			expect(item_3.siblings).toBe(item_1.children);
+
+			expect(tree.items.head).toBe(item_1);
+			expect(tree.items.tail).toBe(item_2);
+			expect(tree.items.length).toBe(2);
+
+			expect(item_1.previousSibling).toBeUndefined();
+			expect(item_1.nextSibling).toBe(item_2);
+
+			expect(item_2.previousSibling).toBe(item_1);
+			expect(item_2.nextSibling).toBeUndefined();
+
+			expect(item_1.children.head).toBe(item_11);
+			expect(item_1.children.tail).toBe(item_12);
+			expect(item_1.children.length).toBe(3);
+
+			expect(item_11.previousSibling).toBeUndefined();
+			expect(item_11.nextSibling).toBe(item_3);
+
+			expect(item_3.previousSibling).toBe(item_11);
+			expect(item_3.nextSibling).toBe(item_12);
+
+			expect(item_12.previousSibling).toBe(item_3);
+			expect(item_12.nextSibling).toBeUndefined();
+		});
+	});
+
+	test("LinkedTreeItem.moveBefore() throws an error if the given item is a descandant", () => {
+		const tree = new LinkedTree({ items });
+		const item_1 = tree.items.head!;
+		const [item_11, item_12] = item_1.children;
+		const [item_111, item_112, item_113] = item_11.children;
+		const [item_121, item_122] = item_12.children;
+
+		expect(() => item_1.moveBefore(item_11)).toThrowError();
+		expect(() => item_1.moveBefore(item_12)).toThrowError();
+
+		expect(() => item_1.moveBefore(item_111)).toThrowError();
+		expect(() => item_1.moveBefore(item_112)).toThrowError();
+		expect(() => item_1.moveBefore(item_113)).toThrowError();
+
+		expect(() => item_11.moveBefore(item_111)).toThrowError();
+		expect(() => item_11.moveBefore(item_112)).toThrowError();
+		expect(() => item_11.moveBefore(item_113)).toThrowError();
+
+		expect(() => item_12.moveBefore(item_121)).toThrowError();
+		expect(() => item_12.moveBefore(item_122)).toThrowError();
+	});
+
+	test("LinkedTreeItem.moveAfter() moves this item after the given item", () => {
+		effectRootScope(() => {
+			const tree = new LinkedTree({ items });
+			const [item_1, item_2, item_3] = tree.items;
+			const [item_11, item_12] = item_1.children;
+
+			// 1         1
+			// -- 1.1    -- 1.1
+			// -- 1.2    -- 1.2
+			// 2         -- 3
+			// 3         2
+			item_3.moveAfter(item_12);
+
+			expect(item_3.depth).toBe(1);
+			expect(item_3.parent).toBe(item_1);
+			expect(item_3.siblings).toBe(item_1.children);
+
+			expect(tree.items.head).toBe(item_1);
+			expect(tree.items.tail).toBe(item_2);
+			expect(tree.items.length).toBe(2);
+
+			expect(item_1.previousSibling).toBeUndefined();
+			expect(item_1.nextSibling).toBe(item_2);
+
+			expect(item_2.previousSibling).toBe(item_1);
+			expect(item_2.nextSibling).toBeUndefined();
+
+			expect(item_1.children.head).toBe(item_11);
+			expect(item_1.children.tail).toBe(item_3);
+			expect(item_1.children.length).toBe(3);
+
+			expect(item_11.previousSibling).toBeUndefined();
+			expect(item_11.nextSibling).toBe(item_12);
+
+			expect(item_12.previousSibling).toBe(item_11);
+			expect(item_12.nextSibling).toBe(item_3);
+
+			expect(item_3.previousSibling).toBe(item_12);
+			expect(item_3.nextSibling).toBeUndefined();
+		});
+	});
+
+	test("LinkedTreeItem.moveAfter() throws an error if the given item is a descandant", () => {
+		const tree = new LinkedTree({ items });
+		const item_1 = tree.items.head!;
+		const [item_11, item_12] = item_1.children;
+		const [item_111, item_112, item_113] = item_11.children;
+		const [item_121, item_122] = item_12.children;
+
+		expect(() => item_1.moveAfter(item_11)).toThrowError();
+		expect(() => item_1.moveAfter(item_12)).toThrowError();
+
+		expect(() => item_1.moveAfter(item_111)).toThrowError();
+		expect(() => item_1.moveAfter(item_112)).toThrowError();
+		expect(() => item_1.moveAfter(item_113)).toThrowError();
+
+		expect(() => item_11.moveAfter(item_111)).toThrowError();
+		expect(() => item_11.moveAfter(item_112)).toThrowError();
+		expect(() => item_11.moveAfter(item_113)).toThrowError();
+
+		expect(() => item_12.moveAfter(item_121)).toThrowError();
+		expect(() => item_12.moveAfter(item_122)).toThrowError();
+	});
+
+	test("LinkedTreeItem.prependTo() prepends this item to the given item's children", () => {
+		effectRootScope(() => {
+			const tree = new LinkedTree({ items });
+			const [item_1, item_2, item_3] = tree.items;
+			const [item_11, item_12] = item_1.children;
+
+			// 1         1
+			// -- 1.1    -- 3
+			// -- 1.2    -- 1.1
+			// 2         -- 1.2
+			// 3         2
+			item_3.prependTo(item_1);
+
+			expect(item_3.depth).toBe(1);
+			expect(item_3.parent).toBe(item_1);
+			expect(item_3.siblings).toBe(item_1.children);
+
+			expect(tree.items.head).toBe(item_1);
+			expect(tree.items.tail).toBe(item_2);
+			expect(tree.items.length).toBe(2);
+
+			expect(item_1.previousSibling).toBeUndefined();
+			expect(item_1.nextSibling).toBe(item_2);
+
+			expect(item_2.previousSibling).toBe(item_1);
+			expect(item_2.nextSibling).toBeUndefined();
+
+			expect(item_1.children.head).toBe(item_3);
+			expect(item_1.children.tail).toBe(item_12);
+			expect(item_1.children.length).toBe(3);
+
+			expect(item_3.previousSibling).toBeUndefined();
+			expect(item_3.nextSibling).toBe(item_11);
+
+			expect(item_11.previousSibling).toBe(item_3);
+			expect(item_11.nextSibling).toBe(item_12);
+
+			expect(item_12.previousSibling).toBe(item_11);
+			expect(item_12.nextSibling).toBeUndefined();
+		});
+	});
+
+	test("LinkedTreeItem.prependTo() throws an error if the given item is a descandant", () => {
+		const tree = new LinkedTree({ items });
+		const item_1 = tree.items.head!;
+		const [item_11, item_12] = item_1.children;
+		const [item_111, item_112, item_113] = item_11.children;
+		const [item_121, item_122] = item_12.children;
+
+		expect(() => item_1.prependTo(item_11)).toThrowError();
+		expect(() => item_1.prependTo(item_12)).toThrowError();
+
+		expect(() => item_1.prependTo(item_111)).toThrowError();
+		expect(() => item_1.prependTo(item_112)).toThrowError();
+		expect(() => item_1.prependTo(item_113)).toThrowError();
+
+		expect(() => item_11.prependTo(item_111)).toThrowError();
+		expect(() => item_11.prependTo(item_112)).toThrowError();
+		expect(() => item_11.prependTo(item_113)).toThrowError();
+
+		expect(() => item_12.prependTo(item_121)).toThrowError();
+		expect(() => item_12.prependTo(item_122)).toThrowError();
+	});
+
+	test("LinkedTreeItem.appendTo() appends this item to the given item's children", () => {
+		effectRootScope(() => {
+			const tree = new LinkedTree({ items });
+			const [item_1, item_2, item_3] = tree.items;
+			const [item_11, item_12] = item_1.children;
+
+			// 1         1
+			// -- 1.1    -- 1.1
+			// -- 1.2    -- 1.2
+			// 2         -- 3
+			// 3         2
+			item_3.appendTo(item_1);
+
+			expect(item_3.depth).toBe(1);
+			expect(item_3.parent).toBe(item_1);
+			expect(item_3.siblings).toBe(item_1.children);
+
+			expect(tree.items.head).toBe(item_1);
+			expect(tree.items.tail).toBe(item_2);
+			expect(tree.items.length).toBe(2);
+
+			expect(item_1.previousSibling).toBeUndefined();
+			expect(item_1.nextSibling).toBe(item_2);
+
+			expect(item_2.previousSibling).toBe(item_1);
+			expect(item_2.nextSibling).toBeUndefined();
+
+			expect(item_1.children.head).toBe(item_11);
+			expect(item_1.children.tail).toBe(item_3);
+			expect(item_1.children.length).toBe(3);
+
+			expect(item_11.previousSibling).toBeUndefined();
+			expect(item_11.nextSibling).toBe(item_12);
+
+			expect(item_12.previousSibling).toBe(item_11);
+			expect(item_12.nextSibling).toBe(item_3);
+
+			expect(item_3.previousSibling).toBe(item_12);
+			expect(item_3.nextSibling).toBeUndefined();
+		});
+	});
+
+	test("LinkedTreeItem.appendTo() throws an error if the given item is a descandant", () => {
+		const tree = new LinkedTree({ items });
+		const item_1 = tree.items.head!;
+		const [item_11, item_12] = item_1.children;
+		const [item_111, item_112, item_113] = item_11.children;
+		const [item_121, item_122] = item_12.children;
+
+		expect(() => item_1.appendTo(item_11)).toThrowError();
+		expect(() => item_1.appendTo(item_12)).toThrowError();
+
+		expect(() => item_1.appendTo(item_111)).toThrowError();
+		expect(() => item_1.appendTo(item_112)).toThrowError();
+		expect(() => item_1.appendTo(item_113)).toThrowError();
+
+		expect(() => item_11.appendTo(item_111)).toThrowError();
+		expect(() => item_11.appendTo(item_112)).toThrowError();
+		expect(() => item_11.appendTo(item_113)).toThrowError();
+
+		expect(() => item_12.appendTo(item_121)).toThrowError();
+		expect(() => item_12.appendTo(item_122)).toThrowError();
+	});
+
+	test("LinkedTreeItem.remove() removes this item", () => {
+		effectRootScope(() => {
+			const tree = new LinkedTree({
+				items,
+				defaultExpanded: [
+					"1",
+					"1.1",
+					"1.1.1",
+					"1.1.2",
+					"1.1.3",
+					"1.2.1",
+					"1.2.2",
+					"1.2",
+					"2",
+					"3",
+				],
+				defaultSelected: [
+					"1",
+					"1.1",
+					"1.1.1",
+					"1.1.2",
+					"1.1.3",
+					"1.2",
+					"1.2.1",
+					"1.2.2",
+					"2",
+					"3",
+				],
+			});
+			const [item_1, item_2, item_3] = tree.items;
+
+			// 1
+			// -- 1.1
+			// ---- 1.1.1
+			// ---- 1.1.2
+			// ---- 1.1.3
+			// -- 1.2
+			// ---- 1.2.1
+			// ---- 1.2.2
+			// 2             2
+			// 3             3
+			item_1.remove();
+
+			expect(item_1.previousSibling).toBeUndefined();
+			expect(item_1.nextSibling).toBeUndefined();
+
+			expect(tree.items.head).toBe(item_2);
+			expect(tree.items.tail).toBe(item_3);
+			expect(tree.items.length).toBe(2);
+
+			expect(item_2.previousSibling).toBeUndefined();
+			expect(item_2.nextSibling).toBe(item_3);
+
+			expect(item_3.previousSibling).toBe(item_2);
+			expect(item_3.nextSibling).toBeUndefined();
+
+			expect([...tree.expanded]).toEqual(["2", "3"]);
+			expect([...tree.selected]).toEqual(["2", "3"]);
+		});
+	});
+
+	test("LinkedTreeItem.remove() does nothing if the item has already been removed", () => {
+		effectRootScope(() => {
+			const tree = new LinkedTree({ items });
+			const [item_1, item_2, item_3] = tree.items;
+
+			item_1.remove();
+			item_1.remove();
+
+			expect(item_1.previousSibling).toBeUndefined();
+			expect(item_1.nextSibling).toBeUndefined();
+
+			expect(tree.items.head).toBe(item_2);
+			expect(tree.items.tail).toBe(item_3);
+			expect(tree.items.length).toBe(2);
+
+			expect(item_2.previousSibling).toBeUndefined();
+			expect(item_2.nextSibling).toBe(item_3);
+
+			expect(item_3.previousSibling).toBe(item_2);
+			expect(item_3.nextSibling).toBeUndefined();
 		});
 	});
 });
+
+function traverse<TValue>(
+	items: LinkedTreeItemList<TValue>,
+	callback: (item: LinkedTreeItem<TValue>) => void,
+) {
+	for (const item of items) {
+		callback(item);
+		traverse(item.children, callback);
+	}
+}
+
+function createMapping<TIn, TOut>(
+	tree: LinkedTree<TIn>,
+	transform: (item: LinkedTreeItem<TIn>) => TOut,
+) {
+	const mapping: Record<string, TOut> = {};
+	traverse(tree.items, (item) => {
+		mapping[item.id] = transform(item);
+	});
+	return mapping;
+}
+
+function effectRootScope(scope: () => void) {
+	const cleanup = $effect.root(scope);
+	cleanup();
+}
