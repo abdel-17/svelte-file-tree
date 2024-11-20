@@ -93,6 +93,51 @@
 		} while (current !== undefined);
 	}
 
+	function selectMultiple(
+		item: LinkedTreeItem<TValue>,
+		itemElement: HTMLElement,
+	) {
+		// Select all items from the last selected item up to this item.
+		let lastSelected: LinkedTreeItem<TValue> | undefined;
+		for (const id of context.tree.selected) {
+			const item = context.lookup.get(id);
+			if (item !== undefined) {
+				lastSelected = item;
+			}
+		}
+
+		// If no item is selected, select all items from the first item up to this item.
+		if (lastSelected === undefined) {
+			let current = context.tree.items.head;
+			while (current !== undefined) {
+				current.select();
+				if (current === item) {
+					break;
+				}
+				current = nextItem(current);
+			}
+			return;
+		}
+
+		const lastSelectedElement = context.treeItemElement(lastSelected.id);
+		if (lastSelectedElement === null) {
+			return;
+		}
+
+		const down =
+			lastSelectedElement.compareDocumentPosition(itemElement) &
+			Node.DOCUMENT_POSITION_FOLLOWING;
+
+		let current: LinkedTreeItem<TValue> | undefined = lastSelected;
+		do {
+			current = down ? nextItem(current) : previousItem(current);
+			if (current === undefined) {
+				break;
+			}
+			current.select();
+		} while (current !== item);
+	}
+
 	function calculateDropPosition(dropTarget: HTMLElement, clientY: number) {
 		const { top, bottom, height } = dropTarget.getBoundingClientRect();
 		const topBoundary = top + height / 3;
@@ -179,7 +224,7 @@
 					break;
 				}
 
-				const shouldSelect = event.shiftKey && isControlOrMeta(event);
+				const shouldSelect = event.shiftKey;
 				if (shouldSelect) {
 					item.select();
 					next.select();
@@ -276,7 +321,12 @@
 				break;
 			}
 			case " ": {
-				item.selected = !item.selected;
+				const shouldSelectMultiple = event.shiftKey;
+				if (shouldSelectMultiple) {
+					selectMultiple(item, event.currentTarget);
+				} else {
+					item.selected = !item.selected;
+				}
 				break;
 			}
 			case "F2": {
@@ -315,16 +365,19 @@
 				break;
 			}
 			case "Delete": {
-				// Focus the nearest sibling after this item,
-				// skipping selected items as they will be deleted.
-				let fallback = nextItem(item);
+				// Focus the nearest item that will not be deleted.
+				let fallback: LinkedTreeItem<TValue> | undefined = item;
 				while (fallback !== undefined && fallback.selected) {
+					if (fallback.expanded) {
+						// Avoid focusing a child of an item that is about to be deleted.
+						fallback.collapse();
+					}
 					fallback = nextItem(fallback);
 				}
 
-				// If none are found, focus the nearest sibling before this item.
+				// If none are found, focus the nearest item before this item.
 				if (fallback === undefined) {
-					fallback = previousItem(item);
+					fallback = item;
 					while (fallback !== undefined && fallback.selected) {
 						fallback = previousItem(fallback);
 					}
@@ -363,51 +416,13 @@
 		}
 
 		const shouldSelectMultiple = event.shiftKey;
-		if (!shouldSelectMultiple) {
-			context.tree.selected.clear();
-			item.select();
+		if (shouldSelectMultiple) {
+			selectMultiple(item, event.currentTarget);
 			return;
 		}
 
-		// Select all items from the last selected item up to this item.
-		let lastSelected: LinkedTreeItem<TValue> | undefined;
-		for (const id of context.tree.selected) {
-			const item = context.lookup.get(id);
-			if (item !== undefined) {
-				lastSelected = item;
-			}
-		}
-
-		// If no item is selected, select all items from the first item up to this item.
-		if (lastSelected === undefined) {
-			let current = context.tree.items.head;
-			while (current !== undefined) {
-				current.select();
-				if (current === item) {
-					break;
-				}
-				current = nextItem(current);
-			}
-			return;
-		}
-
-		const lastSelectedElement = context.treeItemElement(lastSelected.id);
-		if (lastSelectedElement === null) {
-			return;
-		}
-
-		const down =
-			lastSelectedElement.compareDocumentPosition(event.currentTarget) &
-			Node.DOCUMENT_POSITION_FOLLOWING;
-
-		let current: LinkedTreeItem<TValue> | undefined = lastSelected;
-		do {
-			current = down ? nextItem(current) : previousItem(current);
-			if (current === undefined) {
-				break;
-			}
-			current.select();
-		} while (current !== item);
+		context.tree.selected.clear();
+		item.select();
 	};
 
 	let draggedOver = false;
