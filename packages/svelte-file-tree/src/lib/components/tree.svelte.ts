@@ -61,8 +61,6 @@ export interface LinkedTreeItemList {
 	readonly length: number;
 	prepend(item: LinkedTreeItemData): LinkedTreeItem;
 	append(item: LinkedTreeItemData): LinkedTreeItem;
-	containsId(id: string): boolean;
-	containsName(name: string): boolean;
 	toArray(): LinkedTreeItem[];
 	[Symbol.iterator](): Iterator<LinkedTreeItem, void>;
 }
