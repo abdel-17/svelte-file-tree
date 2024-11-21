@@ -1,20 +1,22 @@
 <script lang="ts">
 	import type { Action } from "svelte/action";
 	import type { EventHandler } from "svelte/elements";
-	import type { TreeItemInputProps } from "./types.js";
+	import type { TreeItemNameInputProps } from "./types.js";
 	import { TreeItemContext } from "./context.svelte.js";
 
+	const context = TreeItemContext.get();
+
 	let {
-		value = $bindable(),
+		value = $bindable(context.item.name),
 		element = $bindable(null),
 		onCommit,
 		onRollback,
+		onError,
 		onkeydown,
 		onblur,
 		...attributes
-	}: TreeItemInputProps = $props();
+	}: TreeItemNameInputProps = $props();
 
-	const context = TreeItemContext.get();
 	const initialValue = value;
 	let committed = false;
 
@@ -25,10 +27,35 @@
 
 		switch (event.key) {
 			case "Enter": {
-				committed = true;
-				if (value !== initialValue) {
-					onCommit?.(value);
+				if (value.length === 0) {
+					onError?.({ reason: "empty" });
+					break;
 				}
+
+				if (value === initialValue) {
+					context.element()?.focus();
+					break;
+				}
+
+				const { item } = context;
+				let duplicate = false;
+				let current = item.siblings.head;
+				while (current !== undefined) {
+					if (current !== item && current.name === value) {
+						duplicate = true;
+						break;
+					}
+					current = current.nextSibling;
+				}
+
+				if (duplicate) {
+					onError?.({ reason: "duplicate", name: value });
+					break;
+				}
+
+				item.name = value;
+				committed = true;
+				onCommit?.(value);
 				context.element()?.focus();
 			}
 			case "Escape": {

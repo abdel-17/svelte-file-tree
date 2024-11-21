@@ -8,37 +8,37 @@ import {
 const items = [
 	{
 		id: "1",
-		value: "Section 1",
+		name: "Section 1",
 		children: [
 			{
 				id: "1.1",
-				value: "Section 1.1",
+				name: "Section 1.1",
 				children: [
 					{
 						id: "1.1.1",
-						value: "Section 1.1.1",
+						name: "Section 1.1.1",
 					},
 					{
 						id: "1.1.2",
-						value: "Section 1.1.2",
+						name: "Section 1.1.2",
 					},
 					{
 						id: "1.1.3",
-						value: "Section 1.1.3",
+						name: "Section 1.1.3",
 					},
 				],
 			},
 			{
 				id: "1.2",
-				value: "Section 1.2",
+				name: "Section 1.2",
 				children: [
 					{
 						id: "1.2.1",
-						value: "Section 1.2.1",
+						name: "Section 1.2.1",
 					},
 					{
 						id: "1.2.2",
-						value: "Section 1.2.2",
+						name: "Section 1.2.2",
 					},
 				],
 			},
@@ -46,29 +46,29 @@ const items = [
 	},
 	{
 		id: "2",
-		value: "Section 2",
+		name: "Section 2",
 		children: [
 			{
 				id: "2.1",
-				value: "Section 2.1",
+				name: "Section 2.1",
 			},
 			{
 				id: "2.2",
-				value: "Section 2.2",
+				name: "Section 2.2",
 			},
 		],
 	},
 	{
 		id: "3",
-		value: "Section 3",
+		name: "Section 3",
 		children: [
 			{
 				id: "3.1",
-				value: "Section 3.1",
+				name: "Section 3.1",
 			},
 			{
 				id: "3.2",
-				value: "Section 3.2",
+				name: "Section 3.2",
 			},
 		],
 	},
@@ -110,9 +110,9 @@ describe("Tree", () => {
 		});
 	});
 
-	test("LinkedTreeItem.value", () => {
+	test("LinkedTreeItem.name", () => {
 		const tree = new LinkedTree({ items });
-		const values = createMapping(tree, (item) => item.value);
+		const values = createMapping(tree, (item) => item.name);
 		expect(values).toEqual({
 			"1": "Section 1",
 			"2": "Section 2",
@@ -453,11 +453,11 @@ describe("Tree", () => {
 			// 2         2
 			const item_13 = item_1.children.prepend({
 				id: "1.3",
-				value: "Section 1.3",
+				name: "Section 1.3",
 			});
 
 			expect(item_13.id).toBe("1.3");
-			expect(item_13.value).toBe("Section 1.3");
+			expect(item_13.name).toBe("Section 1.3");
 			expect(item_13.depth).toBe(1);
 			expect(item_13.parent).toBe(item_1);
 			expect(item_13.siblings).toBe(item_1.children);
@@ -490,11 +490,11 @@ describe("Tree", () => {
 			// 2         2
 			const item_13 = item_1.children.append({
 				id: "1.3",
-				value: "Section 1.3",
+				name: "Section 1.3",
 			});
 
 			expect(item_13.id).toBe("1.3");
-			expect(item_13.value).toBe("Section 1.3");
+			expect(item_13.name).toBe("Section 1.3");
 			expect(item_13.depth).toBe(1);
 			expect(item_13.parent).toBe(item_1);
 			expect(item_13.siblings).toBe(item_1.children);
@@ -527,11 +527,11 @@ describe("Tree", () => {
 			// 2         2
 			const item_13 = item_12.insertBefore({
 				id: "1.3",
-				value: "Section 1.3",
+				name: "Section 1.3",
 			});
 
 			expect(item_13.id).toBe("1.3");
-			expect(item_13.value).toBe("Section 1.3");
+			expect(item_13.name).toBe("Section 1.3");
 			expect(item_13.depth).toBe(1);
 			expect(item_13.parent).toBe(item_1);
 			expect(item_13.siblings).toBe(item_1.children);
@@ -564,11 +564,11 @@ describe("Tree", () => {
 			// 2         2
 			const item_13 = item_12.insertAfter({
 				id: "1.3",
-				value: "Section 1.3",
+				name: "Section 1.3",
 			});
 
 			expect(item_13.id).toBe("1.3");
-			expect(item_13.value).toBe("Section 1.3");
+			expect(item_13.name).toBe("Section 1.3");
 			expect(item_13.depth).toBe(1);
 			expect(item_13.parent).toBe(item_1);
 			expect(item_13.siblings).toBe(item_1.children);
@@ -929,9 +929,9 @@ describe("Tree", () => {
 	});
 });
 
-function traverse<TValue>(
-	items: LinkedTreeItemList<TValue>,
-	callback: (item: LinkedTreeItem<TValue>) => void,
+function traverse(
+	items: LinkedTreeItemList,
+	callback: (item: LinkedTreeItem) => void,
 ) {
 	for (const item of items) {
 		callback(item);
@@ -939,9 +939,9 @@ function traverse<TValue>(
 	}
 }
 
-function createMapping<TIn, TOut>(
-	tree: LinkedTree<TIn>,
-	transform: (item: LinkedTreeItem<TIn>) => TOut,
+function createMapping<TOut>(
+	tree: LinkedTree,
+	transform: (item: LinkedTreeItem) => TOut,
 ) {
 	const mapping: Record<string, TOut> = {};
 	traverse(tree.items, (item) => {

@@ -1,10 +1,12 @@
-<script lang="ts" generics="TValue">
+<script lang="ts">
 	import { isControlOrMeta } from "$lib/helpers.js";
 	import { flushSync } from "svelte";
 	import type { EventHandler } from "svelte/elements";
 	import { TreeContext, TreeItemContext } from "./context.svelte.js";
 	import type { LinkedTreeItem } from "./tree.svelte.js";
 	import type { TreeItemProps } from "./types.js";
+
+	const context = TreeContext.get();
 
 	let {
 		item,
@@ -24,9 +26,8 @@
 		ondrop,
 		ondragend,
 		...attributes
-	}: TreeItemProps<TValue> = $props();
+	}: TreeItemProps = $props();
 
-	const context = TreeContext.get<TValue>();
 	const tabbable = $derived(context.tabbable === item);
 	const dragged = $derived(context.dragged === item);
 
@@ -58,7 +59,7 @@
 		};
 	});
 
-	function previousItem(item: LinkedTreeItem<TValue>) {
+	function previousItem(item: LinkedTreeItem) {
 		const { previousSibling } = item;
 		if (previousSibling === undefined) {
 			return item.parent;
@@ -75,7 +76,7 @@
 		return current;
 	}
 
-	function nextItem(item: LinkedTreeItem<TValue>) {
+	function nextItem(item: LinkedTreeItem) {
 		if (item.expanded) {
 			const firstChild = item.children.head;
 			if (firstChild !== undefined) {
@@ -83,7 +84,7 @@
 			}
 		}
 
-		let current: LinkedTreeItem<TValue> | undefined = item;
+		let current: LinkedTreeItem | undefined = item;
 		do {
 			const { nextSibling } = current;
 			if (nextSibling !== undefined) {
@@ -93,12 +94,9 @@
 		} while (current !== undefined);
 	}
 
-	function selectMultiple(
-		item: LinkedTreeItem<TValue>,
-		itemElement: HTMLElement,
-	) {
+	function selectMultiple(item: LinkedTreeItem, itemElement: HTMLElement) {
 		// Select all items from the last selected item up to this item.
-		let lastSelected: LinkedTreeItem<TValue> | undefined;
+		let lastSelected: LinkedTreeItem | undefined;
 		for (const id of context.tree.selected) {
 			const item = context.lookup.get(id);
 			if (item !== undefined) {
@@ -128,7 +126,7 @@
 			lastSelectedElement.compareDocumentPosition(itemElement) &
 			Node.DOCUMENT_POSITION_FOLLOWING;
 
-		let current: LinkedTreeItem<TValue> | undefined = lastSelected;
+		let current: LinkedTreeItem | undefined = lastSelected;
 		do {
 			current = down ? nextItem(current) : previousItem(current);
 			if (current === undefined) {
@@ -279,7 +277,7 @@
 
 				const shouldSelect = event.shiftKey && isControlOrMeta(event);
 				if (shouldSelect) {
-					let current: LinkedTreeItem<TValue> | undefined = item;
+					let current: LinkedTreeItem | undefined = item;
 					do {
 						current.select();
 						current = previousItem(current);
@@ -310,7 +308,7 @@
 
 				const shouldSelect = event.shiftKey && isControlOrMeta(event);
 				if (shouldSelect) {
-					let current: LinkedTreeItem<TValue> | undefined = item;
+					let current: LinkedTreeItem | undefined = item;
 					do {
 						current.select();
 						current = nextItem(current);
@@ -366,7 +364,7 @@
 			}
 			case "Delete": {
 				// Focus the nearest item that will not be deleted.
-				let fallback: LinkedTreeItem<TValue> | undefined = item;
+				let fallback: LinkedTreeItem | undefined = item;
 				while (fallback !== undefined && fallback.selected) {
 					if (fallback.expanded) {
 						// Avoid focusing a child of an item that is about to be deleted.

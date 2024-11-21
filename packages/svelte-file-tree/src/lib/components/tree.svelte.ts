@@ -1,32 +1,32 @@
 import { SvelteSet } from "svelte/reactivity";
 
-export type LinkedTreeItemData<TValue> = {
+export type LinkedTreeItemData = {
 	id: string;
-	value: TValue;
-	children?: Iterable<LinkedTreeItemData<TValue>>;
+	name: string;
+	children?: Iterable<LinkedTreeItemData>;
 };
 
-export type LinkedTreeProps<TValue> = {
-	items: Iterable<LinkedTreeItemData<TValue>>;
+export type LinkedTreeProps = {
+	items: Iterable<LinkedTreeItemData>;
 	expanded?: SvelteSet<string>;
 	selected?: SvelteSet<string>;
 	defaultExpanded?: Iterable<string>;
 	defaultSelected?: Iterable<string>;
 };
 
-export class LinkedTree<TValue> {
-	#items: LinkedTreeItemListState<TValue>;
+export class LinkedTree {
+	#items: LinkedTreeItemListImpl;
 	#expanded: SvelteSet<string>;
 	#selected: SvelteSet<string>;
 
-	constructor(props: LinkedTreeProps<TValue>) {
-		this.#items = new LinkedTreeItemListState(this, props.items);
+	constructor(props: LinkedTreeProps) {
+		this.#items = new LinkedTreeItemListImpl(this, props.items);
 		this.#expanded = props.expanded ?? new SvelteSet(props.defaultExpanded);
 		this.#selected = props.selected ?? new SvelteSet(props.defaultSelected);
 	}
 
-	get items() {
-		return this.#items.list;
+	get items(): LinkedTreeItemList {
+		return this.#items;
 	}
 
 	get expanded() {
@@ -41,7 +41,7 @@ export class LinkedTree<TValue> {
 		this.#selectAll(this.#items.head);
 	}
 
-	#selectAll(head: LinkedTreeItem<TValue> | undefined) {
+	#selectAll(head: LinkedTreeItem | undefined) {
 		let current = head;
 		while (current !== undefined) {
 			this.selected.add(current.id);
@@ -53,62 +53,32 @@ export class LinkedTree<TValue> {
 	}
 }
 
-export class LinkedTreeItemList<TValue> {
-	#state: LinkedTreeItemListState<TValue>;
-
-	/** @internal */
-	constructor(state: LinkedTreeItemListState<TValue>) {
-		this.#state = state;
-	}
-
-	get head() {
-		return this.#state.head;
-	}
-
-	get tail() {
-		return this.#state.tail;
-	}
-
-	get length() {
-		return this.#state.length;
-	}
-
-	prepend(item: LinkedTreeItemData<TValue>) {
-		return LinkedTreeItem.prepend(item, this.#state);
-	}
-
-	append(item: LinkedTreeItemData<TValue>) {
-		return LinkedTreeItem.append(item, this.#state);
-	}
-
-	toArray() {
-		const result: LinkedTreeItem<TValue>[] = Array(this.length);
-		let current = this.head;
-		for (let i = 0; current !== undefined; i++) {
-			result[i] = current;
-			current = current.nextSibling;
-		}
-		return result;
-	}
-
-	[Symbol.iterator](): Iterator<LinkedTreeItem<TValue>, void> {
-		return new LinkedTreeItemListIterator(this.#state);
-	}
+export interface LinkedTreeItemList {
+	readonly parent?: LinkedTreeItem;
+	readonly depth: number;
+	readonly head?: LinkedTreeItem;
+	readonly tail?: LinkedTreeItem;
+	readonly length: number;
+	prepend(item: LinkedTreeItemData): LinkedTreeItem;
+	append(item: LinkedTreeItemData): LinkedTreeItem;
+	containsId(id: string): boolean;
+	containsName(name: string): boolean;
+	toArray(): LinkedTreeItem[];
+	[Symbol.iterator](): Iterator<LinkedTreeItem, void>;
 }
 
-class LinkedTreeItemListState<TValue> {
-	#tree: LinkedTree<TValue>;
+class LinkedTreeItemListImpl implements LinkedTreeItemList {
+	#tree: LinkedTree;
 	#depth: number;
-	#parent?: LinkedTreeItem<TValue>;
+	#parent?: LinkedTreeItem;
 
 	constructor(
-		tree: LinkedTree<TValue>,
-		items: Iterable<LinkedTreeItemData<TValue>>,
-		depth = 0,
-		parent?: LinkedTreeItem<TValue>,
+		tree: LinkedTree,
+		items: Iterable<LinkedTreeItemData>,
+		parent?: LinkedTreeItem,
 	) {
 		this.#tree = tree;
-		this.#depth = depth;
+		this.#depth = parent !== undefined ? parent.depth + 1 : 0;
 		this.#parent = parent;
 
 		for (const item of items) {
@@ -116,9 +86,8 @@ class LinkedTreeItemListState<TValue> {
 		}
 	}
 
-	#list = new LinkedTreeItemList(this);
-	head?: LinkedTreeItem<TValue> = $state.raw();
-	tail?: LinkedTreeItem<TValue> = $state.raw();
+	head?: LinkedTreeItem = $state.raw();
+	tail?: LinkedTreeItem = $state.raw();
 	length = $state(0);
 
 	get tree() {
@@ -133,15 +102,33 @@ class LinkedTreeItemListState<TValue> {
 		return this.#parent;
 	}
 
-	get list() {
-		return this.#list;
+	prepend(item: LinkedTreeItemData) {
+		return LinkedTreeItem.prepend(item, this);
+	}
+
+	append(item: LinkedTreeItemData) {
+		return LinkedTreeItem.append(item, this);
+	}
+
+	toArray() {
+		const result: LinkedTreeItem[] = Array(this.length).fill(null);
+		let current = this.head;
+		for (let i = 0; current !== undefined; i++) {
+			result[i] = current;
+			current = current.nextSibling;
+		}
+		return result;
+	}
+
+	[Symbol.iterator]() {
+		return new LinkedTreeItemListIterator(this);
 	}
 }
 
-class LinkedTreeItemListIterator<TValue> {
-	#value?: LinkedTreeItem<TValue>;
+class LinkedTreeItemListIterator {
+	#value?: LinkedTreeItem;
 
-	constructor(state: LinkedTreeItemListState<TValue>) {
+	constructor(state: LinkedTreeItemListImpl) {
 		this.#value = state.head;
 	}
 
@@ -156,43 +143,30 @@ class LinkedTreeItemListIterator<TValue> {
 	}
 }
 
-export class LinkedTreeItem<TValue> {
-	#tree: LinkedTree<TValue>;
+export class LinkedTreeItem {
+	#tree: LinkedTree;
 	#id: string;
-	#value: TValue = $state()!;
-	#siblings: LinkedTreeItemListState<TValue> = $state.raw()!;
-	#children: LinkedTreeItemListState<TValue>;
+	name: string = $state.raw()!;
+	#siblings: LinkedTreeItemListImpl = $state.raw()!;
+	#children: LinkedTreeItemListImpl;
 
 	/** @internal */
 	constructor(
-		siblings: LinkedTreeItemListState<TValue>,
-		{ id, value, children = [] }: LinkedTreeItemData<TValue>,
+		siblings: LinkedTreeItemListImpl,
+		{ id, name, children = [] }: LinkedTreeItemData,
 	) {
 		this.#tree = siblings.tree;
 		this.#id = id;
-		this.#value = value;
+		this.name = name;
 		this.#siblings = siblings;
-		this.#children = new LinkedTreeItemListState(
-			this.#tree,
-			children,
-			siblings.depth + 1,
-			this,
-		);
+		this.#children = new LinkedTreeItemListImpl(this.#tree, children, this);
 	}
 
-	#previousSibling?: LinkedTreeItem<TValue> = $state.raw();
-	#nextSibling?: LinkedTreeItem<TValue> = $state.raw();
+	#previousSibling?: LinkedTreeItem = $state.raw();
+	#nextSibling?: LinkedTreeItem = $state.raw();
 
 	get id() {
 		return this.#id;
-	}
-
-	get value() {
-		return this.#value;
-	}
-
-	set value(value) {
-		this.#value = value;
 	}
 
 	get depth() {
@@ -203,8 +177,8 @@ export class LinkedTreeItem<TValue> {
 		return this.#siblings.parent;
 	}
 
-	get siblings() {
-		return this.#siblings.list;
+	get siblings(): LinkedTreeItemList {
+		return this.#siblings;
 	}
 
 	get previousSibling() {
@@ -215,8 +189,8 @@ export class LinkedTreeItem<TValue> {
 		return this.#nextSibling;
 	}
 
-	get children() {
-		return this.#children.list;
+	get children(): LinkedTreeItemList {
+		return this.#children;
 	}
 
 	readonly #expanded = $derived.by(() => this.#tree.expanded.has(this.id));
@@ -263,7 +237,7 @@ export class LinkedTreeItem<TValue> {
 		this.#tree.selected.delete(this.id);
 	}
 
-	contains(item: LinkedTreeItem<TValue>) {
+	contains(item: LinkedTreeItem) {
 		const { depth } = this;
 		let current = item;
 		while (current.depth > depth) {
@@ -272,19 +246,19 @@ export class LinkedTreeItem<TValue> {
 		return current === this;
 	}
 
-	insertBefore(item: LinkedTreeItemData<TValue>) {
+	insertBefore(item: LinkedTreeItemData) {
 		const inserted = new LinkedTreeItem(this.#siblings, item);
 		inserted.#linkBefore(this);
 		return inserted;
 	}
 
-	insertAfter(item: LinkedTreeItemData<TValue>) {
+	insertAfter(item: LinkedTreeItemData) {
 		const inserted = new LinkedTreeItem(this.#siblings, item);
 		inserted.#linkAfter(this);
 		return inserted;
 	}
 
-	moveBefore(sibling: LinkedTreeItem<TValue>) {
+	moveBefore(sibling: LinkedTreeItem) {
 		if (this.contains(sibling)) {
 			throw new Error("Cannot move an item before its descendant.");
 		}
@@ -294,7 +268,7 @@ export class LinkedTreeItem<TValue> {
 		this.#linkBefore(sibling);
 	}
 
-	moveAfter(sibling: LinkedTreeItem<TValue>) {
+	moveAfter(sibling: LinkedTreeItem) {
 		if (this.contains(sibling)) {
 			throw new Error("Cannot move an item after its descendant.");
 		}
@@ -304,7 +278,7 @@ export class LinkedTreeItem<TValue> {
 		this.#linkAfter(sibling);
 	}
 
-	prependTo(parent: LinkedTreeItem<TValue>) {
+	prependTo(parent: LinkedTreeItem) {
 		if (this.contains(parent)) {
 			throw new Error("Cannot move an item inside one of its descendants.");
 		}
@@ -314,7 +288,7 @@ export class LinkedTreeItem<TValue> {
 		this.#linkBeforeHead();
 	}
 
-	appendTo(parent: LinkedTreeItem<TValue>) {
+	appendTo(parent: LinkedTreeItem) {
 		if (this.contains(parent)) {
 			throw new Error("Cannot move an item inside one of its descendants.");
 		}
@@ -340,7 +314,7 @@ export class LinkedTreeItem<TValue> {
 		}
 	}
 
-	#linkBefore(sibling: LinkedTreeItem<TValue>) {
+	#linkBefore(sibling: LinkedTreeItem) {
 		// previous ->      -> sibling
 		// previous -> this -> sibling
 		const siblings = sibling.#siblings;
@@ -351,15 +325,15 @@ export class LinkedTreeItem<TValue> {
 		siblings.length++;
 
 		if (previousSibling !== undefined) {
-			previousSibling.#setNextSibling(this);
+			previousSibling.#nextSibling = this;
 		} else {
 			// `sibling` is the head.
 			siblings.head = this;
 		}
-		sibling.#setPreviousSibling(this);
+		sibling.#previousSibling = this;
 	}
 
-	#linkAfter(sibling: LinkedTreeItem<TValue>) {
+	#linkAfter(sibling: LinkedTreeItem) {
 		// sibling ->      -> next
 		// sibling -> this -> next
 		const siblings = sibling.#siblings;
@@ -370,12 +344,12 @@ export class LinkedTreeItem<TValue> {
 		siblings.length++;
 
 		if (nextSibling !== undefined) {
-			nextSibling.#setPreviousSibling(this);
+			nextSibling.#previousSibling = this;
 		} else {
 			// `sibling` is the tail.
 			siblings.tail = this;
 		}
-		sibling.#setNextSibling(this);
+		sibling.#nextSibling = this;
 	}
 
 	#linkBeforeHead() {
@@ -389,7 +363,7 @@ export class LinkedTreeItem<TValue> {
 		siblings.length++;
 
 		if (head !== undefined) {
-			head.#setPreviousSibling(this);
+			head.#previousSibling = this;
 		} else {
 			// `children` is empty.
 			siblings.tail = this;
@@ -407,7 +381,7 @@ export class LinkedTreeItem<TValue> {
 		siblings.length++;
 
 		if (tail !== undefined) {
-			tail.#setNextSibling(this);
+			tail.#nextSibling = this;
 		} else {
 			// `children` is empty.
 			siblings.head = this;
@@ -430,43 +404,29 @@ export class LinkedTreeItem<TValue> {
 		siblings.length--;
 
 		if (previousSibling !== undefined) {
-			previousSibling.#setNextSibling(nextSibling);
+			previousSibling.#nextSibling = nextSibling;
 		} else {
 			// `this` is the head.
 			siblings.head = nextSibling;
 		}
 
 		if (nextSibling !== undefined) {
-			nextSibling.#setPreviousSibling(previousSibling);
+			nextSibling.#previousSibling = previousSibling;
 		} else {
 			// `this` is the tail.
 			siblings.tail = previousSibling;
 		}
 	}
 
-	#setPreviousSibling(previousSibling: LinkedTreeItem<TValue> | undefined) {
-		this.#previousSibling = previousSibling;
-	}
-
-	#setNextSibling(nextSibling: LinkedTreeItem<TValue> | undefined) {
-		this.#nextSibling = nextSibling;
-	}
-
 	/** @internal */
-	static prepend<TValue>(
-		item: LinkedTreeItemData<TValue>,
-		siblings: LinkedTreeItemListState<TValue>,
-	) {
+	static prepend(item: LinkedTreeItemData, siblings: LinkedTreeItemListImpl) {
 		const prepended = new LinkedTreeItem(siblings, item);
 		prepended.#linkBeforeHead();
 		return prepended;
 	}
 
 	/** @internal */
-	static append<TValue>(
-		item: LinkedTreeItemData<TValue>,
-		siblings: LinkedTreeItemListState<TValue>,
-	) {
+	static append(item: LinkedTreeItemData, siblings: LinkedTreeItemListImpl) {
 		const appended = new LinkedTreeItem(siblings, item);
 		appended.#linkAfterTail();
 		return appended;

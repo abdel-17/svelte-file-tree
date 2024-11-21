@@ -1,6 +1,6 @@
 export { default as Tree } from "./components/Tree.svelte";
 export { default as TreeItem } from "./components/TreeItem.svelte";
-export { default as TreeItemInput } from "./components/TreeItemInput.svelte";
+export { default as TreeItemNameInput } from "./components/TreeItemNameInput.svelte";
 export {
 	LinkedTree,
 	type LinkedTreeItem,

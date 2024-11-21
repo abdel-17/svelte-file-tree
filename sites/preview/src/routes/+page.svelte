@@ -1,11 +1,18 @@
 <script lang="ts">
 	import ChevronDown from "lucide-svelte/icons/chevron-down";
-	import { LinkedTree, Tree, TreeItem, TreeItemInput } from "svelte-file-tree";
+	import {
+		LinkedTree,
+		Tree,
+		TreeItem,
+		TreeItemNameInput,
+	} from "svelte-file-tree";
+	import { toast, Toaster } from "svelte-sonner";
 	import data from "./data.json";
 
 	const tree = new LinkedTree({ items: data });
 </script>
 
+<Toaster richColors />
 <main class="container">
 	<Tree id="preview-tree" {tree} class="tree">
 		{#snippet item(item, index)}
@@ -28,9 +35,26 @@
 						}}
 					/>
 					{#if editing}
-						<TreeItemInput bind:value={item.value} class="tree-item-input" />
+						<TreeItemNameInput
+							class="tree-item-input"
+							onCommit={(name) => {
+								toast.info("onCommit", {
+									description: name,
+								});
+							}}
+							onRollback={(name) => {
+								toast.info("onRollback", {
+									description: name,
+								});
+							}}
+							onError={(error) => {
+								toast.error("onError", {
+									description: JSON.stringify(error, null, "\t"),
+								});
+							}}
+						/>
 					{:else}
-						<span class="tree-item-text">{item.value}</span>
+						<span class="tree-item-text">{item.name}</span>
 					{/if}
 				{/snippet}
 			</TreeItem>
@@ -115,7 +139,10 @@
 	}
 
 	:global(.tree-item-input) {
-		background-color: transparent;
+		border: none;
+		background-color: white;
+		font: inherit;
+		width: min(300px, 100%);
 
 		&:focus {
 			outline: none;

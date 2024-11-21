@@ -837,14 +837,12 @@ test.describe("Tree", () => {
 		await expect(item_2).toHaveText("Section Two");
 		await expect(input_2).not.toBeVisible();
 
-		await item_2.press("Space");
 		await item_2.press("F2");
 		await input_2.press("Backspace");
 		await input_2.fill("Section 2");
 		await input_2.press("Escape");
 		await expect(item_2).toBeFocused();
 		await expect(item_2).toHaveText("Section Two");
-		await expectSelected(item_2);
 		await expect(input_2).not.toBeVisible();
 
 		await item_2.press("F2");
@@ -854,6 +852,25 @@ test.describe("Tree", () => {
 		await expect(item_2).not.toBeFocused();
 		await expect(item_2).toHaveText("Section Two");
 		await expect(input_2).not.toBeVisible();
+
+		page.once("dialog", async (dialog) => {
+			expect(dialog.type()).toBe("alert");
+			expect(dialog.message()).toBe("Name cannot be empty");
+			await dialog.accept();
+		});
+		await item_2.press("F2");
+		await input_2.press("Backspace");
+		await input_2.press("Enter");
+
+		page.once("dialog", async (dialog) => {
+			expect(dialog.type()).toBe("alert");
+			expect(dialog.message()).toBe(`"Section 1" already exists`);
+			await dialog.accept();
+		});
+		await item_2.press("F2");
+		await input_2.press("Backspace");
+		await input_2.fill("Section 1");
+		await input_2.press("Enter");
 
 		await item_2.press("F2");
 		await input_2.press("Backspace");

@@ -6,14 +6,14 @@ export type HTMLDivAttributes = HTMLAttributes<HTMLDivElement>;
 
 export type OmitChildren<T> = Omit<T, "children">;
 
-export interface TreeProps<TValue> extends OmitChildren<HTMLDivAttributes> {
-	tree: LinkedTree<TValue>;
-	item: Snippet<[LinkedTreeItem<TValue>, number]>;
+export interface TreeProps extends OmitChildren<HTMLDivAttributes> {
+	tree: LinkedTree;
+	item: Snippet<[LinkedTreeItem, number]>;
 	element?: HTMLDivElement | null;
 }
 
-export interface TreeItemProps<TValue> extends OmitChildren<HTMLDivAttributes> {
-	item: LinkedTreeItem<TValue>;
+export interface TreeItemProps extends OmitChildren<HTMLDivAttributes> {
+	item: LinkedTreeItem;
 	index: number;
 	children: Snippet<[{ editing: boolean }]>;
 	editable?: boolean;
@@ -22,9 +22,20 @@ export interface TreeItemProps<TValue> extends OmitChildren<HTMLDivAttributes> {
 	element?: HTMLDivElement | null;
 }
 
-export interface TreeItemInputProps extends OmitChildren<HTMLInputAttributes> {
-	value: string;
+export interface TreeItemNameInputProps
+	extends OmitChildren<HTMLInputAttributes> {
+	value?: string;
 	element?: HTMLInputElement | null;
-	onCommit?: (value: string) => void;
-	onRollback?: (value: string) => void;
+	onCommit?: (name: string) => void;
+	onRollback?: (name: string) => void;
+	onError?: (error: TreeItemNameInputError) => void;
 }
+
+export type TreeItemNameInputError =
+	| {
+			reason: "empty";
+	  }
+	| {
+			reason: "duplicate";
+			name: string;
+	  };

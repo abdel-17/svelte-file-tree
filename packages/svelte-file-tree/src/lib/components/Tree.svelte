@@ -1,4 +1,4 @@
-<script lang="ts" generics="TValue">
+<script lang="ts">
 	import { TreeContext } from "./context.svelte.js";
 	import type { LinkedTreeItemList } from "./tree.svelte.js";
 	import type { TreeProps } from "./types.js";
@@ -8,7 +8,7 @@
 		item: treeItem,
 		element = $bindable(null),
 		...attributes
-	}: TreeProps<TValue> = $props();
+	}: TreeProps = $props();
 
 	TreeContext.set({
 		tree: () => tree,
@@ -16,7 +16,7 @@
 	});
 </script>
 
-{#snippet treeItems(items: LinkedTreeItemList<TValue>)}
+{#snippet treeItems(items: LinkedTreeItemList)}
 	{#each items.toArray() as item, index (item.id)}
 		{@render treeItem(item, index)}
 		{#if item.expanded}
