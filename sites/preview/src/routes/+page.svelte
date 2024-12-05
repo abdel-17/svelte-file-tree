@@ -1,155 +1,93 @@
 <script lang="ts">
-	import ChevronDown from "lucide-svelte/icons/chevron-down";
-	import {
-		LinkedTree,
-		Tree,
-		TreeItem,
-		TreeItemNameInput,
-	} from "svelte-file-tree";
+	import FileIcon from "lucide-svelte/icons/file";
+	import FolderIcon from "lucide-svelte/icons/folder";
+	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
+	import { FileTree, FileTreeNode, Tree, TreeItem, TreeItemNameInput } from "svelte-file-tree";
 	import { toast, Toaster } from "svelte-sonner";
-	import data from "./data.json";
 
-	const tree = new LinkedTree({ items: data });
+	const { data } = $props();
+
+	const tree = new FileTree({ items: data.items });
+
+	function onMoveItem(node: FileTreeNode, index: number) {
+		toast.info("onMoveItem", {
+			description: `(${node.name}, ${index})`,
+		});
+	}
+
+	function onDeleteItems(nodes: FileTreeNode[]) {
+		toast.info("onDeleteItems", {
+			description: JSON.stringify(
+				nodes.map((node) => node.name),
+				null,
+				"\t",
+			),
+			descriptionClass: "whitespace-pre-wrap",
+		});
+	}
+
+	function onRename(name: string) {
+		toast.info("onRename", {
+			description: name,
+		});
+	}
+
+	function onDiscard() {
+		toast.info("onDiscard");
+	}
+
+	function onDuplicateError(name: string) {
+		toast.info("onDuplicate", {
+			description: name,
+		});
+	}
 </script>
 
 <Toaster richColors />
-<main class="container">
-	<Tree id="preview-tree" {tree} class="tree">
-		{#snippet item(item, index)}
+<main class="p-8">
+	<Tree {tree} class="space-y-4">
+		{#snippet item(node)}
 			<TreeItem
-				{item}
-				{index}
 				editable
 				draggable
-				style="--depth: {item.depth}"
-				class="tree-item"
+				style="--depth: {node.depth}"
+				class="relative ms-[calc(var(--spacing)*var(--depth)*4)] flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-200 aria-selected:text-blue-800"
+				{onMoveItem}
+				{onDeleteItems}
 			>
-				{#snippet children({ editing })}
-					<ChevronDown
+				{#snippet children(item)}
+					<div
 						aria-hidden="true"
-						data-hidden={item.children.length === 0 ? "" : undefined}
-						data-expanded={item.expanded ? "" : undefined}
-						class="tree-item-expand"
-						onclick={() => {
-							item.expanded = !item.expanded;
-						}}
-					/>
-					{#if editing}
+						data-drop-position={item.dropPosition}
+						class="pointer-events-none absolute -inset-[2px] rounded-[inherit] border-2 border-transparent data-[drop-position='after']:border-b-red-500 data-[drop-position='before']:border-t-red-500 data-[drop-position='inside']:border-red-500"
+					></div>
+
+					{#if node.isFolder()}
+						{#if node.expanded}
+							<FolderOpenIcon
+								role="presentation"
+								class="fill-blue-300"
+								onclick={() => node.collapse()}
+							/>
+						{:else}
+							<FolderIcon role="presentation" class="fill-blue-300" onclick={() => node.expand()} />
+						{/if}
+					{:else}
+						<FileIcon role="presentation" />
+					{/if}
+
+					{#if item.editing}
 						<TreeItemNameInput
-							class="tree-item-input"
-							onCommit={(name) => {
-								toast.info("onCommit", {
-									description: name,
-								});
-							}}
-							onRollback={(name) => {
-								toast.info("onRollback", {
-									description: name,
-								});
-							}}
-							onError={(error) => {
-								toast.error("onError", {
-									description: JSON.stringify(error, null, "\t"),
-								});
-							}}
+							class="border bg-white focus:outline-none"
+							{onRename}
+							{onDiscard}
+							{onDuplicateError}
 						/>
 					{:else}
-						<span class="tree-item-text">{item.name}</span>
+						<span class="select-none">{node.name}</span>
 					{/if}
 				{/snippet}
 			</TreeItem>
 		{/snippet}
 	</Tree>
 </main>
-
-<style>
-	.container {
-		padding: 24px;
-	}
-
-	:global(.tree) {
-		display: grid;
-		gap: 12px;
-	}
-
-	:global(.tree-item) {
-		position: relative;
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		margin-inline-start: calc(var(--depth) * 16px);
-		border-radius: 4px;
-		padding: 12px;
-		background-color: rgb(0 0 0 / 10%);
-
-		&:hover {
-			background-color: rgb(0 0 0 / 15%);
-		}
-
-		&:focus-visible {
-			outline: 2px solid currentColor;
-		}
-
-		&:active {
-			background-color: rgb(0 0 0 / 20%);
-		}
-
-		&[aria-selected="true"] {
-			background-color: #dbeafe;
-			color: #1e40af;
-		}
-
-		&[data-dragged] {
-			opacity: 0.5;
-		}
-
-		&[data-drop-position="before"]::before,
-		&[data-drop-position="after"]::before {
-			content: "";
-			position: absolute;
-			left: 0;
-			right: 0;
-			height: 2px;
-			background-color: #f43f5e;
-		}
-
-		&[data-drop-position="before"]::before {
-			top: 0;
-		}
-
-		&[data-drop-position="after"]::before {
-			bottom: 0;
-		}
-
-		&[data-drop-position="inside"] {
-			outline: 2px solid #f43f5e;
-		}
-	}
-
-	:global(.tree-item-expand) {
-		transition: transform 300ms;
-
-		&[data-hidden] {
-			visibility: hidden;
-		}
-
-		&[data-expanded] {
-			transform: rotate(180deg);
-		}
-	}
-
-	:global(.tree-item-input) {
-		border: none;
-		background-color: white;
-		font: inherit;
-		width: min(300px, 100%);
-
-		&:focus {
-			outline: none;
-		}
-	}
-
-	.tree-item-text {
-		user-select: none;
-	}
-</style>

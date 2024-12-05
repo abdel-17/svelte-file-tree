@@ -8,9 +8,3 @@ node_modules
 
 # OS Files
 .DS_Store
-
-# Playwright
-/blob-report/
-/playwright-report/
-/playwright/.cache/
-/test-results/
