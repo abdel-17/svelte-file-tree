@@ -18,18 +18,22 @@ export type FileTreeItem = FileItem | FolderItem;
 export type FileTreeProps = {
 	items: FileTreeItem[];
 	selected?: SvelteSet<string>;
-	expanded?: SvelteSet<string>;
 	defaultSelected?: Iterable<string>;
+	copied?: SvelteSet<string>;
+	defaultCopied?: Iterable<string>;
+	expanded?: SvelteSet<string>;
 	defaultExpanded?: Iterable<string>;
 };
 
 export class FileTree {
 	readonly selected: SvelteSet<string>;
+	readonly copied: SvelteSet<string>;
 	readonly expanded: SvelteSet<string>;
 	nodes: FileTreeNode[] = $state([]);
 
 	constructor(props: FileTreeProps) {
 		this.selected = props.selected ?? new SvelteSet(props.defaultSelected);
+		this.copied = props.copied ?? new SvelteSet(props.defaultCopied);
 		this.expanded = props.expanded ?? new SvelteSet(props.defaultExpanded);
 		this.nodes = this.createNodes(props.items);
 	}
@@ -37,9 +41,9 @@ export class FileTree {
 	createNode(item: FileTreeItem, parent?: FolderNode): FileTreeNode {
 		switch (item.type) {
 			case "file":
-				return new FileTreeNode(this, item, parent);
+				return new FileTreeNode(this, item.id, item.name, parent);
 			case "folder":
-				return new FolderNode(this, item, parent);
+				return new FolderNode(this, item.id, item.name, parent, item.children);
 		}
 	}
 
@@ -58,10 +62,10 @@ export class FileTreeNode {
 	name = $state.raw("");
 	parent?: FolderNode = $state.raw();
 
-	constructor(tree: FileTree, item: FileTreeItem, parent: FolderNode | undefined) {
+	constructor(tree: FileTree, id: string, name: string, parent?: FolderNode) {
 		this.tree = tree;
-		this.id = item.id;
-		this.name = item.name;
+		this.id = id;
+		this.name = name;
 		this.parent = parent;
 	}
 
@@ -81,6 +85,8 @@ export class FileTreeNode {
 
 	readonly selected: boolean = $derived.by(() => this.tree.selected.has(this.id));
 
+	readonly copied: boolean = $derived.by(() => this.tree.copied.has(this.id));
+
 	select(): void {
 		this.tree.selected.add(this.id);
 	}
@@ -89,11 +95,27 @@ export class FileTreeNode {
 		this.tree.selected.delete(this.id);
 	}
 
-	toggleSelection(): void {
+	toggleSelected(): void {
 		if (this.selected) {
 			this.unselect();
 		} else {
 			this.select();
+		}
+	}
+
+	copy(): void {
+		this.tree.copied.add(this.id);
+	}
+
+	uncopy(): void {
+		this.tree.copied.delete(this.id);
+	}
+
+	toggleCopied(): void {
+		if (this.copied) {
+			this.uncopy();
+		} else {
+			this.copy();
 		}
 	}
 
@@ -105,10 +127,17 @@ export class FileTreeNode {
 export class FolderNode extends FileTreeNode {
 	children: FileTreeNode[] = $state([]);
 
-	constructor(tree: FileTree, item: FolderItem, parent: FolderNode | undefined) {
-		super(tree, item, parent);
-		if (item.children !== undefined) {
-			this.children = tree.createNodes(item.children, this);
+	constructor(
+		tree: FileTree,
+		id: string,
+		name: string,
+		parent?: FolderNode,
+		children?: FileTreeItem[],
+	) {
+		super(tree, id, name, parent);
+
+		if (children !== undefined) {
+			this.children = tree.createNodes(children, this);
 		}
 	}
 
@@ -122,7 +151,7 @@ export class FolderNode extends FileTreeNode {
 		this.tree.expanded.delete(this.id);
 	}
 
-	toggleExpansion(): void {
+	toggleExpanded(): void {
 		if (this.expanded) {
 			this.collapse();
 		} else {

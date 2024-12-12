@@ -210,6 +210,30 @@ describe("FileTree", () => {
 		});
 	});
 
+	test("FileTreeNode.copied", () => {
+		const tree = new FileTree({
+			items,
+			defaultCopied: ["1", "2", "1.1"],
+		});
+		const copied = map(tree, (node) => node.copied);
+		expect(copied).toEqual({
+			"1": true,
+			"2": true,
+			"3": false,
+			"1.1": true,
+			"1.2": false,
+			"2.1": false,
+			"2.2": false,
+			"3.1": false,
+			"3.2": false,
+			"1.1.1": false,
+			"1.1.2": false,
+			"1.1.3": false,
+			"1.2.1": false,
+			"1.2.2": false,
+		});
+	});
+
 	test("Updating Tree.selected updates FileTreeNode.selected", () => {
 		const tree = new FileTree({ items });
 		const node_1 = tree.nodes[0];
@@ -233,13 +257,45 @@ describe("FileTree", () => {
 		expect(node_1.selected).false;
 		expect(tree.selected).empty;
 
-		node_1.toggleSelection();
+		node_1.toggleSelected();
 		expect(node_1.selected).true;
 		expect([...tree.selected]).toEqual(["1"]);
 
-		node_1.toggleSelection();
+		node_1.toggleSelected();
 		expect(node_1.selected).false;
 		expect(tree.selected).empty;
+	});
+
+	test("Updating Tree.copied updates FileTreeNode.copied", () => {
+		const tree = new FileTree({ items });
+		const node_1 = tree.nodes[0];
+
+		tree.copied.add("1");
+		expect(node_1.copied).true;
+
+		tree.copied.delete("1");
+		expect(node_1.copied).false;
+	});
+
+	test("FileTreeNode copy methods", () => {
+		const tree = new FileTree({ items });
+		const node_1 = tree.nodes[0];
+
+		node_1.copy();
+		expect(node_1.copied).true;
+		expect([...tree.copied]).toEqual(["1"]);
+
+		node_1.uncopy();
+		expect(node_1.copied).false;
+		expect(tree.copied).empty;
+
+		node_1.toggleCopied();
+		expect(node_1.copied).true;
+		expect([...tree.copied]).toEqual(["1"]);
+
+		node_1.toggleCopied();
+		expect(node_1.copied).false;
+		expect(tree.copied).empty;
 	});
 
 	test("FileTreeNode.isFolder()", () => {
@@ -335,11 +391,11 @@ describe("FileTree", () => {
 		expect(node_1.expanded).false;
 		expect(tree.expanded).empty;
 
-		node_1.toggleExpansion();
+		node_1.toggleExpanded();
 		expect(node_1.expanded).true;
 		expect([...tree.expanded]).toEqual(["1"]);
 
-		node_1.toggleExpansion();
+		node_1.toggleExpanded();
 		expect(node_1.expanded).false;
 		expect(tree.expanded).empty;
 	});

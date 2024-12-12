@@ -1,7 +1,7 @@
 <script lang="ts" module>
+	import type { TreeState } from "$lib/state.svelte.js";
 	import type { FileTreeNode } from "$lib/tree.svelte.js";
 	import { getContext, setContext, type Snippet } from "svelte";
-	import type { TreeState } from "./Tree.svelte";
 
 	const contextKey = Symbol("TreeItemProviderContext");
 

@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { isControlOrMeta } from "$lib/helpers.js";
-	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+	import type { TreeState, EnumeratedTreeItem } from "$lib/state.svelte.js";
+	import { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 	import type { HTMLDivAttributes } from "$lib/types.js";
 	import { flushSync, getContext, setContext, type Snippet } from "svelte";
 	import type { EventHandler } from "svelte/elements";
-	import type { TreeState, EnumeratedTreeItem } from "./Tree.svelte";
 	import { getTreeItemProviderContext } from "./TreeItemProvider.svelte";
 
 	const contextKey = Symbol("TreeItemContext");
@@ -21,63 +21,6 @@
 			throw new Error("No parent <Tree> found");
 		}
 		return context;
-	}
-
-	function isTabbable(treeState: TreeState, node: FileTreeNode): boolean {
-		const { tabbableId = node.tree.nodes[0].id } = treeState;
-		return tabbableId === node.id;
-	}
-
-	function getNext(
-		treeState: TreeState,
-		current: EnumeratedTreeItem,
-	): EnumeratedTreeItem | undefined {
-		let { node, index } = current;
-
-		if (node.isFolder() && node.expanded && node.children.length !== 0) {
-			node = node.children[0];
-			index = treeState.getItem(node.id)!.index;
-			return { node, index };
-		}
-
-		while (true) {
-			if (index !== node.siblings.length - 1) {
-				index++;
-				node = node.siblings[index];
-				break;
-			}
-
-			if (node.parent === undefined) {
-				return;
-			}
-			node = node.parent;
-			index = treeState.getItem(node.id)!.index;
-		}
-		return { node, index };
-	}
-
-	function getPrevious(
-		treeState: TreeState,
-		current: EnumeratedTreeItem,
-	): EnumeratedTreeItem | undefined {
-		let { node, index } = current;
-
-		if (index === 0) {
-			if (node.parent === undefined) {
-				return;
-			}
-			node = node.parent;
-			index = treeState.getItem(node.id)!.index;
-			return { node, index };
-		}
-
-		index--;
-		node = node.siblings[index];
-		while (node.isFolder() && node.expanded && node.children.length !== 0) {
-			index = node.children.length - 1;
-			node = node.children[index];
-		}
-		return { node, index };
 	}
 
 	function batchSelect(treeState: TreeState, node: FileTreeNode, element: HTMLElement): void {
@@ -97,7 +40,7 @@
 				if (current.node === node) {
 					break;
 				}
-				current = getNext(treeState, current);
+				current = treeState.getNextItem(current);
 			} while (current !== undefined);
 			return;
 		}
@@ -111,7 +54,7 @@
 
 		let current: EnumeratedTreeItem | undefined = lastSelected;
 		while (current.node !== node) {
-			current = following ? getNext(treeState, current) : getPrevious(treeState, current);
+			current = following ? treeState.getNextItem(current) : treeState.getPreviousItem(current);
 			if (current === undefined) {
 				break;
 			}
@@ -126,6 +69,29 @@
 				selectAll(node.children);
 			}
 		}
+	}
+
+	function cloneItem(node: FileTreeNode, parent: FolderNode | undefined): FileTreeNode {
+		const id = crypto.randomUUID();
+
+		if (!node.isFolder()) {
+			return new FileTreeNode(node.tree, id, node.name, parent);
+		}
+
+		const clone = new FolderNode(node.tree, id, node.name, parent);
+		clone.children = node.children.map((child) => cloneItem(child, clone));
+		return clone;
+	}
+
+	function hasCopiedAncestor(node: FileTreeNode): boolean {
+		let current = node.parent;
+		while (current !== undefined) {
+			if (current.copied) {
+				return true;
+			}
+			current = current.parent;
+		}
+		return false;
 	}
 
 	function hasSelectedAncestor(node: FileTreeNode): boolean {
@@ -225,8 +191,6 @@
 		children: Snippet<
 			[
 				props: {
-					readonly node: FileTreeNode;
-					readonly index: number;
 					readonly editing: boolean;
 					readonly dragged: boolean;
 					readonly dropPosition: DropPosition | undefined;
@@ -237,6 +201,11 @@
 		editing?: boolean;
 		element?: HTMLDivElement | null;
 		onMoveItem?: (node: FileTreeNode, index: number) => void;
+		onInsertItems?: (
+			nodes: FileTreeNode[],
+			parent: FileTreeNode | undefined,
+			index: number,
+		) => void;
 		onDeleteItems?: (nodes: FileTreeNode[]) => void;
 	}
 
@@ -246,6 +215,7 @@
 		editing = $bindable(false),
 		element = $bindable(null),
 		onMoveItem,
+		onInsertItems,
 		onDeleteItems,
 		onfocusin,
 		onkeydown,
@@ -314,8 +284,8 @@
 			case "ArrowUp": {
 				const next =
 					event.key === "ArrowDown"
-						? getNext(treeState, { node, index })
-						: getPrevious(treeState, { node, index });
+						? treeState.getNextItem({ node, index })
+						: treeState.getPreviousItem({ node, index });
 				if (next === undefined) {
 					break;
 				}
@@ -336,7 +306,7 @@
 			case "PageDown":
 			case "PageUp": {
 				const maxScrollDistance = Math.min(
-					document.getElementById(treeState.id)!.clientHeight,
+					treeState.getTreeElement()!.clientHeight,
 					document.documentElement.clientHeight,
 				);
 				const itemRect = event.currentTarget.getBoundingClientRect();
@@ -346,8 +316,8 @@
 				while (true) {
 					const next =
 						event.key === "PageDown"
-							? getNext(treeState, current)
-							: getPrevious(treeState, current);
+							? treeState.getNextItem(current)
+							: treeState.getPreviousItem(current);
 					if (next === undefined) {
 						break;
 					}
@@ -397,7 +367,7 @@
 					let current: EnumeratedTreeItem | undefined = { node, index };
 					do {
 						current.node.select();
-						current = getPrevious(treeState, current);
+						current = treeState.getPreviousItem(current);
 					} while (current !== undefined);
 				}
 
@@ -423,7 +393,7 @@
 					let current: EnumeratedTreeItem | undefined = { node, index };
 					do {
 						current.node.select();
-						current = getNext(treeState, current);
+						current = treeState.getNextItem(current);
 					} while (current !== undefined);
 				}
 
@@ -434,7 +404,7 @@
 				if (event.shiftKey) {
 					batchSelect(treeState, node, event.currentTarget);
 				} else {
-					node.toggleSelection();
+					node.toggleSelected();
 				}
 				break;
 			}
@@ -448,6 +418,42 @@
 				if (isControlOrMeta(event)) {
 					selectAll(node.tree.nodes);
 				}
+				break;
+			}
+			case "c": {
+				if (!isControlOrMeta(event)) {
+					break;
+				}
+
+				const { tree } = node;
+				tree.copied.clear();
+				for (const id of tree.selected) {
+					tree.copied.add(id);
+				}
+				break;
+			}
+			case "v": {
+				if (!isControlOrMeta(event)) {
+					break;
+				}
+
+				const pasted: FileTreeNode[] = [];
+				for (const id of node.tree.copied) {
+					const item = treeState.getItem(id);
+					if (item === undefined || hasCopiedAncestor(item.node)) {
+						continue;
+					}
+					pasted.push(cloneItem(item.node, node.parent));
+				}
+				node.tree.copied.clear();
+
+				if (pasted.length === 0) {
+					break;
+				}
+
+				// TODO: handle duplicates
+				node.siblings.splice(index + 1, 0, ...pasted);
+				onInsertItems?.(pasted, node.parent, index + 1);
 				break;
 			}
 			case "Escape": {
@@ -486,13 +492,13 @@
 							fallback.node.collapse();
 						}
 
-						fallback = getNext(treeState, fallback);
+						fallback = treeState.getNextItem(fallback);
 					} while (fallback !== undefined && fallback.node.selected);
 
 					if (fallback === undefined) {
 						fallback = { node, index };
 						do {
-							fallback = getPrevious(treeState, fallback);
+							fallback = treeState.getPreviousItem(fallback);
 						} while (fallback !== undefined && fallback.node.selected);
 					}
 				}
@@ -569,7 +575,7 @@
 		onclick?.(event);
 
 		if (isControlOrMeta(event)) {
-			node.toggleSelection();
+			node.toggleSelected();
 			return;
 		}
 
@@ -748,7 +754,8 @@
 	aria-level={node.depth + 1}
 	aria-posinset={index + 1}
 	aria-setsize={node.siblings.length}
-	tabindex={isTabbable(treeState, node) ? 0 : -1}
+	tabindex={treeState.isItemTabbable(node) ? 0 : -1}
+	data-copied={node.copied ? "" : undefined}
 	data-editing={editing ? "" : undefined}
 	data-dragged={dragged ? "" : undefined}
 	data-drop-position={dropPositionState.current}
@@ -763,8 +770,6 @@
 	ondragend={handleDragEnd}
 >
 	{@render children({
-		node,
-		index,
 		editing,
 		dragged,
 		dropPosition: dropPositionState.current,
