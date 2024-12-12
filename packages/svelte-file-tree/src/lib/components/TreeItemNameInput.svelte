@@ -1,9 +1,10 @@
 <script lang="ts">
 	import type { Action } from "svelte/action";
 	import type { EventHandler, HTMLInputAttributes } from "svelte/elements";
-	import { getTreeItemContext } from "./TreeItemContextProvider.svelte";
+	import { getTreeItemContext } from "./TreeItem.svelte";
 
-	const { itemState } = getTreeItemContext();
+	const { treeState, getNode, onEditingChange } = getTreeItemContext();
+	const node = $derived.by(getNode);
 
 	interface Props extends Omit<HTMLInputAttributes, "children"> {
 		value?: string;
@@ -14,7 +15,7 @@
 	}
 
 	let {
-		value = $bindable(itemState.node.name),
+		value = $bindable(node.name),
 		element = $bindable(null),
 		onRename,
 		onDiscard,
@@ -36,9 +37,8 @@
 					break;
 				}
 
-				const { node } = itemState;
 				if (node.name === value) {
-					itemState.getElement()?.focus();
+					treeState.getItemElement(node)?.focus();
 					break;
 				}
 
@@ -52,12 +52,12 @@
 
 				node.name = value;
 				changed = true;
-				itemState.getElement()?.focus();
+				treeState.getItemElement(node)?.focus();
 				onRename?.(value);
 				break;
 			}
 			case "Escape": {
-				itemState.getElement()?.focus();
+				treeState.getItemElement(node)?.focus();
 				break;
 			}
 			default: {
@@ -71,13 +71,13 @@
 	const handleFocus: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
 		onfocus?.(event);
 
-		itemState.editing = true;
+		onEditingChange(true);
 	};
 
 	const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
 		onblur?.(event);
 
-		itemState.editing = false;
+		onEditingChange(false);
 		if (!changed) {
 			onDiscard?.();
 		}

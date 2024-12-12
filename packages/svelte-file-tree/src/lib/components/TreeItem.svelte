@@ -1,22 +1,249 @@
-<script lang="ts">
-	import { FileTreeNode, FolderNode } from "$lib/data/tree.svelte.js";
-	import { flushSync, type Snippet } from "svelte";
-	import type { EventHandler, HTMLAttributes } from "svelte/elements";
-	import { isControlOrMeta } from "./helpers.js";
-	import { TreeItemState, type EnumeratedTreeItem } from "./state.svelte.js";
-	import { getTreeItemContext } from "./TreeItemContextProvider.svelte";
+<script lang="ts" module>
+	import { isControlOrMeta } from "$lib/helpers.js";
+	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+	import type { HTMLDivAttributes } from "$lib/types.js";
+	import { flushSync, getContext, setContext, type Snippet } from "svelte";
+	import type { EventHandler } from "svelte/elements";
+	import type { TreeState, EnumeratedTreeItem } from "./Tree.svelte";
+	import { getTreeItemProviderContext } from "./TreeItemProvider.svelte";
 
-	interface Props extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+	const contextKey = Symbol("TreeItemContext");
+
+	export type TreeItemContext = {
+		readonly treeState: TreeState;
+		readonly getNode: () => FileTreeNode;
+		readonly onEditingChange: (value: boolean) => void;
+	};
+
+	export function getTreeItemContext(): TreeItemContext {
+		const context: TreeItemContext | undefined = getContext(contextKey);
+		if (context === undefined) {
+			throw new Error("No parent <Tree> found");
+		}
+		return context;
+	}
+
+	function isTabbable(treeState: TreeState, node: FileTreeNode): boolean {
+		const { tabbableId = node.tree.nodes[0].id } = treeState;
+		return tabbableId === node.id;
+	}
+
+	function getNext(
+		treeState: TreeState,
+		current: EnumeratedTreeItem,
+	): EnumeratedTreeItem | undefined {
+		let { node, index } = current;
+
+		if (node.isFolder() && node.expanded && node.children.length !== 0) {
+			node = node.children[0];
+			index = treeState.getItem(node.id)!.index;
+			return { node, index };
+		}
+
+		while (true) {
+			if (index !== node.siblings.length - 1) {
+				index++;
+				node = node.siblings[index];
+				break;
+			}
+
+			if (node.parent === undefined) {
+				return;
+			}
+			node = node.parent;
+			index = treeState.getItem(node.id)!.index;
+		}
+		return { node, index };
+	}
+
+	function getPrevious(
+		treeState: TreeState,
+		current: EnumeratedTreeItem,
+	): EnumeratedTreeItem | undefined {
+		let { node, index } = current;
+
+		if (index === 0) {
+			if (node.parent === undefined) {
+				return;
+			}
+			node = node.parent;
+			index = treeState.getItem(node.id)!.index;
+			return { node, index };
+		}
+
+		index--;
+		node = node.siblings[index];
+		while (node.isFolder() && node.expanded && node.children.length !== 0) {
+			index = node.children.length - 1;
+			node = node.children[index];
+		}
+		return { node, index };
+	}
+
+	function batchSelect(treeState: TreeState, node: FileTreeNode, element: HTMLElement): void {
+		let lastSelected: EnumeratedTreeItem | undefined;
+		for (const id of node.tree.selected) {
+			const item = treeState.getItem(id);
+			if (item !== undefined) {
+				lastSelected = item;
+			}
+		}
+
+		if (lastSelected === undefined) {
+			const first = { node: node.tree.nodes[0], index: 0 };
+			let current: EnumeratedTreeItem | undefined = first;
+			do {
+				current.node.select();
+				if (current.node === node) {
+					break;
+				}
+				current = getNext(treeState, current);
+			} while (current !== undefined);
+			return;
+		}
+
+		const lastElement = treeState.getItemElement(lastSelected.node);
+		if (lastElement === null) {
+			return;
+		}
+		const following =
+			lastElement.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING;
+
+		let current: EnumeratedTreeItem | undefined = lastSelected;
+		while (current.node !== node) {
+			current = following ? getNext(treeState, current) : getPrevious(treeState, current);
+			if (current === undefined) {
+				break;
+			}
+			current.node.select();
+		}
+	}
+
+	function selectAll(nodes: FileTreeNode[]): void {
+		for (const node of nodes) {
+			node.select();
+			if (node.isFolder() && node.expanded) {
+				selectAll(node.children);
+			}
+		}
+	}
+
+	function hasSelectedAncestor(node: FileTreeNode): boolean {
+		let current = node.parent;
+		while (current !== undefined) {
+			if (current.selected) {
+				return true;
+			}
+			current = current.parent;
+		}
+		return false;
+	}
+
+	function deleteSelected(nodes: FileTreeNode[], deleted: FileTreeNode[]): FileTreeNode[] {
+		const remaining: FileTreeNode[] = [];
+		for (const node of nodes) {
+			if (node.selected) {
+				onDelete(node);
+				deleted.push(node);
+			} else {
+				remaining.push(node);
+			}
+		}
+		return remaining;
+	}
+
+	function onDelete(node: FileTreeNode): boolean {
+		const { selected, expanded } = node.tree;
+		selected.delete(node.id);
+		expanded.delete(node.id);
+
+		if (selected.size === 0 || expanded.size === 0) {
+			return true;
+		}
+
+		if (node.isFolder()) {
+			for (const child of node.children) {
+				const done = onDelete(child);
+				if (done) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	type DropPosition = "before" | "after" | "inside";
+
+	class DropPositionState {
+		#current?: DropPosition = $state.raw();
+
+		get current(): DropPosition | undefined {
+			return this.#current;
+		}
+
+		onUpdate(node: FileTreeNode, element: HTMLElement, clientY: number): void {
+			this.#current = this.#getDropPosition(node, element, clientY);
+		}
+
+		onDragLeave(): void {
+			this.#current = undefined;
+		}
+
+		onDrop(node: FileTreeNode, element: HTMLElement, clientY: number): DropPosition {
+			this.#current = undefined;
+			return this.#getDropPosition(node, element, clientY);
+		}
+
+		#getDropPosition(node: FileTreeNode, element: HTMLElement, clientY: number): DropPosition {
+			const { top, bottom, height } = element.getBoundingClientRect();
+
+			if (!node.isFolder()) {
+				const midY = top + height / 2;
+				return clientY < midY ? "before" : "after";
+			}
+
+			if (clientY < top + height / 3) {
+				return "before";
+			}
+			if (clientY > bottom - height / 3) {
+				return "after";
+			}
+			return "inside";
+		}
+	}
+</script>
+
+<script lang="ts">
+	const { treeState, getNode, getIndex } = getTreeItemProviderContext();
+	const node = $derived.by(getNode);
+	const index = $derived.by(getIndex);
+	const dragged = $derived(treeState.draggedId === node.id);
+	const dropPositionState = new DropPositionState();
+
+	interface Props extends Omit<HTMLDivAttributes, "children"> {
+		children: Snippet<
+			[
+				props: {
+					readonly node: FileTreeNode;
+					readonly index: number;
+					readonly editing: boolean;
+					readonly dragged: boolean;
+					readonly dropPosition: DropPosition | undefined;
+				},
+			]
+		>;
 		editable?: boolean;
-		children: Snippet<[item: TreeItemState]>;
+		editing?: boolean;
 		element?: HTMLDivElement | null;
 		onMoveItem?: (node: FileTreeNode, index: number) => void;
 		onDeleteItems?: (nodes: FileTreeNode[]) => void;
 	}
 
 	let {
-		editable = false,
 		children,
+		editable = false,
+		editing = $bindable(false),
 		element = $bindable(null),
 		onMoveItem,
 		onDeleteItems,
@@ -32,20 +259,25 @@
 		...attributes
 	}: Props = $props();
 
-	const { treeState, itemState } = getTreeItemContext();
-	const node = $derived(itemState.node);
-	const index = $derived(itemState.index);
+	const context: TreeItemContext = {
+		treeState,
+		getNode,
+		onEditingChange(value) {
+			editing = value;
+		},
+	};
+	setContext(contextKey, context);
 
 	$effect(() => {
 		if (!editable) {
-			itemState.editing = false;
+			editing = false;
 		}
 	});
 
 	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
 		onfocusin?.(event);
 
-		treeState.tabbableId = node.id;
+		treeState.onFocusInItem(node);
 	};
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
@@ -80,10 +312,10 @@
 			}
 			case "ArrowDown":
 			case "ArrowUp": {
-				const down = event.key === "ArrowDown";
-				const next = down
-					? treeState.getNextItem({ node, index })
-					: treeState.getPreviousItem({ node, index });
+				const next =
+					event.key === "ArrowDown"
+						? getNext(treeState, { node, index })
+						: getPrevious(treeState, { node, index });
 				if (next === undefined) {
 					break;
 				}
@@ -97,14 +329,14 @@
 					node.select();
 					next.node.select();
 				}
+
 				nextElement.focus();
 				break;
 			}
 			case "PageDown":
 			case "PageUp": {
-				const down = event.key === "PageDown";
 				const maxScrollDistance = Math.min(
-					treeState.getTreeElement()!.clientHeight,
+					document.getElementById(treeState.id)!.clientHeight,
 					document.documentElement.clientHeight,
 				);
 				const itemRect = event.currentTarget.getBoundingClientRect();
@@ -112,7 +344,10 @@
 				let current = { node, index };
 				let currentElement: HTMLElement = event.currentTarget;
 				while (true) {
-					const next = down ? treeState.getNextItem(current) : treeState.getPreviousItem(current);
+					const next =
+						event.key === "PageDown"
+							? getNext(treeState, current)
+							: getPrevious(treeState, current);
 					if (next === undefined) {
 						break;
 					}
@@ -131,6 +366,7 @@
 					if (event.shiftKey) {
 						current.node.select();
 					}
+
 					current = next;
 					currentElement = nextElement;
 				}
@@ -142,6 +378,7 @@
 				if (event.shiftKey) {
 					current.node.select();
 				}
+
 				currentElement.focus();
 				break;
 			}
@@ -160,9 +397,10 @@
 					let current: EnumeratedTreeItem | undefined = { node, index };
 					do {
 						current.node.select();
-						current = treeState.getPreviousItem(current);
+						current = getPrevious(treeState, current);
 					} while (current !== undefined);
 				}
+
 				firstElement.focus();
 				break;
 			}
@@ -185,15 +423,16 @@
 					let current: EnumeratedTreeItem | undefined = { node, index };
 					do {
 						current.node.select();
-						current = treeState.getNextItem(current);
+						current = getNext(treeState, current);
 					} while (current !== undefined);
 				}
+
 				lastElement.focus();
 				break;
 			}
 			case " ": {
 				if (event.shiftKey) {
-					treeState.batchSelect(node, event.currentTarget);
+					batchSelect(treeState, node, event.currentTarget);
 				} else {
 					node.toggleSelection();
 				}
@@ -201,13 +440,13 @@
 			}
 			case "F2": {
 				if (editable) {
-					itemState.editing = true;
+					editing = true;
 				}
 				break;
 			}
 			case "a": {
 				if (isControlOrMeta(event)) {
-					node.tree.selectAll();
+					selectAll(node.tree.nodes);
 				}
 				break;
 			}
@@ -217,7 +456,7 @@
 			}
 			case "*": {
 				const rectBefore = event.currentTarget.getBoundingClientRect();
-				for (const sibling of itemState.node.siblings) {
+				for (const sibling of node.siblings) {
 					if (sibling.isFolder()) {
 						sibling.expand();
 					}
@@ -233,14 +472,13 @@
 			}
 			case "Delete": {
 				const { tree } = node;
-				const { selected } = tree;
-				if (selected.size === 0) {
+				if (tree.selected.size === 0) {
 					break;
 				}
 
 				// Focus the first item that will not be deleted.
 				let fallback: EnumeratedTreeItem | undefined;
-				if (node.selected) {
+				if (node.selected || hasSelectedAncestor(node)) {
 					fallback = { node, index };
 					do {
 						// Avoid focusing a child of an item that is about to be deleted.
@@ -248,19 +486,19 @@
 							fallback.node.collapse();
 						}
 
-						fallback = treeState.getNextItem(fallback);
+						fallback = getNext(treeState, fallback);
 					} while (fallback !== undefined && fallback.node.selected);
 
 					if (fallback === undefined) {
 						fallback = { node, index };
 						do {
-							fallback = treeState.getPreviousItem(fallback);
+							fallback = getPrevious(treeState, fallback);
 						} while (fallback !== undefined && fallback.node.selected);
 					}
 				}
 
 				const deleted: FileTreeNode[] = [];
-				tree.nodes = treeState.deletingSelected(tree.nodes, deleted);
+				tree.nodes = deleteSelected(tree.nodes, deleted);
 
 				// Collect the unique parents of the remaining selected items to delete
 				// the their children in one operation. If, instead, we delete each item
@@ -279,8 +517,8 @@
 				// 2   4 5 ...
 				// 2 4 5 ...
 				const uniqueParents = new Set<FolderNode>();
-				for (const id of selected) {
-					const item = treeState.items.get(id);
+				for (const id of tree.selected) {
+					const item = treeState.getItem(id);
 					if (item === undefined) {
 						tree.selected.delete(id);
 					} else {
@@ -309,7 +547,7 @@
 				// first, we would have to traverse it AGAIN when 1.1 is deleted.
 				const parents = Array.from(uniqueParents).sort((a, b) => a.depth - b.depth);
 				for (const parent of parents) {
-					parent.children = treeState.deletingSelected(parent.children, deleted);
+					parent.children = deleteSelected(parent.children, deleted);
 				}
 
 				if (fallback !== undefined) {
@@ -336,7 +574,7 @@
 		}
 
 		if (event.shiftKey) {
-			treeState.batchSelect(node, event.currentTarget);
+			batchSelect(treeState, node, event.currentTarget);
 			return;
 		}
 
@@ -350,19 +588,20 @@
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.effectAllowed = "move";
 		}
-		treeState.draggedId = node.id;
+
+		treeState.onDragStartItem(node);
 	};
 
 	const handleDragEnter: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondragenter?.(event);
 
-		if (treeState.draggedId === undefined || treeState.draggedId === node.id) {
+		if (dragged || treeState.draggedId === undefined) {
 			return;
 		}
+		const { node: draggedNode } = treeState.getItem(treeState.draggedId)!;
 
 		// An item cannot be dropped inside itself.
-		const dragged = treeState.items.get(treeState.draggedId)!;
-		if (dragged.node.isFolder() && dragged.node.contains(node)) {
+		if (draggedNode.isFolder() && draggedNode.contains(node)) {
 			return;
 		}
 
@@ -370,7 +609,8 @@
 			event.dataTransfer.dropEffect = "move";
 		}
 		event.preventDefault();
-		itemState.dropPosition = treeState.getDropPosition(node, event.currentTarget, event.clientY);
+
+		dropPositionState.onUpdate(node, event.currentTarget, event.clientY);
 	};
 
 	// The dragover event fires at a high rate, so computing
@@ -380,7 +620,7 @@
 	const handleDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondragover?.(event);
 
-		if (itemState.dropPosition === undefined) {
+		if (dropPositionState.current === undefined) {
 			return;
 		}
 
@@ -399,8 +639,8 @@
 
 		dragOverThrottled = true;
 		window.requestAnimationFrame(() => {
-			if (itemState.dropPosition !== undefined) {
-				itemState.dropPosition = treeState.getDropPosition(node, currentTarget, clientY);
+			if (dropPositionState.current !== undefined) {
+				dropPositionState.onUpdate(node, currentTarget, clientY);
 			}
 			dragOverThrottled = false;
 		});
@@ -409,16 +649,12 @@
 	const handleDragLeave: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondragleave?.(event);
 
-		if (itemState.dropPosition === undefined) {
-			return;
-		}
-
 		const { currentTarget, relatedTarget } = event;
 		if (relatedTarget instanceof Node && currentTarget.contains(relatedTarget)) {
 			return;
 		}
 
-		itemState.dropPosition = undefined;
+		dropPositionState.onDragLeave();
 	};
 
 	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
@@ -427,41 +663,39 @@
 		if (treeState.draggedId === undefined) {
 			return;
 		}
-
-		const dragged = treeState.items.get(treeState.draggedId)!;
-		const dropPosition = treeState.getDropPosition(node, event.currentTarget, event.clientY);
-		itemState.dropPosition = undefined;
+		const { node: draggedNode, index: draggedIndex } = treeState.getItem(treeState.draggedId)!;
 
 		let dropIndex: number;
+		const dropPosition = dropPositionState.onDrop(node, event.currentTarget, event.clientY);
 		switch (dropPosition) {
 			case "before":
 			case "after": {
-				if (dragged.node.parent !== node.parent) {
-					dragged.node.siblings.splice(dragged.index, 1);
-					dragged.node.parent = node.parent;
+				if (draggedNode.parent !== node.parent) {
+					draggedNode.siblings.splice(draggedIndex, 1);
+					draggedNode.parent = node.parent;
 					dropIndex = dropPosition === "before" ? index : index + 1;
-					node.siblings.splice(dropIndex, 0, dragged.node);
+					node.siblings.splice(dropIndex, 0, draggedNode);
 
 					// The dragged item is removed temporarily from the DOM, so it loses focus.
 					flushSync();
-					treeState.getItemElement(dragged.node)?.focus();
+					treeState.getItemElement(draggedNode)?.focus();
 					break;
 				}
 
 				// Instead of removing the dragged item and inserting it back to the
 				// same array, we can repeatedly swap it with its adjacent sibling
 				// until it reaches the new index, which is more efficient.
-				if (dragged.index < index) {
+				const { siblings } = node;
+				if (draggedIndex < index) {
 					// 1 - 2 - 3 - 4 - 5
 					// ^             ^
 					// 2 - 1 - 3 - 4 - 5
 					// 2 - 3 - 1 - 4 - 5
 					// 2 - 3 - 4 - 1 - 5
 					dropIndex = dropPosition === "before" ? index - 1 : index;
-					for (let i = dragged.index; i < dropIndex; i++) {
-						const current = node.siblings[i];
-						node.siblings[i] = node.siblings[i + 1];
-						node.siblings[i + 1] = current;
+					for (let i = draggedIndex; i < dropIndex; i++) {
+						siblings[i] = siblings[i + 1];
+						siblings[i + 1] = draggedNode;
 					}
 				} else {
 					// 1 - 2 - 3 - 4 - 5
@@ -469,10 +703,9 @@
 					// 1 - 2 - 4 - 3 - 5
 					// 1 - 4 - 2 - 3 - 5
 					dropIndex = dropPosition === "before" ? index : index + 1;
-					for (let i = dragged.index; i > dropIndex; i--) {
-						const current = node.siblings[i];
-						node.siblings[i] = node.siblings[i - 1];
-						node.siblings[i - 1] = current;
+					for (let i = draggedIndex; i > dropIndex; i--) {
+						siblings[i] = siblings[i - 1];
+						siblings[i - 1] = draggedNode;
 					}
 				}
 				break;
@@ -482,26 +715,26 @@
 					throw new Error("Cannot drop an item inside a file");
 				}
 
-				dragged.node.siblings.splice(dragged.index, 1);
-				dragged.node.parent = node;
+				draggedNode.siblings.splice(draggedIndex, 1);
+				draggedNode.parent = node;
 				node.expand();
 				dropIndex = node.children.length;
-				node.children.push(dragged.node);
+				node.children.push(draggedNode);
 
 				// The dragged item is removed temporarily from the DOM, so it loses focus.
 				flushSync();
-				treeState.getItemElement(dragged.node)?.focus();
+				treeState.getItemElement(draggedNode)?.focus();
 				break;
 			}
 		}
 
-		onMoveItem?.(dragged.node, dropIndex);
+		onMoveItem?.(draggedNode, dropIndex);
 	};
 
 	const handleDragEnd: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondragend?.(event);
 
-		treeState.draggedId = undefined;
+		treeState.onDragEndItem();
 	};
 </script>
 
@@ -515,10 +748,10 @@
 	aria-level={node.depth + 1}
 	aria-posinset={index + 1}
 	aria-setsize={node.siblings.length}
-	tabindex={treeState.getItemTabIndex(node)}
-	data-editing={itemState.editing ? "" : undefined}
-	data-dragged={itemState.dragged ? "" : undefined}
-	data-drop-position={itemState.dropPosition}
+	tabindex={isTabbable(treeState, node) ? 0 : -1}
+	data-editing={editing ? "" : undefined}
+	data-dragged={dragged ? "" : undefined}
+	data-drop-position={dropPositionState.current}
 	onfocusin={handleFocusIn}
 	onkeydown={handleKeyDown}
 	onclick={handleClick}
@@ -529,5 +762,11 @@
 	ondrop={handleDrop}
 	ondragend={handleDragEnd}
 >
-	{@render children(itemState)}
+	{@render children({
+		node,
+		index,
+		editing,
+		dragged,
+		dropPosition: dropPositionState.current,
+	})}
 </div>

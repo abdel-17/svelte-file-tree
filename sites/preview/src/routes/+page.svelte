@@ -2,7 +2,7 @@
 	import FileIcon from "lucide-svelte/icons/file";
 	import FolderIcon from "lucide-svelte/icons/folder";
 	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
-	import { FileTree, FileTreeNode, Tree, TreeItem, TreeItemNameInput } from "svelte-file-tree";
+	import { FileTree, Tree, TreeItem, TreeItemNameInput, type FileTreeNode } from "svelte-file-tree";
 	import { toast, Toaster } from "svelte-sonner";
 
 	const { data } = $props();
@@ -55,10 +55,10 @@
 				{onMoveItem}
 				{onDeleteItems}
 			>
-				{#snippet children(item)}
+				{#snippet children({ editing, dropPosition })}
 					<div
 						aria-hidden="true"
-						data-drop-position={item.dropPosition}
+						data-drop-position={dropPosition}
 						class="pointer-events-none absolute -inset-[2px] rounded-[inherit] border-2 border-transparent data-[drop-position='after']:border-b-red-500 data-[drop-position='before']:border-t-red-500 data-[drop-position='inside']:border-red-500"
 					></div>
 
@@ -76,7 +76,7 @@
 						<FileIcon role="presentation" />
 					{/if}
 
-					{#if item.editing}
+					{#if editing}
 						<TreeItemNameInput
 							class="border bg-white focus:outline-none"
 							{onRename}

@@ -11,8 +11,9 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"test": "vitest --run",
-		"test:watch": "vitest --watch"
+		"test": "vitest",
+		"test:unit": "vitest --project unit",
+		"test:browser": "vitest --project browser"
 	},
 	"exports": {
 		".": {
@@ -36,7 +37,9 @@
 		"@sveltejs/package": "^2.3.7",
 		"@sveltejs/vite-plugin-svelte": "4.0.2",
 		"@types/node": "^22.10.1",
+		"@vitest/browser": "^2.1.8",
 		"jsdom": "^25.0.1",
+		"playwright": "^1.49.0",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^3.3.2",
 		"publint": "^0.2.12",
@@ -44,6 +47,7 @@
 		"svelte-check": "^4.1.1",
 		"typescript": "^5.7.2",
 		"vite": "^5.4.11",
-		"vitest": "2.1.8"
+		"vitest": "2.1.8",
+		"vitest-browser-svelte": "^0.0.1"
 	}
 }

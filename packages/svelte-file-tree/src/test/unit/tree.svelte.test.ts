@@ -1,5 +1,10 @@
+import {
+	FileTree,
+	type FileTreeItem,
+	type FileTreeNode,
+	type FolderNode,
+} from "$lib/tree.svelte.js";
 import { describe, expect, test } from "vitest";
-import { FileTree, FileTreeNode, FolderNode, type FileTreeItem } from "./tree.svelte.js";
 
 const items: FileTreeItem[] = [
 	{
@@ -90,21 +95,9 @@ describe("FileTree", () => {
 		expect(tree.nodes.map((node) => node.id)).toEqual(["1", "2", "3"]);
 	});
 
-	test("FileTree.selectAll() selects all visible items", () => {
-		const tree = new FileTree({ items });
-
-		tree.selectAll();
-		expect([...tree.selected]).toEqual(["1", "2", "3"]);
-
-		tree.selected.clear();
-		tree.expanded.add("1").add("1.1");
-		tree.selectAll();
-		expect([...tree.selected]).toEqual(["1", "1.1", "1.1.1", "1.1.2", "1.1.3", "1.2", "2", "3"]);
-	});
-
 	test("FileTreeNode.name", () => {
 		const tree = new FileTree({ items });
-		const names = createMapping(tree, (node) => node.name);
+		const names = map(tree, (node) => node.name);
 		expect(names).toEqual({
 			"1": "Section 1",
 			"2": "Section 2",
@@ -125,14 +118,14 @@ describe("FileTree", () => {
 
 	test("FileTreeNode.tree", () => {
 		const tree = new FileTree({ items });
-		traverse(tree.nodes, (node) => {
+		forEach(tree.nodes, (node) => {
 			expect(node.tree).toBe(tree);
 		});
 	});
 
 	test("FileTreeNode.parent", () => {
 		const tree = new FileTree({ items });
-		const parents = createMapping(tree, (node) => node.parent?.id);
+		const parents = map(tree, (node) => node.parent?.id);
 		expect(parents).toEqual({
 			"1": undefined,
 			"2": undefined,
@@ -153,7 +146,7 @@ describe("FileTree", () => {
 
 	test("FileTreeNode.depth", () => {
 		const tree = new FileTree({ items });
-		const depths = createMapping(tree, (node) => node.depth);
+		const depths = map(tree, (node) => node.depth);
 		expect(depths).toEqual({
 			"1": 0,
 			"2": 0,
@@ -174,7 +167,7 @@ describe("FileTree", () => {
 
 	test("FileTreeNode.siblings", () => {
 		const tree = new FileTree({ items });
-		const siblings = createMapping(tree, (node) => node.siblings.map((sibling) => sibling.id));
+		const siblings = map(tree, (node) => node.siblings.map((sibling) => sibling.id));
 		expect(siblings).toEqual({
 			"1": ["1", "2", "3"],
 			"2": ["1", "2", "3"],
@@ -198,7 +191,7 @@ describe("FileTree", () => {
 			items,
 			defaultSelected: ["1", "2", "1.1"],
 		});
-		const selected = createMapping(tree, (node) => node.selected);
+		const selected = map(tree, (node) => node.selected);
 		expect(selected).toEqual({
 			"1": true,
 			"2": true,
@@ -218,44 +211,40 @@ describe("FileTree", () => {
 	});
 
 	test("Updating Tree.selected updates FileTreeNode.selected", () => {
-		effectRootScope(() => {
-			const tree = new FileTree({ items });
-			const node_1 = tree.nodes[0];
+		const tree = new FileTree({ items });
+		const node_1 = tree.nodes[0];
 
-			tree.selected.add("1");
-			expect(node_1.selected).true;
+		tree.selected.add("1");
+		expect(node_1.selected).true;
 
-			tree.selected.delete("1");
-			expect(node_1.selected).false;
-		});
+		tree.selected.delete("1");
+		expect(node_1.selected).false;
 	});
 
 	test("FileTreeNode selection methods", () => {
-		effectRootScope(() => {
-			const tree = new FileTree({ items });
-			const node_1 = tree.nodes[0];
+		const tree = new FileTree({ items });
+		const node_1 = tree.nodes[0];
 
-			node_1.select();
-			expect(node_1.selected).true;
-			expect([...tree.selected]).toEqual(["1"]);
+		node_1.select();
+		expect(node_1.selected).true;
+		expect([...tree.selected]).toEqual(["1"]);
 
-			node_1.unselect();
-			expect(node_1.selected).false;
-			expect(tree.selected).empty;
+		node_1.unselect();
+		expect(node_1.selected).false;
+		expect(tree.selected).empty;
 
-			node_1.toggleSelection();
-			expect(node_1.selected).true;
-			expect([...tree.selected]).toEqual(["1"]);
+		node_1.toggleSelection();
+		expect(node_1.selected).true;
+		expect([...tree.selected]).toEqual(["1"]);
 
-			node_1.toggleSelection();
-			expect(node_1.selected).false;
-			expect(tree.selected).empty;
-		});
+		node_1.toggleSelection();
+		expect(node_1.selected).false;
+		expect(tree.selected).empty;
 	});
 
 	test("FileTreeNode.isFolder()", () => {
 		const tree = new FileTree({ items });
-		const isFolder = createMapping(tree, (node) => node.isFolder());
+		const isFolder = map(tree, (node) => node.isFolder());
 		expect(isFolder).toEqual({
 			"1": true,
 			"2": true,
@@ -276,7 +265,7 @@ describe("FileTree", () => {
 
 	test("FolderNode.children", () => {
 		const tree = new FileTree({ items });
-		const children = createMapping(tree, (node) => {
+		const children = map(tree, (node) => {
 			if (node.isFolder()) {
 				return node.children.map((child) => child.id);
 			}
@@ -304,7 +293,7 @@ describe("FileTree", () => {
 			items,
 			defaultExpanded: ["1", "2", "1.1"],
 		});
-		const expanded = createMapping(tree, (node) => node.isFolder() && node.expanded);
+		const expanded = map(tree, (node) => node.isFolder() && node.expanded);
 		expect(expanded).toEqual({
 			"1": true,
 			"2": true,
@@ -324,39 +313,35 @@ describe("FileTree", () => {
 	});
 
 	test("Updating Tree.expanded updates FolderNode.expanded", () => {
-		effectRootScope(() => {
-			const tree = new FileTree({ items });
-			const node_1 = tree.nodes[0] as FolderNode;
+		const tree = new FileTree({ items });
+		const node_1 = tree.nodes[0] as FolderNode;
 
-			tree.expanded.add("1");
-			expect(node_1.expanded).true;
+		tree.expanded.add("1");
+		expect(node_1.expanded).true;
 
-			tree.expanded.delete("1");
-			expect(node_1.expanded).false;
-		});
+		tree.expanded.delete("1");
+		expect(node_1.expanded).false;
 	});
 
 	test("FolderNode expansion methods", () => {
-		effectRootScope(() => {
-			const tree = new FileTree({ items });
-			const node_1 = tree.nodes[0] as FolderNode;
+		const tree = new FileTree({ items });
+		const node_1 = tree.nodes[0] as FolderNode;
 
-			node_1.expand();
-			expect(node_1.expanded).true;
-			expect([...tree.expanded]).toEqual(["1"]);
+		node_1.expand();
+		expect(node_1.expanded).true;
+		expect([...tree.expanded]).toEqual(["1"]);
 
-			node_1.collapse();
-			expect(node_1.expanded).false;
-			expect(tree.expanded).empty;
+		node_1.collapse();
+		expect(node_1.expanded).false;
+		expect(tree.expanded).empty;
 
-			node_1.toggleExpansion();
-			expect(node_1.expanded).true;
-			expect([...tree.expanded]).toEqual(["1"]);
+		node_1.toggleExpansion();
+		expect(node_1.expanded).true;
+		expect([...tree.expanded]).toEqual(["1"]);
 
-			node_1.toggleExpansion();
-			expect(node_1.expanded).false;
-			expect(tree.expanded).empty;
-		});
+		node_1.toggleExpansion();
+		expect(node_1.expanded).false;
+		expect(tree.expanded).empty;
 	});
 
 	test("FolderNode.contains() itself and its descendants", () => {
@@ -450,24 +435,22 @@ describe("FileTree", () => {
 	});
 });
 
-function traverse(nodes: FileTreeNode[], callback: (node: FileTreeNode) => void) {
+function forEach(nodes: FileTreeNode[], callback: (node: FileTreeNode) => void): void {
 	for (const node of nodes) {
 		callback(node);
 		if (node.isFolder()) {
-			traverse(node.children, callback);
+			forEach(node.children, callback);
 		}
 	}
 }
 
-function createMapping<TValue>(tree: FileTree, transform: (node: FileTreeNode) => TValue) {
-	const mapping: Record<string, TValue> = {};
-	traverse(tree.nodes, (node) => {
-		mapping[node.id] = transform(node);
+function map<TValue>(
+	tree: FileTree,
+	transform: (node: FileTreeNode) => TValue,
+): Record<string, TValue> {
+	const result: Record<string, TValue> = {};
+	forEach(tree.nodes, (node) => {
+		result[node.id] = transform(node);
 	});
-	return mapping;
-}
-
-function effectRootScope(scope: () => void) {
-	const cleanup = $effect.root(scope);
-	cleanup();
+	return result;
 }

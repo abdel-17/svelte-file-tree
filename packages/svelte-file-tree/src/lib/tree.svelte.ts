@@ -1,18 +1,17 @@
 import { SvelteSet } from "svelte/reactivity";
 
-interface BaseFileTreeItem {
+export type FileItem = {
+	type: "file";
 	id: string;
 	name: string;
-}
+};
 
-export interface FileItem extends BaseFileTreeItem {
-	type: "file";
-}
-
-export interface FolderItem extends BaseFileTreeItem {
+export type FolderItem = {
 	type: "folder";
+	id: string;
+	name: string;
 	children?: FileTreeItem[];
-}
+};
 
 export type FileTreeItem = FileItem | FolderItem;
 
@@ -35,7 +34,7 @@ export class FileTree {
 		this.nodes = this.createNodes(props.items);
 	}
 
-	createNode(item: FileTreeItem, parent?: FolderNode) {
+	createNode(item: FileTreeItem, parent?: FolderNode): FileTreeNode {
 		switch (item.type) {
 			case "file":
 				return new FileTreeNode(this, item, parent);
@@ -44,25 +43,12 @@ export class FileTree {
 		}
 	}
 
-	createNodes(items: ReadonlyArray<FileTreeItem>, parent?: FolderNode) {
+	createNodes(items: FileTreeItem[], parent?: FolderNode): FileTreeNode[] {
 		const nodes = Array<FileTreeNode>(items.length);
 		for (let i = 0; i < items.length; i++) {
 			nodes[i] = this.createNode(items[i], parent);
 		}
 		return nodes;
-	}
-
-	selectAll() {
-		this.#selectAll(this.nodes);
-	}
-
-	#selectAll(nodes: FileTreeNode[]) {
-		for (const node of nodes) {
-			this.selected.add(node.id);
-			if (node.isFolder() && node.expanded) {
-				this.#selectAll(node.children);
-			}
-		}
 	}
 }
 
@@ -86,24 +72,24 @@ export class FileTreeNode {
 		return this.parent.depth + 1;
 	});
 
-	readonly siblings = $derived.by(() => {
+	readonly siblings: FileTreeNode[] = $derived.by(() => {
 		if (this.parent === undefined) {
 			return this.tree.nodes;
 		}
 		return this.parent.children;
 	});
 
-	readonly selected = $derived.by(() => this.tree.selected.has(this.id));
+	readonly selected: boolean = $derived.by(() => this.tree.selected.has(this.id));
 
-	select() {
+	select(): void {
 		this.tree.selected.add(this.id);
 	}
 
-	unselect() {
+	unselect(): void {
 		this.tree.selected.delete(this.id);
 	}
 
-	toggleSelection() {
+	toggleSelection(): void {
 		if (this.selected) {
 			this.unselect();
 		} else {
@@ -126,17 +112,17 @@ export class FolderNode extends FileTreeNode {
 		}
 	}
 
-	readonly expanded = $derived.by(() => this.tree.expanded.has(this.id));
+	readonly expanded: boolean = $derived.by(() => this.tree.expanded.has(this.id));
 
-	expand() {
+	expand(): void {
 		this.tree.expanded.add(this.id);
 	}
 
-	collapse() {
+	collapse(): void {
 		this.tree.expanded.delete(this.id);
 	}
 
-	toggleExpansion() {
+	toggleExpansion(): void {
 		if (this.expanded) {
 			this.collapse();
 		} else {
@@ -144,7 +130,7 @@ export class FolderNode extends FileTreeNode {
 		}
 	}
 
-	contains(node: FileTreeNode) {
+	contains(node: FileTreeNode): boolean {
 		let current = node;
 		while (current.depth > this.depth) {
 			current = current.parent!;
