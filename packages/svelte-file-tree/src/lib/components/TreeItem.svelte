@@ -119,11 +119,12 @@
 	}
 
 	function onDelete(node: FileTreeNode): boolean {
-		const { selected, expanded } = node.tree;
+		const { selected, copied, expanded } = node.tree;
 		selected.delete(node.id);
+		copied.delete(node.id);
 		expanded.delete(node.id);
 
-		if (selected.size === 0 || expanded.size === 0) {
+		if (selected.size === 0 && copied.size === 0 && expanded.size === 0) {
 			return true;
 		}
 

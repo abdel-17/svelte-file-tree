@@ -59,7 +59,7 @@ export class FileTree {
 export class FileTreeNode {
 	readonly tree: FileTree;
 	readonly id: string;
-	name = $state.raw("");
+	name: string = $state.raw("");
 	parent?: FolderNode = $state.raw();
 
 	constructor(tree: FileTree, id: string, name: string, parent?: FolderNode) {
