@@ -41,7 +41,7 @@ export class FileTree {
 	createNode(item: FileTreeItem, parent?: FolderNode): FileTreeNode {
 		switch (item.type) {
 			case "file":
-				return new FileTreeNode(this, item.id, item.name, parent);
+				return new FileNode(this, item.id, item.name, parent);
 			case "folder":
 				return new FolderNode(this, item.id, item.name, parent, item.children);
 		}
@@ -56,7 +56,7 @@ export class FileTree {
 	}
 }
 
-export class FileTreeNode {
+class BaseFileTreeNode {
 	readonly tree: FileTree;
 	readonly id: string;
 	name: string = $state.raw("");
@@ -119,12 +119,26 @@ export class FileTreeNode {
 		}
 	}
 
+	isFile(): this is FileNode {
+		return this instanceof FileNode;
+	}
+
 	isFolder(): this is FolderNode {
 		return this instanceof FolderNode;
 	}
 }
 
-export class FolderNode extends FileTreeNode {
+export class FileNode extends BaseFileTreeNode {
+	toJSON(): FileItem {
+		return {
+			type: "file",
+			id: this.id,
+			name: this.name,
+		};
+	}
+}
+
+export class FolderNode extends BaseFileTreeNode {
 	children: FileTreeNode[] = $state([]);
 
 	constructor(
@@ -166,4 +180,15 @@ export class FolderNode extends FileTreeNode {
 		}
 		return current === this;
 	}
+
+	toJSON(): FolderItem {
+		return {
+			type: "folder",
+			id: this.id,
+			name: this.name,
+			children: this.children.map((child) => child.toJSON()),
+		};
+	}
 }
+
+export type FileTreeNode = FileNode | FolderNode;

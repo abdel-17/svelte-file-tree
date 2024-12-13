@@ -298,6 +298,27 @@ describe("FileTree", () => {
 		expect(tree.copied).empty;
 	});
 
+	test("FileTreeNode.isFile()", () => {
+		const tree = new FileTree({ items });
+		const isFile = map(tree, (node) => node.isFile());
+		expect(isFile).toEqual({
+			"1": false,
+			"2": false,
+			"3": false,
+			"1.1": false,
+			"1.2": false,
+			"2.1": true,
+			"2.2": true,
+			"3.1": true,
+			"3.2": true,
+			"1.1.1": true,
+			"1.1.2": true,
+			"1.1.3": true,
+			"1.2.1": true,
+			"1.2.2": true,
+		});
+	});
+
 	test("FileTreeNode.isFolder()", () => {
 		const tree = new FileTree({ items });
 		const isFolder = map(tree, (node) => node.isFolder());
@@ -316,6 +337,177 @@ describe("FileTree", () => {
 			"1.1.3": false,
 			"1.2.1": false,
 			"1.2.2": false,
+		});
+	});
+
+	test("FileTreeNode.toJSON()", () => {
+		const tree = new FileTree({ items });
+		const toJSON = map(tree, (node) => node.toJSON());
+		expect(toJSON).toEqual({
+			"1": {
+				type: "folder",
+				id: "1",
+				name: "Section 1",
+				children: [
+					{
+						type: "folder",
+						id: "1.1",
+						name: "Section 1.1",
+						children: [
+							{
+								type: "file",
+								id: "1.1.1",
+								name: "Section 1.1.1",
+							},
+							{
+								type: "file",
+								id: "1.1.2",
+								name: "Section 1.1.2",
+							},
+							{
+								type: "file",
+								id: "1.1.3",
+								name: "Section 1.1.3",
+							},
+						],
+					},
+					{
+						type: "folder",
+						id: "1.2",
+						name: "Section 1.2",
+						children: [
+							{
+								type: "file",
+								id: "1.2.1",
+								name: "Section 1.2.1",
+							},
+							{
+								type: "file",
+								id: "1.2.2",
+								name: "Section 1.2.2",
+							},
+						],
+					},
+				],
+			},
+			"2": {
+				type: "folder",
+				id: "2",
+				name: "Section 2",
+				children: [
+					{
+						type: "file",
+						id: "2.1",
+						name: "Section 2.1",
+					},
+					{
+						type: "file",
+						id: "2.2",
+						name: "Section 2.2",
+					},
+				],
+			},
+			"3": {
+				type: "folder",
+				id: "3",
+				name: "Section 3",
+				children: [
+					{
+						type: "file",
+						id: "3.1",
+						name: "Section 3.1",
+					},
+					{
+						type: "file",
+						id: "3.2",
+						name: "Section 3.2",
+					},
+				],
+			},
+			"1.1": {
+				type: "folder",
+				id: "1.1",
+				name: "Section 1.1",
+				children: [
+					{
+						type: "file",
+						id: "1.1.1",
+						name: "Section 1.1.1",
+					},
+					{
+						type: "file",
+						id: "1.1.2",
+						name: "Section 1.1.2",
+					},
+					{
+						type: "file",
+						id: "1.1.3",
+						name: "Section 1.1.3",
+					},
+				],
+			},
+			"1.2": {
+				type: "folder",
+				id: "1.2",
+				name: "Section 1.2",
+				children: [
+					{
+						type: "file",
+						id: "1.2.1",
+						name: "Section 1.2.1",
+					},
+					{
+						type: "file",
+						id: "1.2.2",
+						name: "Section 1.2.2",
+					},
+				],
+			},
+			"2.1": {
+				type: "file",
+				id: "2.1",
+				name: "Section 2.1",
+			},
+			"2.2": {
+				type: "file",
+				id: "2.2",
+				name: "Section 2.2",
+			},
+			"3.1": {
+				type: "file",
+				id: "3.1",
+				name: "Section 3.1",
+			},
+			"3.2": {
+				type: "file",
+				id: "3.2",
+				name: "Section 3.2",
+			},
+			"1.1.1": {
+				type: "file",
+				id: "1.1.1",
+				name: "Section 1.1.1",
+			},
+			"1.1.2": {
+				type: "file",
+				id: "1.1.2",
+				name: "Section 1.1.2",
+			},
+			"1.1.3": {
+				type: "file",
+				id: "1.1.3",
+				name: "Section 1.1.3",
+			},
+			"1.2.1": {
+				type: "file",
+				id: "1.2.1",
+				name: "Section 1.2.1",
+			},
+			"1.2.2": {
+				type: "file",
+				id: "1.2.2",
+				name: "Section 1.2.2",
+			},
 		});
 	});
 
