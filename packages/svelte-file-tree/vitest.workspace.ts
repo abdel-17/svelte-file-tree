@@ -8,7 +8,7 @@ export default defineWorkspace([
 		extends: "./vite.config.ts",
 		test: {
 			name: "unit",
-			include: ["./src/test/unit/**/*.{test,spec}.{js,ts}"],
+			include: ["./src/lib/**/*.{test,spec}.{js,ts}"],
 			environment: "jsdom",
 		},
 		resolve: {
@@ -19,7 +19,7 @@ export default defineWorkspace([
 		extends: "./vite.config.ts",
 		test: {
 			name: "browser",
-			include: ["./src/test/browser/**/*.{test,spec}.{js,ts}"],
+			include: ["./src/tests/browser/**/*.{test,spec}.{js,ts}"],
 			browser: {
 				enabled: true,
 				provider: "playwright",

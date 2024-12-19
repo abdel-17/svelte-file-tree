@@ -1,95 +1,85 @@
-import { FileTree, type FileTreeItem } from "$lib/tree.svelte.js";
+import { FileTree, type FileTreeProps } from "$lib/index.js";
 import { commands, page, type Locator } from "@vitest/browser/context";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render, type RenderResult } from "vitest-browser-svelte";
 import Tree from "./Tree.svelte";
 
-const items: FileTreeItem[] = [
-	{
-		type: "folder",
-		id: "1",
-		name: "Section 1",
-		children: [
-			{
-				type: "folder",
-				id: "1.1",
-				name: "Section 1.1",
-				children: [
-					{
-						type: "file",
-						id: "1.1.1",
-						name: "Section 1.1.1",
-					},
-					{
-						type: "file",
-						id: "1.1.2",
-						name: "Section 1.1.2",
-					},
-					{
-						type: "file",
-						id: "1.1.3",
-						name: "Section 1.1.3",
-					},
-				],
-			},
-			{
-				type: "folder",
-				id: "1.2",
-				name: "Section 1.2",
-				children: [
-					{
-						type: "file",
-						id: "1.2.1",
-						name: "Section 1.2.1",
-					},
-					{
-						type: "file",
-						id: "1.2.2",
-						name: "Section 1.2.2",
-					},
-				],
-			},
-		],
-	},
-	{
-		type: "folder",
-		id: "2",
-		name: "Section 2",
-		children: [
-			{
-				type: "file",
-				id: "2.1",
-				name: "Section 2.1",
-			},
-			{
-				type: "file",
-				id: "2.2",
-				name: "Section 2.2",
-			},
-		],
-	},
-	{
-		type: "folder",
-		id: "3",
-		name: "Section 3",
-		children: [
-			{
-				type: "file",
-				id: "3.1",
-				name: "Section 3.1",
-			},
-			{
-				type: "file",
-				id: "3.2",
-				name: "Section 3.2",
-			},
-		],
-	},
-];
+function createTree(props?: FileTreeProps): FileTree {
+	const tree = new FileTree(props);
+	tree.nodes = [
+		tree.createFolder({
+			id: "1",
+			name: "Section 1",
+			children: [
+				tree.createFolder({
+					id: "1.1",
+					name: "Section 1.1",
+					children: [
+						tree.createFile({
+							id: "1.1.1",
+							name: "Section 1.1.1",
+						}),
+						tree.createFile({
+							id: "1.1.2",
+							name: "Section 1.1.2",
+						}),
+						tree.createFile({
+							id: "1.1.3",
+							name: "Section 1.1.3",
+						}),
+					],
+				}),
+				tree.createFolder({
+					id: "1.2",
+					name: "Section 1.2",
+					children: [
+						tree.createFile({
+							id: "1.2.1",
+							name: "Section 1.2.1",
+						}),
+						tree.createFile({
+							id: "1.2.2",
+							name: "Section 1.2.2",
+						}),
+					],
+				}),
+			],
+		}),
+		tree.createFolder({
+			id: "2",
+			name: "Section 2",
+			children: [
+				tree.createFile({
+					id: "2.1",
+					name: "Section 2.1",
+				}),
+				tree.createFile({
+					id: "2.2",
+					name: "Section 2.2",
+				}),
+			],
+		}),
+		tree.createFolder({
+			id: "3",
+			name: "Section 3",
+			children: [
+				tree.createFile({
+					id: "3.1",
+					name: "Section 3.1",
+				}),
+				tree.createFile({
+					id: "3.2",
+					name: "Section 3.2",
+				}),
+			],
+		}),
+	];
+	return tree;
+}
 
 describe("Tree", () => {
 	test("Tree is rendered correctly", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -299,7 +289,7 @@ describe("Tree", () => {
 	});
 
 	test("Selected items have aria-selected set to true", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -339,7 +329,7 @@ describe("Tree", () => {
 	});
 
 	test("Tree roving focus", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -364,7 +354,7 @@ describe("Tree", () => {
 	});
 
 	test("Space toggles selection", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -398,8 +388,7 @@ describe("Tree", () => {
 	});
 
 	test("Shift+Space selects multiple items", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultExpanded: ["1", "2", "3"],
 		});
 		const screen = render(Tree, {
@@ -428,7 +417,7 @@ describe("Tree", () => {
 	});
 
 	test("Control/Command+a selects all items", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -445,8 +434,7 @@ describe("Tree", () => {
 	});
 
 	test("Escape unselects all items", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultSelected: ["1", "2", "3"],
 		});
 		const screen = render(Tree, {
@@ -460,7 +448,7 @@ describe("Tree", () => {
 	});
 
 	test("ArrowLeft/Right navigation", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -568,8 +556,7 @@ describe("Tree", () => {
 	});
 
 	test("ArrowDown/Up navigation", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultExpanded: ["1", "1.1", "1.2", "2", "3"],
 		});
 		const screen = render(Tree, {
@@ -677,8 +664,7 @@ describe("Tree", () => {
 	});
 
 	test("Shift+ArrowDown/Up navigates and selects", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultExpanded: ["1"],
 		});
 		const screen = render(Tree, {
@@ -735,8 +721,7 @@ describe("Tree", () => {
 	});
 
 	test("PageDown/Up navigation", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultExpanded: ["1"],
 		});
 		const screen = render(Tree, {
@@ -778,8 +763,7 @@ describe("Tree", () => {
 	});
 
 	test("PageDown/Up navigation does not overscroll the viewport", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultExpanded: ["1"],
 		});
 		const screen = render(Tree, {
@@ -825,8 +809,7 @@ describe("Tree", () => {
 	});
 
 	test("Shift+PageUp/Down navigates and selects", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultExpanded: ["1"],
 		});
 		const screen = render(Tree, {
@@ -876,7 +859,7 @@ describe("Tree", () => {
 	});
 
 	test("Home navigates to the first item", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -892,8 +875,7 @@ describe("Tree", () => {
 	});
 
 	test("Control/Command+Shift+Home navigates and selects", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultExpanded: ["1"],
 		});
 		const screen = render(Tree, {
@@ -914,7 +896,7 @@ describe("Tree", () => {
 	});
 
 	test("End navigates to the last item", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -935,7 +917,7 @@ describe("Tree", () => {
 	});
 
 	test("Control/Command+Shift+End navigates and selects", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -960,23 +942,17 @@ describe("Tree", () => {
 	});
 
 	test("F2 starts editing", async () => {
-		const tree = new FileTree({ items });
-		const onRename = vi.fn();
-		const onDiscard = vi.fn();
-		const onDuplicateError = vi.fn();
+		const tree = createTree();
+		const onRenameItem = vi.fn();
+		const onRenameError = vi.fn();
 		const screen = render(Tree, {
 			props: {
 				tree,
+				onRenameItem,
+				onRenameError,
 				getItemProps() {
 					return {
 						editable: true,
-					};
-				},
-				getInputProps() {
-					return {
-						onRename,
-						onDiscard,
-						onDuplicateError,
 					};
 				},
 			},
@@ -988,15 +964,13 @@ describe("Tree", () => {
 		await commands.press("F2");
 		await expect.element(input).toBeVisible();
 		await expect.element(input).toHaveFocus();
-		expect(onRename).not.toHaveBeenCalled();
-		expect(onDiscard).not.toHaveBeenCalled();
-		expect(onDuplicateError).not.toHaveBeenCalled();
+		expect(onRenameItem).not.toHaveBeenCalled();
+		expect(onRenameError).not.toHaveBeenCalled();
 
 		await commands.press("Backspace");
 		await expect.element(input).toHaveValue("");
-		expect(onRename).not.toHaveBeenCalled();
-		expect(onDiscard).not.toHaveBeenCalled();
-		expect(onDuplicateError).not.toHaveBeenCalled();
+		expect(onRenameItem).not.toHaveBeenCalled();
+		expect(onRenameError).not.toHaveBeenCalled();
 
 		await input.fill("Section One");
 		await expect.element(input).toHaveValue("Section One");
@@ -1004,27 +978,20 @@ describe("Tree", () => {
 		await expect.element(item).toHaveFocus();
 		await expect.element(item).toHaveTextContent("Section One");
 		await expect.element(input).not.toBeInTheDocument();
-		expect(onRename).toHaveBeenCalledOnce();
-		expect(onRename).toHaveBeenCalledWith("Section One");
-		expect(onDiscard).not.toHaveBeenCalled();
-		expect(onDuplicateError).not.toHaveBeenCalled();
+		expect(onRenameItem).toHaveBeenCalledOnce();
+		expect(onRenameItem).toHaveBeenCalledWith(tree.nodes[0]);
+		expect(onRenameError).not.toHaveBeenCalled();
 	});
 
 	test("Non-editable items cannot be edited", async () => {
-		const tree = new FileTree({ items });
-		const onRename = vi.fn();
-		const onDiscard = vi.fn();
-		const onDuplicateError = vi.fn();
+		const tree = createTree();
+		const onRenameItem = vi.fn();
+		const onRenameError = vi.fn();
 		const screen = render(Tree, {
 			props: {
 				tree,
-				getInputProps() {
-					return {
-						onRename,
-						onDiscard,
-						onDuplicateError,
-					};
-				},
+				onRenameItem,
+				onRenameError,
 			},
 		});
 		const item = screen.getByTestId("1");
@@ -1034,29 +1001,22 @@ describe("Tree", () => {
 		await commands.press("F2");
 		await expect.element(item).toHaveFocus();
 		await expect.element(input).not.toBeInTheDocument();
-		expect(onRename).not.toHaveBeenCalled();
-		expect(onDiscard).not.toHaveBeenCalled();
-		expect(onDuplicateError).not.toHaveBeenCalled();
+		expect(onRenameItem).not.toHaveBeenCalled();
+		expect(onRenameError).not.toHaveBeenCalled();
 	});
 
 	test("Escape discards edits", async () => {
-		const tree = new FileTree({ items });
-		const onRename = vi.fn();
-		const onDiscard = vi.fn();
-		const onDuplicateError = vi.fn();
+		const tree = createTree();
+		const onRenameItem = vi.fn();
+		const onRenameError = vi.fn();
 		const screen = render(Tree, {
 			props: {
 				tree,
+				onRenameItem,
+				onRenameError,
 				getItemProps() {
 					return {
 						editable: true,
-					};
-				},
-				getInputProps() {
-					return {
-						onRename,
-						onDiscard,
-						onDuplicateError,
 					};
 				},
 			},
@@ -1071,29 +1031,22 @@ describe("Tree", () => {
 		await expect.element(item).toHaveFocus();
 		await expect.element(item).toHaveTextContent("Section 1");
 		await expect.element(input).not.toBeInTheDocument();
-		expect(onRename).not.toHaveBeenCalled();
-		expect(onDiscard).toHaveBeenCalledOnce();
-		expect(onDuplicateError).not.toHaveBeenCalled();
+		expect(onRenameItem).not.toHaveBeenCalled();
+		expect(onRenameError).not.toHaveBeenCalled();
 	});
 
 	test("Blurring the input discards edits", async () => {
-		const tree = new FileTree({ items });
-		const onRename = vi.fn();
-		const onDiscard = vi.fn();
-		const onDuplicateError = vi.fn();
+		const tree = createTree();
+		const onRenameItem = vi.fn();
+		const onRenameError = vi.fn();
 		const screen = render(Tree, {
 			props: {
 				tree,
+				onRenameItem,
+				onRenameError,
 				getItemProps() {
 					return {
 						editable: true,
-					};
-				},
-				getInputProps() {
-					return {
-						onRename,
-						onDiscard,
-						onDuplicateError,
 					};
 				},
 			},
@@ -1108,29 +1061,22 @@ describe("Tree", () => {
 		await expect.element(item).not.toHaveFocus();
 		await expect.element(item).toHaveTextContent("Section 1");
 		await expect.element(input).not.toBeInTheDocument();
-		expect(onRename).not.toHaveBeenCalled();
-		expect(onDiscard).toHaveBeenCalledOnce();
-		expect(onDuplicateError).not.toHaveBeenCalled();
+		expect(onRenameItem).not.toHaveBeenCalled();
+		expect(onRenameError).not.toHaveBeenCalled();
 	});
 
 	test("Items in the same folder cannot have the same name", async () => {
-		const tree = new FileTree({ items });
-		const onRename = vi.fn();
-		const onDiscard = vi.fn();
-		const onDuplicateError = vi.fn();
+		const tree = createTree();
+		const onRenameItem = vi.fn();
+		const onRenameError = vi.fn();
 		const screen = render(Tree, {
 			props: {
 				tree,
+				onRenameItem,
+				onRenameError,
 				getItemProps() {
 					return {
 						editable: true,
-					};
-				},
-				getInputProps() {
-					return {
-						onRename,
-						onDiscard,
-						onDuplicateError,
 					};
 				},
 			},
@@ -1143,30 +1089,26 @@ describe("Tree", () => {
 		await input.fill("Section 2");
 		await commands.press("Enter");
 		await expect.element(input).toHaveFocus();
-		expect(onRename).not.toHaveBeenCalled();
-		expect(onDiscard).not.toHaveBeenCalled();
-		expect(onDuplicateError).toHaveBeenCalledOnce();
-		expect(onDuplicateError).toHaveBeenCalledWith("Section 2");
+		expect(onRenameItem).not.toHaveBeenCalled();
+		expect(onRenameError).toHaveBeenCalledOnce();
+		expect(onRenameError).toHaveBeenCalledWith(tree.nodes[0], {
+			type: "duplicate",
+			name: "Section 2",
+		});
 	});
 
 	test("Items cannot have empty names", async () => {
-		const tree = new FileTree({ items });
-		const onRename = vi.fn();
-		const onDiscard = vi.fn();
-		const onDuplicateError = vi.fn();
+		const tree = createTree();
+		const onRenameItem = vi.fn();
+		const onRenameError = vi.fn();
 		const screen = render(Tree, {
 			props: {
 				tree,
+				onRenameItem,
+				onRenameError,
 				getItemProps() {
 					return {
 						editable: true,
-					};
-				},
-				getInputProps() {
-					return {
-						onRename,
-						onDiscard,
-						onDuplicateError,
 					};
 				},
 			},
@@ -1179,13 +1121,15 @@ describe("Tree", () => {
 		await commands.press("Backspace");
 		await commands.press("Enter");
 		await expect.element(input).toHaveFocus();
-		expect(onRename).not.toHaveBeenCalled();
-		expect(onDiscard).not.toHaveBeenCalled();
-		expect(onDuplicateError).not.toHaveBeenCalled();
+		expect(onRenameItem).not.toHaveBeenCalled();
+		expect(onRenameError).toHaveBeenCalledOnce();
+		expect(onRenameError).toHaveBeenCalledWith(tree.nodes[0], {
+			type: "empty",
+		});
 	});
 
 	test("* expands all sibling folders", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -1207,8 +1151,7 @@ describe("Tree", () => {
 	});
 
 	test("Delete removes all selected items", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultSelected: ["1", "1.2", "1.2.2"],
 			defaultExpanded: ["1", "1.1", "1.2", "2", "3"],
 		});
@@ -1217,11 +1160,7 @@ describe("Tree", () => {
 		const screen = render(Tree, {
 			props: {
 				tree,
-				getItemProps() {
-					return {
-						onDeleteItems,
-					};
-				},
+				onDeleteItems,
 			},
 		});
 		const item_1 = getTreeItem(screen, "Section 1");
@@ -1256,8 +1195,7 @@ describe("Tree", () => {
 	});
 
 	test("Delete does not remove focus from the current item if it is not selected", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultSelected: ["1"],
 		});
 		const screen = render(Tree, {
@@ -1271,8 +1209,7 @@ describe("Tree", () => {
 	});
 
 	test("Delete moves focus to the first item before if all items after are selected", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultSelected: ["1.2", "2", "2.1", "2.2", "3", "3.1", "3.2"],
 			defaultExpanded: ["1", "2", "3"],
 		});
@@ -1288,7 +1225,7 @@ describe("Tree", () => {
 	});
 
 	test("Click clears selection and selects the item", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -1310,7 +1247,7 @@ describe("Tree", () => {
 	});
 
 	test("Control/Command+Click toggles selection", async () => {
-		const tree = new FileTree({ items });
+		const tree = createTree();
 		const screen = render(Tree, {
 			props: { tree },
 		});
@@ -1344,8 +1281,7 @@ describe("Tree", () => {
 	});
 
 	test("Shift+Click selects multiple items", async () => {
-		const tree = new FileTree({
-			items,
+		const tree = createTree({
 			defaultExpanded: ["1", "2", "3"],
 		});
 		const screen = render(Tree, {
