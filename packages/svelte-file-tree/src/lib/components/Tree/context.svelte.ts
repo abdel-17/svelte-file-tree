@@ -246,7 +246,6 @@ export class TreeItemContext {
 			document.documentElement.clientHeight,
 		);
 		const itemRect = element.getBoundingClientRect();
-
 		let current = { node, index };
 		let currentElement = element;
 		while (true) {
@@ -383,7 +382,6 @@ export class TreeItemContext {
 
 		const positionBitmask = lastSelectedElement.compareDocumentPosition(element);
 		const following = positionBitmask & Node.DOCUMENT_POSITION_FOLLOWING;
-
 		let current: EnumeratedTreeItem | undefined = lastSelected;
 		while (current.node !== node) {
 			current = following ? treeState.getNextItem(current) : treeState.getPreviousItem(current);
@@ -413,17 +411,16 @@ export class TreeItemContext {
 		const node = this.getNode();
 		const { tree } = node;
 
-		// After the sibling items are expanded, the tree's height changes,
-		// causing layout shift. Preserve the scroll position relative to
-		// the current item to avoid disorienting the user.
-		const rectBefore = element.getBoundingClientRect();
-
 		for (const sibling of node.siblings) {
 			if (sibling.type === "folder") {
 				tree.expanded.add(sibling.id);
 			}
 		}
 
+		// After the sibling items are expanded, the tree's height changes,
+		// causing layout shift. Preserve the scroll position relative to
+		// the current item to avoid disorienting the user.
+		const rectBefore = element.getBoundingClientRect();
 		flushSync();
 		const rectAfter = element.getBoundingClientRect();
 		window.scrollBy(0, rectAfter.top - rectBefore.top);
@@ -458,7 +455,7 @@ export class TreeItemContext {
 		// Then we delete 3, which shifts most of the array to the left, AGAIN.
 		// 2   4 5 ...
 		// 2 4 5 ...
-		const deletedItems: FileTreeNode[] = [];
+		const deletedNodes: FileTreeNode[] = [];
 		const parentsOfDeleted = new Set<FolderNode | undefined>();
 		for (const id of tree.selected) {
 			const current = treeState.items.get(id)?.node;
@@ -484,11 +481,11 @@ export class TreeItemContext {
 				continue;
 			}
 
-			deletedItems.push(current);
+			deletedNodes.push(current);
 			parentsOfDeleted.add(current.parent);
 		}
 
-		if (deletedItems.length === 0) {
+		if (deletedNodes.length === 0) {
 			return;
 		}
 
@@ -548,8 +545,8 @@ export class TreeItemContext {
 			treeState.getItemElement(focusTarget.node)?.focus();
 		}
 
-		tree.onDelete(deletedItems);
-		treeState.callbacks.onDeleteItems(deletedItems);
+		tree.onDelete(deletedNodes);
+		treeState.callbacks.onDeleteItems(deletedNodes);
 	}
 
 	onAKeyDown({ ctrlOrMeta }: { ctrlOrMeta: boolean }): void {
@@ -568,7 +565,6 @@ export class TreeItemContext {
 
 		const { tree } = this.getNode();
 		tree.copied.clear();
-
 		for (const id of tree.selected) {
 			tree.copied.add(id);
 		}
@@ -583,7 +579,8 @@ export class TreeItemContext {
 		const node = this.getNode();
 		const { tree } = node;
 
-		const pastedItems: FileTreeNode[] = [];
+		const shouldPasteInside = node.type === "folder" && node.expanded;
+		const pastedNodes: FileTreeNode[] = [];
 		for (const id of tree.copied) {
 			const current = treeState.items.get(id)?.node;
 			if (current === undefined) {
@@ -608,36 +605,43 @@ export class TreeItemContext {
 				continue;
 			}
 
-			const clone = cloneNode(current);
-			clone.parent = node.parent;
-			pastedItems.push(clone);
+			const pasted = cloneNode(current);
+			pasted.parent = shouldPasteInside ? node : node.parent;
+			pastedNodes.push(pasted);
 		}
 
-		if (pastedItems.length === 0) {
+		if (pastedNodes.length === 0) {
 			return;
 		}
 
+		const pastedSiblings = shouldPasteInside ? node.children : node.siblings;
 		const uniqueNames = new Set<string>();
-		for (const sibling of node.siblings) {
+		for (const sibling of pastedSiblings) {
 			uniqueNames.add(sibling.name);
 		}
 
-		for (const pasted of pastedItems) {
+		for (const pasted of pastedNodes) {
 			let i = 1;
 			let { name } = pasted;
 			while (uniqueNames.has(name)) {
 				i++;
 				name = `${pasted.name} (${i})`;
 			}
-
 			pasted.name = name;
 			uniqueNames.add(name);
 		}
 
-		const index = this.getIndex();
-		node.siblings.splice(index + 1, 0, ...pastedItems);
+		let pastedIndex: number;
+		if (shouldPasteInside) {
+			pastedIndex = pastedSiblings.length;
+			pastedSiblings.push(...pastedNodes);
+		} else {
+			pastedIndex = this.getIndex() + 1;
+			pastedSiblings.splice(pastedIndex, 0, ...pastedNodes);
+		}
+
 		tree.copied.clear();
-		treeState.callbacks.onInsertItems(node.siblings, index + 1, pastedItems.length);
+		treeState.callbacks.onInsertItems(pastedSiblings, pastedIndex, pastedNodes.length);
 	}
 
 	onClick({
@@ -712,7 +716,6 @@ export class TreeItemContext {
 						clientY,
 					);
 				}
-
 				this.#dragOverThrottled = false;
 			});
 		}
@@ -736,7 +739,6 @@ export class TreeItemContext {
 		}
 
 		const node = this.getNode();
-		const index = this.getIndex();
 		const { node: dragged, index: draggedIndex } = treeState.items.get(treeState.draggedId)!;
 
 		if (node === dragged) {
@@ -750,12 +752,12 @@ export class TreeItemContext {
 		switch (dropPosition) {
 			case "before":
 			case "after": {
-				const { parent, siblings } = node;
-				if (dragged.parent !== parent) {
+				const index = this.getIndex();
+				if (dragged.parent !== node.parent) {
 					dragged.siblings.splice(draggedIndex, 1);
-					dragged.parent = parent;
+					dragged.parent = node.parent;
 					dropIndex = dropPosition === "before" ? index : index + 1;
-					siblings.splice(dropIndex, 0, dragged);
+					node.siblings.splice(dropIndex, 0, dragged);
 
 					// The dragged item is removed temporarily from the DOM, so it loses focus.
 					flushSync();
@@ -773,8 +775,8 @@ export class TreeItemContext {
 					// 2 - 3 - 4 - 1 - 5
 					dropIndex = dropPosition === "before" ? index - 1 : index;
 					for (let i = draggedIndex; i < dropIndex; i++) {
-						siblings[i] = siblings[i + 1];
-						siblings[i + 1] = dragged;
+						node.siblings[i] = node.siblings[i + 1];
+						node.siblings[i + 1] = dragged;
 					}
 				} else {
 					// Case 2: Swap left
@@ -784,8 +786,8 @@ export class TreeItemContext {
 					// 1 - 4 - 2 - 3 - 5
 					dropIndex = dropPosition === "before" ? index : index + 1;
 					for (let i = draggedIndex; i > dropIndex; i--) {
-						siblings[i] = siblings[i - 1];
-						siblings[i - 1] = dragged;
+						node.siblings[i] = node.siblings[i - 1];
+						node.siblings[i - 1] = dragged;
 					}
 				}
 				break;
@@ -798,7 +800,8 @@ export class TreeItemContext {
 				dragged.siblings.splice(draggedIndex, 1);
 				dragged.parent = node;
 				node.tree.expanded.add(node.id);
-				dropIndex = node.children.push(dragged) - 1;
+				dropIndex = node.children.length;
+				node.children.push(dragged);
 
 				// The dragged item is removed temporarily from the DOM, so it loses focus.
 				flushSync();
@@ -877,11 +880,9 @@ function cloneNode(node: FileTreeNode): FileTreeNode {
 		case "folder": {
 			const clone = tree.createFolder({ id, name });
 			clone.children = node.children.map(cloneNode);
-
 			for (const child of clone.children) {
 				child.parent = clone;
 			}
-
 			return clone;
 		}
 	}
