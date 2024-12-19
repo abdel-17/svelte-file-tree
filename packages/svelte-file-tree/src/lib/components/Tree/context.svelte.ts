@@ -404,7 +404,9 @@ export class TreeItemContext {
 	}
 
 	onEscapeKeyDown(): void {
-		this.getNode().tree.selected.clear();
+		const { tree } = this.getNode();
+		tree.selected.clear();
+		tree.copied.clear();
 	}
 
 	onAsteriskKeyDown({ element }: { element: HTMLElement }): void {

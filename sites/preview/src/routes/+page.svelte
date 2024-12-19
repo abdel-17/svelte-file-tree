@@ -43,7 +43,9 @@
 		onRenameItem(node) {
 			console.info("onRenameItem", node);
 		},
-		onRenameError(_node, error) {
+		onRenameError(node, error) {
+			console.error({ node, error });
+
 			switch (error.type) {
 				case "empty": {
 					toast.error("Name cannot be empty");
