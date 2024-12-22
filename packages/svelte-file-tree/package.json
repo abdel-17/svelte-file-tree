@@ -28,6 +28,11 @@
 		"!dist/**/*.spec.*",
 		"!dist/**/*.test.*"
 	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/abdel-17/svelte-file-tree",
+		"directory": "packages/svelte-file-tree"
+	},
 	"peerDependencies": {
 		"svelte": "^5.0.0"
 	},
