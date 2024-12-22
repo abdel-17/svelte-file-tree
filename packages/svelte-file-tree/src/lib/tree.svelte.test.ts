@@ -81,6 +81,27 @@ describe("FileTree", () => {
 	});
 });
 
+function forEach(nodes: FileTreeNode[], callback: (node: FileTreeNode) => void): void {
+	for (const node of nodes) {
+		callback(node);
+
+		if (node.type === "folder") {
+			forEach(node.children, callback);
+		}
+	}
+}
+
+function map<TValue>(
+	tree: FileTree,
+	transform: (node: FileTreeNode) => TValue,
+): Record<string, TValue> {
+	const result: Record<string, TValue> = {};
+	forEach(tree.nodes, (node) => {
+		result[node.id] = transform(node);
+	});
+	return result;
+}
+
 describe("FileTreeNode", () => {
 	test("FileTreeNode.type", () => {
 		const tree = createTree();
@@ -263,6 +284,19 @@ describe("FileTreeNode", () => {
 	});
 });
 
+function mapFolders<TValue>(
+	tree: FileTree,
+	transform: (node: FolderNode) => TValue,
+): Record<string, TValue> {
+	const result: Record<string, TValue> = {};
+	forEach(tree.nodes, (node) => {
+		if (node.type === "folder") {
+			result[node.id] = transform(node);
+		}
+	});
+	return result;
+}
+
 describe("FolderNode", () => {
 	test("FolderNode.children", () => {
 		const tree = createTree();
@@ -301,37 +335,3 @@ describe("FolderNode", () => {
 		expect(node_1.expanded).false;
 	});
 });
-
-function forEach(nodes: FileTreeNode[], callback: (node: FileTreeNode) => void): void {
-	for (const node of nodes) {
-		callback(node);
-
-		if (node.type === "folder") {
-			forEach(node.children, callback);
-		}
-	}
-}
-
-function map<TValue>(
-	tree: FileTree,
-	transform: (node: FileTreeNode) => TValue,
-): Record<string, TValue> {
-	const result: Record<string, TValue> = {};
-	forEach(tree.nodes, (node) => {
-		result[node.id] = transform(node);
-	});
-	return result;
-}
-
-function mapFolders<TValue>(
-	tree: FileTree,
-	transform: (node: FolderNode) => TValue,
-): Record<string, TValue> {
-	const result: Record<string, TValue> = {};
-	forEach(tree.nodes, (node) => {
-		if (node.type === "folder") {
-			result[node.id] = transform(node);
-		}
-	});
-	return result;
-}
