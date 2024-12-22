@@ -49,7 +49,7 @@ npm install svelte-file-tree
 
 <Tree {tree}>
 	{#snippet item({ node, editing })}
-		<TreeItem edtable draggable>
+		<TreeItem editable draggable>
 			{#if editing}
 				<TreeItemInput />
 			{:else}
