@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   check:
-    name: Svelte Check
+    name: Check
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,8 +28,7 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Run svelte-check
-        run: pnpm check
+      - run: pnpm check
 
   test:
     name: Test
@@ -54,8 +53,14 @@ jobs:
     name: Lint
     runs-on: macos-latest
     steps:
-      - name: Setup Biome CLI
-        uses: biomejs/setup-biome@v2
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
 
-      - name: Run Biome
-        run: pnpm lint:ci
+      - name: Install dependencies
+        run: pnpm install
+
+      - run: pnpm lint:ci
