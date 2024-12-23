@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
 
 concurrency:
@@ -12,8 +12,8 @@ concurrency:
 
 jobs:
   check:
-    name: Svelte Check
-    runs-on: macos-latest
+    name: Check
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -28,12 +28,11 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Run svelte-check
-        run: pnpm check
+      - run: pnpm check
 
   test:
-    runs-on: macos-latest
     name: Test
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -50,9 +49,9 @@ jobs:
 
       - run: pnpm test
 
-  format:
-    runs-on: macos-latest
-    name: Format
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -64,4 +63,4 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - run: pnpm format:check
+      - run: pnpm lint:ci

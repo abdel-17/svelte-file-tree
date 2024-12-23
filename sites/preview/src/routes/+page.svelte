@@ -1,62 +1,61 @@
 <script lang="ts">
-	import FileIcon from "lucide-svelte/icons/file";
-	import FolderIcon from "lucide-svelte/icons/folder";
-	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
-	import {
-		FileTree,
-		Tree,
-		TreeItem,
-		TreeItemInput,
-		type FileTreeNode,
-		type TreeCallbacks,
-	} from "svelte-file-tree";
-	import { toast, Toaster } from "svelte-sonner";
-	import data from "./data.json";
+import FileIcon from "lucide-svelte/icons/file";
+import FolderIcon from "lucide-svelte/icons/folder";
+import FolderOpenIcon from "lucide-svelte/icons/folder-open";
+import {
+	FileTree,
+	type FileTreeNode,
+	Tree,
+	type TreeCallbacks,
+	TreeItem,
+	TreeItemInput,
+} from "svelte-file-tree";
+import { Toaster, toast } from "svelte-sonner";
+import data from "./data.json";
 
-	function createTreeNodes(tree: FileTree, items: typeof data): FileTreeNode[] {
-		return items.map(({ id, name, children }) => {
-			if (children !== undefined) {
-				return tree.createFolder({
-					id,
-					name,
-					children: createTreeNodes(tree, children),
-				});
-			} else {
-				return tree.createFile({ id, name });
-			}
+function createTreeNodes(tree: FileTree, items: typeof data): FileTreeNode[] {
+	return items.map(({ id, name, children }) => {
+		if (children === undefined) {
+			return tree.createFile({ id, name });
+		}
+		return tree.createFolder({
+			id,
+			name,
+			children: createTreeNodes(tree, children),
 		});
-	}
+	});
+}
 
-	const tree = new FileTree();
-	tree.nodes = createTreeNodes(tree, data);
+const tree = new FileTree();
+tree.nodes = createTreeNodes(tree, data);
 
-	const callbacks: TreeCallbacks = {
-		onMoveItems(nodes, start, count) {
-			console.info("onMoveItems", { nodes, start, count });
-		},
-		onInsertItems(nodes, start, count) {
-			console.info("onInsertItems", { nodes, start, count });
-		},
-		onDeleteItems(nodes) {
-			console.info("onDeleteItems", nodes);
-		},
-		onRenameItem(node) {
-			console.info("onRenameItem", node);
-		},
-		onRenameError(node, error) {
-			console.error({ node, error });
+const callbacks: TreeCallbacks = {
+	onMoveItems(nodes, start, count) {
+		console.info("onMoveItems", { nodes, start, count });
+	},
+	onInsertItems(nodes, start, count) {
+		console.info("onInsertItems", { nodes, start, count });
+	},
+	onDeleteItems(nodes) {
+		console.info("onDeleteItems", nodes);
+	},
+	onRenameItem(node) {
+		console.info("onRenameItem", node);
+	},
+	onRenameError(node, error) {
+		console.error({ node, error });
 
-			switch (error.type) {
-				case "empty": {
-					toast.error("Name cannot be empty");
-					break;
-				}
-				case "duplicate": {
-					toast.error(`"${error.name}" already exists`);
-				}
+		switch (error.type) {
+			case "empty": {
+				toast.error("Name cannot be empty");
+				break;
 			}
-		},
-	};
+			case "duplicate": {
+				toast.error(`"${error.name}" already exists`);
+			}
+		}
+	},
+};
 </script>
 
 <Toaster richColors />

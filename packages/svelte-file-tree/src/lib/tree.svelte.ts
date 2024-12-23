@@ -81,17 +81,15 @@ class BaseFileTreeNode {
 	readonly depth: number = $derived.by(() => {
 		if (this.parent === undefined) {
 			return 0;
-		} else {
-			return this.parent.depth + 1;
 		}
+		return this.parent.depth + 1;
 	});
 
 	readonly siblings: FileTreeNode[] = $derived.by(() => {
 		if (this.parent === undefined) {
 			return this.tree.nodes;
-		} else {
-			return this.parent.children;
 		}
+		return this.parent.children;
 	});
 
 	readonly selected: boolean = $derived.by(() => this.tree.selected.has(this.id));
@@ -101,10 +99,6 @@ class BaseFileTreeNode {
 
 export class FileNode extends BaseFileTreeNode {
 	readonly type = "file";
-
-	constructor(tree: FileTree, props: FileNodeProps) {
-		super(tree, props);
-	}
 }
 
 export class FolderNode extends BaseFileTreeNode {
