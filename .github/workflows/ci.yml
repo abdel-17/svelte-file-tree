@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
 
 concurrency:
@@ -32,8 +32,8 @@ jobs:
         run: pnpm check
 
   test:
-    runs-on: macos-latest
     name: Test
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -50,18 +50,12 @@ jobs:
 
       - run: pnpm test
 
-  format:
+  lint:
+    name: Lint
     runs-on: macos-latest
-    name: Format
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
+      - name: Setup Biome CLI
+        uses: biomejs/setup-biome@v2
 
-      - name: Install dependencies
-        run: pnpm install
-
-      - run: pnpm format:check
+      - name: Run Biome
+        run: pnpm lint:ci

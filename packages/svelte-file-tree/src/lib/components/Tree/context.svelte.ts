@@ -92,7 +92,7 @@ export class TreeItemContext {
 	static readonly #key = Symbol("TreeItemContext");
 
 	static get(): TreeItemContext {
-		const context: TreeItemContext | undefined = getContext(this.#key);
+		const context: TreeItemContext | undefined = getContext(TreeItemContext.#key);
 		if (context === undefined) {
 			throw new Error("No parent <Tree> found");
 		}
@@ -101,7 +101,7 @@ export class TreeItemContext {
 
 	static set(treeState: TreeState, props: TreeItemContextProps): TreeItemContext {
 		const context = new TreeItemContext(treeState, props);
-		setContext(this.#key, context);
+		setContext(TreeItemContext.#key, context);
 
 		$effect(() => {
 			const node = context.getNode();
@@ -493,7 +493,7 @@ export class TreeItemContext {
 		let focusTarget: EnumeratedTreeItem | undefined = { node, index };
 		while (true) {
 			let nearestUnselected: EnumeratedTreeItem | undefined = focusTarget;
-			while (nearestUnselected !== undefined && nearestUnselected.node.selected) {
+			while (nearestUnselected?.node.selected) {
 				// The current item will be deleted, so we shouldn't traverse its children.
 				tree.expanded.delete(nearestUnselected.node.id);
 				nearestUnselected = treeState.getNextItem(nearestUnselected);
@@ -501,7 +501,7 @@ export class TreeItemContext {
 
 			if (nearestUnselected === undefined) {
 				nearestUnselected = focusTarget;
-				while (nearestUnselected !== undefined && nearestUnselected.node.selected) {
+				while (nearestUnselected?.node.selected) {
 					nearestUnselected = treeState.getPreviousItem(nearestUnselected);
 				}
 			}
@@ -897,11 +897,11 @@ function getDropPosition(node: FileTreeNode, rect: DOMRect, clientY: number): Tr
 		case "folder": {
 			if (clientY < rect.top + rect.height / 3) {
 				return "before";
-			} else if (clientY > rect.bottom - rect.height / 3) {
-				return "after";
-			} else {
-				return "inside";
 			}
+			if (clientY > rect.bottom - rect.height / 3) {
+				return "after";
+			}
+			return "inside";
 		}
 	}
 }

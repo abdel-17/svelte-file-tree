@@ -1,42 +1,42 @@
 <script lang="ts">
-	import type { FileTreeNode } from "$lib/tree.svelte.js";
-	import { TreeState } from "./context.svelte.js";
-	import TreeItemProvider from "./TreeItemProvider.svelte";
-	import type { TreeProps } from "./types.js";
+import type { FileTreeNode } from "$lib/tree.svelte.js";
+import TreeItemProvider from "./TreeItemProvider.svelte";
+import { TreeState } from "./context.svelte.js";
+import type { TreeProps } from "./types.js";
 
-	let {
-		tree,
-		item,
-		id = crypto.randomUUID(),
-		element = $bindable(null),
-		onMoveItems,
-		onInsertItems,
-		onDeleteItems,
-		onRenameItem,
-		onRenameError,
-		...attributes
-	}: TreeProps = $props();
+let {
+	tree,
+	item,
+	id = crypto.randomUUID(),
+	element = $bindable(null),
+	onMoveItems,
+	onInsertItems,
+	onDeleteItems,
+	onRenameItem,
+	onRenameError,
+	...attributes
+}: TreeProps = $props();
 
-	const treeState = new TreeState({
-		getElementId: () => id,
-		callbacks: {
-			onMoveItems(nodes, start, count) {
-				onMoveItems?.(nodes, start, count);
-			},
-			onInsertItems(nodes, start, count) {
-				onInsertItems?.(nodes, start, count);
-			},
-			onDeleteItems(nodes) {
-				onDeleteItems?.(nodes);
-			},
-			onRenameItem(node) {
-				onRenameItem?.(node);
-			},
-			onRenameError(node, error) {
-				onRenameError?.(node, error);
-			},
+const treeState = new TreeState({
+	getElementId: () => id,
+	callbacks: {
+		onMoveItems(nodes, start, count) {
+			onMoveItems?.(nodes, start, count);
 		},
-	});
+		onInsertItems(nodes, start, count) {
+			onInsertItems?.(nodes, start, count);
+		},
+		onDeleteItems(nodes) {
+			onDeleteItems?.(nodes);
+		},
+		onRenameItem(node) {
+			onRenameItem?.(node);
+		},
+		onRenameError(node, error) {
+			onRenameError?.(node, error);
+		},
+	},
+});
 </script>
 
 {#snippet items(nodes: FileTreeNode[])}
