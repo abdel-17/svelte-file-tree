@@ -52,6 +52,7 @@ const callbacks: TreeCallbacks = {
 			}
 			case "duplicate": {
 				toast.error(`"${error.name}" already exists`);
+				break;
 			}
 		}
 	},

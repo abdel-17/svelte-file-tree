@@ -41,12 +41,12 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => 
 				callbacks.onRenameError(node, {
 					type: "empty",
 				});
-				return;
+				break;
 			}
 
 			if (name === node.name) {
 				getElement(treeId, node)?.focus();
-				return;
+				break;
 			}
 
 			const siblings = getSiblings(tree, parent);
@@ -56,7 +56,7 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => 
 					type: "duplicate",
 					name,
 				});
-				return;
+				break;
 			}
 
 			node.name = name;
