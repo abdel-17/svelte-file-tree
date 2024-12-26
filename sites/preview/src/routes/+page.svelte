@@ -61,13 +61,13 @@ const callbacks: TreeCallbacks = {
 <Toaster richColors />
 <main class="p-8">
 	<Tree {...callbacks} {tree} class="space-y-4">
-		{#snippet item({ node, editing, dropPosition })}
+		{#snippet item({ node, depth, editing, dropPosition })}
 			<TreeItem
 				editable
 				draggable
-				style="--depth: {node.depth}"
+				style="--depth: {depth}"
 				data-copied={node.copied ? "" : undefined}
-				class="relative ms-[calc(var(--spacing)*var(--depth)*4)] flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-200 aria-selected:text-blue-800 data-copied:border-orange-500 data-copied:ring data-copied:ring-orange-500"
+				class="relative ms-[calc(var(--spacing)*var(--depth)*4)] flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-200 aria-selected:text-blue-800 data-copied:border-orange-500 data-copied:ring data-copied:ring-orange-500"
 			>
 				<div
 					aria-hidden="true"
@@ -81,13 +81,13 @@ const callbacks: TreeCallbacks = {
 					<FolderOpenIcon
 						role="presentation"
 						class="fill-blue-300"
-						onclick={() => tree.expanded.delete(node.id)}
+						onclick={() => node.collapse()}
 					/>
 				{:else}
 					<FolderIcon
 						role="presentation"
 						class="fill-blue-300"
-						onclick={() => tree.expanded.add(node.id)}
+						onclick={() => node.expand()}
 					/>
 				{/if}
 
