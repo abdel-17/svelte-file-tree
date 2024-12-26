@@ -1,25 +1,14 @@
 <script lang="ts" module>
-import {
-	FileTree,
-	type FileTreeProps,
-	Tree,
-	TreeItem,
-	TreeItemInput,
-	type TreeItemInputProps,
-	type TreeItemProps,
-	type TreeItemRenderProps,
-	type TreeProps,
-} from "$lib/index.js";
+import { FileTree, type FileTreeProps } from "$lib/index.js";
 import { type Locator, commands, page } from "@vitest/browser/context";
-import type { SvelteComponent } from "svelte";
-import type { LegacyComponentType } from "svelte/legacy";
+import type { ComponentProps, ComponentType, SvelteComponent } from "svelte";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import {
 	type RenderResult,
 	type SvelteComponentOptions,
 	render as vitestRender,
 } from "vitest-browser-svelte";
-import Self from "./Tree.test.svelte";
+import Tree from "./Tree.svelte";
 
 function createTree(props?: FileTreeProps): FileTree {
 	const tree = new FileTree(props);
@@ -94,15 +83,11 @@ function createTree(props?: FileTreeProps): FileTree {
 	return tree;
 }
 
-interface Props extends Omit<TreeProps, "item"> {
-	getItemProps?: (props: TreeItemRenderProps) => Omit<TreeItemProps, "children">;
-	getInputProps?: (props: TreeItemRenderProps) => Omit<TreeItemInputProps, "children">;
-}
+type TreeComponent = SvelteComponent<ComponentProps<typeof Tree>>;
 
-function renderTree(
-	options: SvelteComponentOptions<SvelteComponent<Props>>,
-): RenderResult<SvelteComponent> {
-	return vitestRender(Self as LegacyComponentType, options);
+function renderTree(options: SvelteComponentOptions<TreeComponent>): RenderResult<TreeComponent> {
+	// biome-ignore lint/suspicious/noExplicitAny: Vitest types need to be updated
+	return vitestRender(Tree as any as ComponentType<TreeComponent>, options);
 }
 
 describe("Tree", () => {
@@ -1367,19 +1352,3 @@ function blur(target: Locator) {
 	}
 }
 </script>
-
-<script lang="ts">
-	const { getItemProps, getInputProps, ...treeProps }: Props = $props();
-</script>
-
-<Tree {...treeProps}>
-	{#snippet item(props)}
-		<TreeItem {...getItemProps?.(props)} data-testid={props.node.id}>
-			{#if props.editing}
-				<TreeItemInput {...getInputProps?.(props)} />
-			{:else}
-				<span>{props.node.name}</span>
-			{/if}
-		</TreeItem>
-	{/snippet}
-</Tree>

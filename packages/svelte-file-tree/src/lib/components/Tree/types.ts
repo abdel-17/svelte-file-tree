@@ -1,5 +1,5 @@
 import type { HTMLDivAttributes } from "$lib/shared.js";
-import type { FileTree, FileTreeNode } from "$lib/tree.svelte.js";
+import type { FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 
 export interface EmptyNameRenameError {
@@ -23,9 +23,17 @@ export interface TreeCallbacks {
 
 export type TreeItemDropPosition = "before" | "after" | "inside";
 
+export interface TreeItemData<TNode extends FileTreeNode = FileTreeNode> {
+	node: TNode;
+	index: number;
+	parent: TreeItemData<FolderNode> | undefined;
+}
+
 export interface TreeItemRenderProps {
 	node: FileTreeNode;
 	index: number;
+	parent: TreeItemData<FolderNode> | undefined;
+	depth: number;
 	editing: boolean;
 	dragged: boolean;
 	dropPosition: TreeItemDropPosition | undefined;
