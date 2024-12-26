@@ -81,27 +81,6 @@ describe("FileTree", () => {
 	});
 });
 
-function forEach(nodes: FileTreeNode[], callback: (node: FileTreeNode) => void): void {
-	for (const node of nodes) {
-		callback(node);
-
-		if (node.type === "folder") {
-			forEach(node.children, callback);
-		}
-	}
-}
-
-function map<TValue>(
-	tree: FileTree,
-	transform: (node: FileTreeNode) => TValue,
-): Record<string, TValue> {
-	const result: Record<string, TValue> = {};
-	forEach(tree.nodes, (node) => {
-		result[node.id] = transform(node);
-	});
-	return result;
-}
-
 describe("FileTreeNode", () => {
 	test("FileTreeNode.type", () => {
 		const tree = createTree();
@@ -124,13 +103,6 @@ describe("FileTreeNode", () => {
 		});
 	});
 
-	test("FileTreeNode.tree", () => {
-		const tree = createTree();
-		forEach(tree.nodes, (node) => {
-			expect(node.tree).toBe(tree);
-		});
-	});
-
 	test("FileTreeNode.name", () => {
 		const tree = createTree();
 		const names = map(tree, (node) => node.name);
@@ -149,69 +121,6 @@ describe("FileTreeNode", () => {
 			"3": "Section 3",
 			"3.1": "Section 3.1",
 			"3.2": "Section 3.2",
-		});
-	});
-
-	test("FileTreeNode.parent", () => {
-		const tree = createTree();
-		const parents = map(tree, (node) => node.parent?.id);
-		expect(parents).toEqual({
-			"1": undefined,
-			"1.1": "1",
-			"1.1.1": "1.1",
-			"1.1.2": "1.1",
-			"1.1.3": "1.1",
-			"1.2": "1",
-			"1.2.1": "1.2",
-			"1.2.2": "1.2",
-			"2": undefined,
-			"2.1": "2",
-			"2.2": "2",
-			"3": undefined,
-			"3.1": "3",
-			"3.2": "3",
-		});
-	});
-
-	test("FileTreeNode.depth", () => {
-		const tree = createTree();
-		const depths = map(tree, (node) => node.depth);
-		expect(depths).toEqual({
-			"1": 0,
-			"1.1": 1,
-			"1.1.1": 2,
-			"1.1.2": 2,
-			"1.1.3": 2,
-			"1.2": 1,
-			"1.2.1": 2,
-			"1.2.2": 2,
-			"2": 0,
-			"2.1": 1,
-			"2.2": 1,
-			"3": 0,
-			"3.1": 1,
-			"3.2": 1,
-		});
-	});
-
-	test("FileTreeNode.siblings", () => {
-		const tree = createTree();
-		const siblings = map(tree, (node) => node.siblings.map((sibling) => sibling.id));
-		expect(siblings).toEqual({
-			"1": ["1", "2", "3"],
-			"1.1": ["1.1", "1.2"],
-			"1.1.1": ["1.1.1", "1.1.2", "1.1.3"],
-			"1.1.2": ["1.1.1", "1.1.2", "1.1.3"],
-			"1.1.3": ["1.1.1", "1.1.2", "1.1.3"],
-			"1.2": ["1.1", "1.2"],
-			"1.2.1": ["1.2.1", "1.2.2"],
-			"1.2.2": ["1.2.1", "1.2.2"],
-			"2": ["1", "2", "3"],
-			"2.1": ["2.1", "2.2"],
-			"2.2": ["2.1", "2.2"],
-			"3": ["1", "2", "3"],
-			"3.1": ["3.1", "3.2"],
-			"3.2": ["3.1", "3.2"],
 		});
 	});
 
@@ -284,19 +193,6 @@ describe("FileTreeNode", () => {
 	});
 });
 
-function mapFolders<TValue>(
-	tree: FileTree,
-	transform: (node: FolderNode) => TValue,
-): Record<string, TValue> {
-	const result: Record<string, TValue> = {};
-	forEach(tree.nodes, (node) => {
-		if (node.type === "folder") {
-			result[node.id] = transform(node);
-		}
-	});
-	return result;
-}
-
 describe("FolderNode", () => {
 	test("FolderNode.children", () => {
 		const tree = createTree();
@@ -335,3 +231,37 @@ describe("FolderNode", () => {
 		expect(node_1.expanded).false;
 	});
 });
+
+function forEach(nodes: FileTreeNode[], callback: (node: FileTreeNode) => void): void {
+	for (const node of nodes) {
+		callback(node);
+
+		if (node.type === "folder") {
+			forEach(node.children, callback);
+		}
+	}
+}
+
+function map<TValue>(
+	tree: FileTree,
+	transform: (node: FileTreeNode) => TValue,
+): Record<string, TValue> {
+	const result: Record<string, TValue> = {};
+	forEach(tree.nodes, (node) => {
+		result[node.id] = transform(node);
+	});
+	return result;
+}
+
+function mapFolders<TValue>(
+	tree: FileTree,
+	transform: (node: FolderNode) => TValue,
+): Record<string, TValue> {
+	const result: Record<string, TValue> = {};
+	forEach(tree.nodes, (node) => {
+		if (node.type === "folder") {
+			result[node.id] = transform(node);
+		}
+	});
+	return result;
+}

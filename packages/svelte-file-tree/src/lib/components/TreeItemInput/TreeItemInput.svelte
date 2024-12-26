@@ -1,13 +1,19 @@
 <script lang="ts">
 import type { Action } from "svelte/action";
 import type { EventHandler } from "svelte/elements";
-import { TreeItemContext } from "../Tree/context.svelte.js";
+import { getTreeItemProviderContext } from "../Tree/context.js";
+import { getElement, getSiblings } from "../TreeItem/helpers.js";
 import type { TreeItemInputProps } from "./types.js";
 
-const context = TreeItemContext.get();
+const {
+	treeContext: { getTree, getTreeId, callbacks },
+	itemState,
+	getNode,
+	getParent,
+} = getTreeItemProviderContext();
 
 let {
-	name = $bindable(context.getNode().name),
+	name = $bindable(getNode().name),
 	element = $bindable(null),
 	onkeydown,
 	onfocus,
@@ -18,19 +24,48 @@ let {
 const handleFocus: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
 	onfocus?.(event);
 
-	context.onInputFocus();
+	itemState.editing = true;
 };
 
 const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => {
 	onkeydown?.(event);
 
+	const tree = getTree();
+	const treeId = getTreeId();
+	const node = getNode();
+	const parent = getParent();
+
 	switch (event.key) {
 		case "Enter": {
-			context.onInputEnterKeyDown({ name });
+			if (name.length === 0) {
+				callbacks.onRenameError(node, {
+					type: "empty",
+				});
+				break;
+			}
+
+			if (name === node.name) {
+				getElement(treeId, node)?.focus();
+				break;
+			}
+
+			const siblings = getSiblings(tree, parent);
+			const duplicated = siblings.some((sibling) => sibling !== node && sibling.name === name);
+			if (duplicated) {
+				callbacks.onRenameError(node, {
+					type: "duplicate",
+					name,
+				});
+				break;
+			}
+
+			node.name = name;
+			getElement(treeId, node)?.focus();
+			callbacks.onRenameItem(node);
 			break;
 		}
 		case "Escape": {
-			context.onInputEscapeKeyDown();
+			getElement(treeId, node)?.focus();
 			break;
 		}
 		default: {
@@ -44,7 +79,7 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => 
 const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
 	onblur?.(event);
 
-	context.onInputBlur();
+	itemState.editing = false;
 };
 
 const init: Action<HTMLInputElement> = (input) => {

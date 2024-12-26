@@ -1,24 +1,35 @@
 <script lang="ts">
-import type { FileTreeNode } from "$lib/tree.svelte.js";
+import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
-import { TreeItemContext, type TreeState } from "./context.svelte.js";
+import { type TreeContext, setTreeItemProviderContext } from "./context.js";
+import { TreeItemState } from "./state.svelte.js";
+import type { TreeItemData } from "./types.js";
 
 const {
-	treeState,
+	treeContext,
 	node,
 	index,
+	parent,
+	depth,
 	children,
 }: {
-	treeState: TreeState;
+	treeContext: TreeContext;
 	node: FileTreeNode;
 	index: number;
-	children: Snippet<[context: TreeItemContext]>;
+	parent: TreeItemData<FolderNode> | undefined;
+	depth: number;
+	children: Snippet<[itemState: TreeItemState]>;
 } = $props();
 
-const context = TreeItemContext.set(treeState, {
+const itemState = new TreeItemState();
+setTreeItemProviderContext({
+	treeContext,
+	itemState,
 	getNode: () => node,
 	getIndex: () => index,
+	getParent: () => parent,
+	getDepth: () => depth,
 });
 </script>
 
-{@render children(context)}
+{@render children(itemState)}
