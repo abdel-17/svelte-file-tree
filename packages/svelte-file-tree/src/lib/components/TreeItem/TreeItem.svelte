@@ -627,6 +627,7 @@ const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 			dropTarget = node.children;
 			dropIndex = dropTarget.length;
 			dropTarget.push(dragged.node);
+			node.expand();
 
 			// The dragged item is removed temporarily from the DOM, so it loses focus.
 			flushSync();
