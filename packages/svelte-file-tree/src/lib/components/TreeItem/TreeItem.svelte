@@ -268,7 +268,8 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 			// 2   4 5 ...
 			// 2 4 5 ...
 			const deleted: FileTreeNode[] = [];
-			const parentsOfDeleted = new Set<TreeItemData<FolderNode> | undefined>();
+			const parentsOfDeleted = new Set<FolderNode>();
+			let hasDeletedRoot = false;
 			for (const id of tree.selected) {
 				const current = treeState.getItem(id);
 				if (current === undefined) {
@@ -294,7 +295,12 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 				}
 
 				deleted.push(current.node);
-				parentsOfDeleted.add(current.parent);
+
+				if (current.parent === undefined) {
+					hasDeletedRoot = true;
+				} else {
+					parentsOfDeleted.add(current.parent.node);
+				}
 			}
 
 			if (deleted.length === 0) {
@@ -302,51 +308,46 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 			}
 
 			let focusTarget: TreeItemData | undefined = { node, index, level, parent };
-			while (true) {
+			do {
+				{
+					// If one of the ancestors is selected, this item will be deleted.
+					let ancestor: TreeItemData | undefined = focusTarget.parent;
+					while (ancestor !== undefined) {
+						if (ancestor.node.selected) {
+							focusTarget = ancestor;
+						}
+						ancestor = ancestor.parent;
+					}
+				}
+
+				// Focus the nearest remaining item after this item.
 				let nearestUnselected: TreeItemData | undefined = focusTarget;
 				while (nearestUnselected?.node.selected) {
 					// The current item will be deleted, so we shouldn't traverse its children.
-					tree.expanded.delete(nearestUnselected.node.id);
-					nearestUnselected = getNext(nearestUnselected);
+					nearestUnselected = getNextNonChild(nearestUnselected);
 				}
 
 				if (nearestUnselected === undefined) {
+					// Focus the nearest remaining item before this item.
 					nearestUnselected = focusTarget;
 					while (nearestUnselected?.node.selected) {
 						nearestUnselected = getPrevious(nearestUnselected);
 					}
 				}
 
+				if (nearestUnselected === focusTarget) {
+					break;
+				}
+
 				focusTarget = nearestUnselected;
-				if (focusTarget === undefined) {
-					break;
-				}
+			} while (focusTarget !== undefined);
 
-				// If an item is not selected but one of its ancestors is, it will be deleted.
-				let selectedAncestor: TreeItemData | undefined;
-				{
-					let ancestor = focusTarget.parent;
-					while (ancestor !== undefined) {
-						if (ancestor.node.selected) {
-							selectedAncestor = ancestor;
-						}
-						ancestor = ancestor.parent;
-					}
-				}
-
-				if (selectedAncestor === undefined) {
-					break;
-				}
-
-				focusTarget = selectedAncestor;
+			if (hasDeletedRoot) {
+				tree.nodes = tree.nodes.filter((node) => !node.selected);
 			}
 
 			for (const parent of parentsOfDeleted) {
-				if (parent === undefined) {
-					tree.nodes = tree.nodes.filter((node) => !node.selected);
-				} else {
-					parent.node.children = parent.node.children.filter((child) => !child.selected);
-				}
+				parent.children = parent.children.filter((child) => !child.selected);
 			}
 
 			if (focusTarget !== undefined) {
