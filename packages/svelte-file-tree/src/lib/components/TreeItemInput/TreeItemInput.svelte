@@ -2,14 +2,15 @@
 import type { Action } from "svelte/action";
 import type { EventHandler } from "svelte/elements";
 import { getTreeItemProviderContext } from "../Tree/context.js";
-import { getElement, getSiblings } from "../TreeItem/helpers.js";
+import { getElement } from "../TreeItem/helpers.js";
 import type { TreeItemInputProps } from "./types.js";
 
 const {
-	treeContext: { getTree, getTreeId, callbacks },
+	treeContext: { getTreeId, callbacks },
 	itemState,
 	getNode,
 	getParent,
+	getLevel,
 } = getTreeItemProviderContext();
 
 let {
@@ -30,10 +31,9 @@ const handleFocus: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
 const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => {
 	onkeydown?.(event);
 
-	const tree = getTree();
 	const treeId = getTreeId();
 	const node = getNode();
-	const parent = getParent();
+	const level = getLevel();
 
 	switch (event.key) {
 		case "Enter": {
@@ -49,8 +49,7 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => 
 				break;
 			}
 
-			const siblings = getSiblings(tree, parent);
-			const duplicated = siblings.some((sibling) => sibling !== node && sibling.name === name);
+			const duplicated = level.some((current) => current !== node && current.name === name);
 			if (duplicated) {
 				callbacks.onRenameError(node, {
 					type: "duplicate",

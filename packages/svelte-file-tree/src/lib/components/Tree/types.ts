@@ -26,12 +26,14 @@ export type TreeItemDropPosition = "before" | "after" | "inside";
 export interface TreeItemData<TNode extends FileTreeNode = FileTreeNode> {
 	node: TNode;
 	index: number;
+	level: FileTreeNode[];
 	parent: TreeItemData<FolderNode> | undefined;
 }
 
 export interface TreeItemRenderProps {
 	node: FileTreeNode;
 	index: number;
+	level: FileTreeNode[];
 	parent: TreeItemData<FolderNode> | undefined;
 	depth: number;
 	editing: boolean;

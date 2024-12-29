@@ -15,6 +15,7 @@ export interface TreeItemProviderContext {
 	itemState: TreeItemState;
 	getNode: () => FileTreeNode;
 	getIndex: () => number;
+	getLevel: () => FileTreeNode[];
 	getParent: () => TreeItemData<FolderNode> | undefined;
 	getDepth: () => number;
 }

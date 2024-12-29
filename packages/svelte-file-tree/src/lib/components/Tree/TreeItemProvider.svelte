@@ -9,6 +9,7 @@ const {
 	treeContext,
 	node,
 	index,
+	level,
 	parent,
 	depth,
 	children,
@@ -16,6 +17,7 @@ const {
 	treeContext: TreeContext;
 	node: FileTreeNode;
 	index: number;
+	level: FileTreeNode[];
 	parent: TreeItemData<FolderNode> | undefined;
 	depth: number;
 	children: Snippet<[itemState: TreeItemState]>;
@@ -27,6 +29,7 @@ setTreeItemProviderContext({
 	itemState,
 	getNode: () => node,
 	getIndex: () => index,
+	getLevel: () => level,
 	getParent: () => parent,
 	getDepth: () => depth,
 });
