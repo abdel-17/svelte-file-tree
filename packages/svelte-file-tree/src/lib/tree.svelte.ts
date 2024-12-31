@@ -37,7 +37,6 @@ export class FileTree {
 		return new FolderNode(this, props);
 	}
 
-	// TODO: test
 	selectAll(): void {
 		this.#selectAll(this.nodes);
 	}
@@ -52,7 +51,6 @@ export class FileTree {
 		}
 	}
 
-	// TODO: test
 	copy(ids: Iterable<string>): void {
 		this.copied.clear();
 		for (const id of ids) {
@@ -78,17 +76,14 @@ class BaseFileTreeNode {
 
 	readonly copied: boolean = $derived.by(() => this.#copied.has(this.id));
 
-	// TODO: test
 	select(): void {
 		this.#selected.add(this.id);
 	}
 
-	// TODO: test
 	unselect(): void {
 		this.#selected.delete(this.id);
 	}
 
-	// TODO: test
 	toggleSelected(): void {
 		if (this.selected) {
 			this.#selected.delete(this.id);
@@ -132,17 +127,14 @@ export class FolderNode extends BaseFileTreeNode {
 
 	readonly expanded: boolean = $derived.by(() => this.#expanded.has(this.id));
 
-	// TODO: test
 	expand(): void {
 		this.#expanded.add(this.id);
 	}
 
-	// TODO: test
 	collapse(): void {
 		this.#expanded.delete(this.id);
 	}
 
-	// TODO: test
 	toggleExpanded(): void {
 		if (this.expanded) {
 			this.#expanded.delete(this.id);

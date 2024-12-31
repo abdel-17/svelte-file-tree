@@ -19,7 +19,7 @@
 		"@sveltejs/vite-plugin-svelte": "4.0.2",
 		"@tailwindcss/vite": "4.0.0-beta.4",
 		"lucide-svelte": "^0.468.0",
-		"svelte": "5.7.0",
+		"svelte": "5.16.0",
 		"svelte-check": "^4.1.1",
 		"svelte-file-tree": "workspace:^",
 		"svelte-sonner": "^0.3.28",

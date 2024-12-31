@@ -11,58 +11,58 @@ export function getElement(treeId: string, node: FileTreeNode): HTMLElement | nu
 	return document.getElementById(elementId);
 }
 
-export function getSiblings(
-	tree: FileTree,
-	parent: TreeItemData<FolderNode> | undefined,
-): FileTreeNode[] {
-	if (parent === undefined) {
-		return tree.nodes;
+export function getNext(item: TreeItemData): TreeItemData | undefined {
+	const { node } = item;
+	if (node.type === "folder" && node.expanded) {
+		const { children } = node;
+		if (children.length !== 0) {
+			return {
+				node: children[0],
+				index: 0,
+				level: children,
+				parent: item as TreeItemData<FolderNode>,
+			};
+		}
 	}
-	return parent.node.children;
+	return getNextNonChild(item);
 }
 
-export function getNext(tree: FileTree, current: TreeItemData): TreeItemData | undefined {
-	let { node, index, parent } = current;
-	if (node.type === "folder" && node.expanded && node.children.length !== 0) {
-		parent = current as TreeItemData<FolderNode>;
-		node = node.children[0];
-		index = 0;
-		return { parent, node, index };
-	}
-
-	while (true) {
-		const siblings = getSiblings(tree, parent);
-		if (index !== siblings.length - 1) {
-			index++;
-			node = siblings[index];
-			break;
+export function getNextNonChild(item: TreeItemData): TreeItemData | undefined {
+	let current: TreeItemData | undefined = item;
+	do {
+		const { index, level } = current;
+		if (index !== level.length - 1) {
+			return {
+				node: level[index + 1],
+				index: index + 1,
+				level,
+				parent: current.parent,
+			};
 		}
-
-		if (parent === undefined) {
-			return;
-		}
-
-		node = parent.node;
-		index = parent.index;
-		parent = parent.parent;
-	}
-	return { node, index, parent };
+		current = current.parent;
+	} while (current !== undefined);
 }
 
-export function getPrevious(tree: FileTree, current: TreeItemData): TreeItemData | undefined {
-	let { node, index, parent } = current;
+export function getPrevious(item: TreeItemData): TreeItemData | undefined {
+	let { node, index, parent, level } = item;
 	if (index === 0) {
 		return parent;
 	}
 
 	index--;
-	node = getSiblings(tree, parent)[index];
-	while (node.type === "folder" && node.expanded && node.children.length !== 0) {
-		parent = { node, index, parent };
-		index = node.children.length - 1;
-		node = node.children[index];
+	node = level[index];
+	while (node.type === "folder" && node.expanded) {
+		const { children } = node;
+		if (children.length === 0) {
+			break;
+		}
+
+		parent = { node, index, level, parent };
+		level = children;
+		index = children.length - 1;
+		node = children[index];
 	}
-	return { node, index, parent };
+	return { node, index, level, parent };
 }
 
 export function batchSelect(
@@ -84,6 +84,7 @@ export function batchSelect(
 		let current: TreeItemData | undefined = {
 			node: tree.nodes[0],
 			index: 0,
+			level: tree.nodes,
 			parent: undefined,
 		};
 		do {
@@ -91,7 +92,7 @@ export function batchSelect(
 			if (current.node === node) {
 				break;
 			}
-			current = getNext(tree, current);
+			current = getNext(current);
 		} while (current !== undefined);
 		return;
 	}
@@ -106,7 +107,7 @@ export function batchSelect(
 
 	let current: TreeItemData | undefined = lastSelected;
 	while (current.node !== node) {
-		current = following ? getNext(tree, current) : getPrevious(tree, current);
+		current = following ? getNext(current) : getPrevious(current);
 		if (current === undefined) {
 			break;
 		}
@@ -133,6 +134,7 @@ export function cloneNode(tree: FileTree, node: FileTreeNode): FileTreeNode {
 	}
 }
 
+// TODO: Maybe rely on onDestroy to clean up the tree instead of this function
 export function onDelete(tree: FileTree, deleted: FileTreeNode[]): boolean {
 	for (const node of deleted) {
 		tree.selected.delete(node.id);

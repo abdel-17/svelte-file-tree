@@ -43,13 +43,14 @@ const treeContext: TreeContext = {
 };
 </script>
 
-{#snippet items(nodes: FileTreeNode[], parent?: TreeItemData<FolderNode>, depth: number = 0)}
-	{#each nodes as node, index (node.id)}
-		<TreeItemProvider {treeContext} {node} {index} {parent} {depth}>
+{#snippet items(level: FileTreeNode[], parent?: TreeItemData<FolderNode>, depth: number = 0)}
+	{#each level as node, index (node.id)}
+		<TreeItemProvider {treeContext} {node} {index} {level} {parent} {depth}>
 			{#snippet children(itemState)}
 				{@render item({
 					node,
 					index,
+					level,
 					parent,
 					depth,
 					editing: itemState.editing,
@@ -60,7 +61,7 @@ const treeContext: TreeContext = {
 		</TreeItemProvider>
 
 		{#if node.type === "folder" && node.expanded}
-			{@render items(node.children, { node, index, parent }, depth + 1)}
+			{@render items(node.children, { node, index, level, parent }, depth + 1)}
 		{/if}
 	{/each}
 {/snippet}

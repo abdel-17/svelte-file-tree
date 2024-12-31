@@ -79,6 +79,46 @@ describe("FileTree", () => {
 		const tree = createTree();
 		expect(tree.nodes.map((node) => node.id)).toEqual(["1", "2", "3"]);
 	});
+
+	test("FileTree.selectAll() selects all visible nodes", () => {
+		const tree = createTree();
+		expect(tree.selected).empty;
+
+		tree.selectAll();
+		expect([...tree.selected]).toEqual(["1", "2", "3"]);
+
+		tree.expanded.add("1");
+		tree.selected.clear();
+		tree.selectAll();
+		expect([...tree.selected]).toEqual(["1", "1.1", "1.2", "2", "3"]);
+
+		tree.expanded.add("1.1").add("1.2");
+		tree.selected.clear();
+		tree.selectAll();
+		expect([...tree.selected]).toEqual([
+			"1",
+			"1.1",
+			"1.1.1",
+			"1.1.2",
+			"1.1.3",
+			"1.2",
+			"1.2.1",
+			"1.2.2",
+			"2",
+			"3",
+		]);
+	});
+
+	test("FileTree.copy() replaces the copied ids with the given ids", () => {
+		const tree = createTree();
+		expect(tree.copied).empty;
+
+		tree.copy(["1", "2"]);
+		expect([...tree.copied]).toEqual(["1", "2"]);
+
+		tree.copy(["3"]);
+		expect([...tree.copied]).toEqual(["3"]);
+	});
 });
 
 describe("FileTreeNode", () => {
@@ -150,11 +190,44 @@ describe("FileTreeNode", () => {
 	test("Updating Tree.selected updates FileTreeNode.selected", () => {
 		const tree = createTree();
 		const node_1 = tree.nodes[0];
+		expect(node_1.selected).false;
 
 		tree.selected.add("1");
 		expect(node_1.selected).true;
 
 		tree.selected.delete("1");
+		expect(node_1.selected).false;
+	});
+
+	test("FileTreeNode.select() sets selected to true", () => {
+		const tree = createTree();
+		const node_1 = tree.nodes[0];
+		expect(node_1.selected).false;
+
+		node_1.select();
+		expect(node_1.selected).true;
+	});
+
+	test("FileTreeNode.unselect() sets selected to false", () => {
+		const tree = createTree({
+			defaultSelected: ["1"],
+		});
+		const node_1 = tree.nodes[0];
+		expect(node_1.selected).true;
+
+		node_1.unselect();
+		expect(node_1.selected).false;
+	});
+
+	test("FileTreeNode.toggleSelected() flips the selected state", () => {
+		const tree = createTree();
+		const node_1 = tree.nodes[0];
+		expect(node_1.selected).false;
+
+		node_1.toggleSelected();
+		expect(node_1.selected).true;
+
+		node_1.toggleSelected();
 		expect(node_1.selected).false;
 	});
 
@@ -184,6 +257,7 @@ describe("FileTreeNode", () => {
 	test("Updating Tree.copied updates FileTreeNode.copied", () => {
 		const tree = createTree();
 		const node_1 = tree.nodes[0];
+		expect(node_1.copied).false;
 
 		tree.copied.add("1");
 		expect(node_1.copied).true;
@@ -223,11 +297,44 @@ describe("FolderNode", () => {
 	test("Updating Tree.expanded updates FolderNode.expanded", () => {
 		const tree = createTree();
 		const node_1 = tree.nodes[0] as FolderNode;
+		expect(node_1.expanded).false;
 
 		tree.expanded.add("1");
 		expect(node_1.expanded).true;
 
 		tree.expanded.delete("1");
+		expect(node_1.expanded).false;
+	});
+
+	test("FolderNode.expand() sets expanded to true", () => {
+		const tree = createTree();
+		const node_1 = tree.nodes[0] as FolderNode;
+		expect(node_1.expanded).false;
+
+		node_1.expand();
+		expect(node_1.expanded).true;
+	});
+
+	test("FolderNode.collapse() sets expanded to false", () => {
+		const tree = createTree({
+			defaultExpanded: ["1"],
+		});
+		const node_1 = tree.nodes[0] as FolderNode;
+		expect(node_1.expanded).true;
+
+		node_1.collapse();
+		expect(node_1.expanded).false;
+	});
+
+	test("FolderNode.toggleExpanded() flips the expanded state", () => {
+		const tree = createTree();
+		const node_1 = tree.nodes[0] as FolderNode;
+		expect(node_1.expanded).false;
+
+		node_1.toggleExpanded();
+		expect(node_1.expanded).true;
+
+		node_1.toggleExpanded();
 		expect(node_1.expanded).false;
 	});
 });

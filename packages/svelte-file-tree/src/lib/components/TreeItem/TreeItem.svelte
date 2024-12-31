@@ -11,8 +11,8 @@ import {
 	getElement,
 	getElementId,
 	getNext,
+	getNextNonChild,
 	getPrevious,
-	getSiblings,
 	onDelete,
 } from "./helpers.js";
 import type { TreeItemProps } from "./types.js";
@@ -22,6 +22,7 @@ const {
 	itemState,
 	getNode,
 	getIndex,
+	getLevel,
 	getParent,
 	getDepth,
 } = getTreeItemProviderContext();
@@ -30,6 +31,7 @@ const tree = $derived.by(getTree);
 const treeId = $derived.by(getTreeId);
 const node = $derived.by(getNode);
 const index = $derived.by(getIndex);
+const level = $derived.by(getLevel);
 const parent = $derived.by(getParent);
 const depth = $derived.by(getDepth);
 
@@ -50,7 +52,7 @@ let {
 }: TreeItemProps = $props();
 
 $effect(() => {
-	treeState.setItem({ node, index, parent });
+	treeState.setItem({ node, index, level, parent });
 });
 
 $effect(() => {
@@ -97,8 +99,8 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 		}
 		case "ArrowDown":
 		case "ArrowUp": {
-			const current = { node, index, parent };
-			const next = event.key === "ArrowDown" ? getNext(tree, current) : getPrevious(tree, current);
+			const current = { node, index, level, parent };
+			const next = event.key === "ArrowDown" ? getNext(current) : getPrevious(current);
 			if (next === undefined) {
 				break;
 			}
@@ -125,10 +127,10 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 			);
 			const itemRect = event.currentTarget.getBoundingClientRect();
 
-			let current = { node, index, parent };
+			let current = { node, index, level, parent };
 			let currentElement: HTMLElement = event.currentTarget;
 			while (true) {
-				const next = down ? getNext(tree, current) : getPrevious(tree, current);
+				const next = down ? getNext(current) : getPrevious(current);
 				if (next === undefined) {
 					break;
 				}
@@ -175,10 +177,10 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 			}
 
 			if (event.shiftKey && isControlOrMeta(event)) {
-				let current: TreeItemData | undefined = { node, index, parent };
+				let current: TreeItemData | undefined = { node, index, level, parent };
 				do {
 					current.node.select();
-					current = getPrevious(tree, current);
+					current = getPrevious(current);
 				} while (current !== undefined);
 			}
 
@@ -201,10 +203,10 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 			}
 
 			if (event.shiftKey && isControlOrMeta(event)) {
-				let current: TreeItemData | undefined = { node, index, parent };
+				let current: TreeItemData | undefined = { node, index, level, parent };
 				do {
 					current.node.select();
-					current = getNext(tree, current);
+					current = getNext(current);
 				} while (current !== undefined);
 			}
 
@@ -225,16 +227,15 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 			break;
 		}
 		case "*": {
-			const siblings = getSiblings(tree, parent);
-			for (const sibling of siblings) {
-				if (sibling.type === "folder") {
-					sibling.expand();
+			for (const current of level) {
+				if (current.type === "folder") {
+					current.expand();
 				}
 			}
 
-			// After the sibling items are expanded, the tree's height changes,
-			// causing layout shift. Preserve the scroll position relative to
-			// the current item to avoid disorienting the user.
+			// After the items are expanded, the tree's height changes,
+			// causing this item to move down. Scroll down to preserve
+			// the scroll position relative to this item.
 			const rectBefore = event.currentTarget.getBoundingClientRect();
 			flushSync();
 			const rectAfter = event.currentTarget.getBoundingClientRect();
@@ -267,7 +268,8 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 			// 2   4 5 ...
 			// 2 4 5 ...
 			const deleted: FileTreeNode[] = [];
-			const parentsOfDeleted = new Set<TreeItemData<FolderNode> | undefined>();
+			const parentsOfDeleted = new Set<FolderNode>();
+			let hasDeletedRoot = false;
 			for (const id of tree.selected) {
 				const current = treeState.getItem(id);
 				if (current === undefined) {
@@ -293,59 +295,59 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 				}
 
 				deleted.push(current.node);
-				parentsOfDeleted.add(current.parent);
+
+				if (current.parent === undefined) {
+					hasDeletedRoot = true;
+				} else {
+					parentsOfDeleted.add(current.parent.node);
+				}
 			}
 
 			if (deleted.length === 0) {
 				break;
 			}
 
-			let focusTarget: TreeItemData | undefined = { node, index, parent };
-			while (true) {
-				let nearestUnselected: TreeItemData | undefined = focusTarget;
-				while (nearestUnselected?.node.selected) {
-					// The current item will be deleted, so we shouldn't traverse its children.
-					tree.expanded.delete(nearestUnselected.node.id);
-					nearestUnselected = getNext(tree, nearestUnselected);
-				}
-
-				if (nearestUnselected === undefined) {
-					nearestUnselected = focusTarget;
-					while (nearestUnselected?.node.selected) {
-						nearestUnselected = getPrevious(tree, nearestUnselected);
-					}
-				}
-
-				focusTarget = nearestUnselected;
-				if (focusTarget === undefined) {
-					break;
-				}
-
-				// If an item is not selected but one of its ancestors is, it will be deleted.
-				let selectedAncestor: TreeItemData | undefined;
+			let focusTarget: TreeItemData | undefined = { node, index, level, parent };
+			do {
 				{
-					let ancestor = focusTarget.parent;
+					// If one of the ancestors is selected, this item will be deleted.
+					let ancestor: TreeItemData | undefined = focusTarget.parent;
 					while (ancestor !== undefined) {
 						if (ancestor.node.selected) {
-							selectedAncestor = ancestor;
+							focusTarget = ancestor;
 						}
 						ancestor = ancestor.parent;
 					}
 				}
 
-				if (selectedAncestor === undefined) {
+				// Focus the nearest remaining item after this item.
+				let nearestUnselected: TreeItemData | undefined = focusTarget;
+				while (nearestUnselected?.node.selected) {
+					// The current item will be deleted, so we shouldn't traverse its children.
+					nearestUnselected = getNextNonChild(nearestUnselected);
+				}
+
+				if (nearestUnselected === undefined) {
+					// Focus the nearest remaining item before this item.
+					nearestUnselected = focusTarget;
+					while (nearestUnselected?.node.selected) {
+						nearestUnselected = getPrevious(nearestUnselected);
+					}
+				}
+
+				if (nearestUnselected === focusTarget) {
 					break;
 				}
 
-				focusTarget = selectedAncestor;
+				focusTarget = nearestUnselected;
+			} while (focusTarget !== undefined);
+
+			if (hasDeletedRoot) {
+				tree.nodes = tree.nodes.filter((node) => !node.selected);
 			}
 
 			for (const parent of parentsOfDeleted) {
-				if (parent === undefined) {
-					tree.nodes = tree.nodes.filter((node) => !node.selected);
-				} else {
-					parent.node.children = parent.node.children.filter((child) => !child.selected);
-				}
+				parent.children = parent.children.filter((child) => !child.selected);
 			}
 
 			if (focusTarget !== undefined) {
@@ -411,7 +413,7 @@ const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 			}
 
 			const shouldPasteInside = node.type === "folder" && node.expanded;
-			const pasteTarget = shouldPasteInside ? node.children : getSiblings(tree, parent);
+			const pasteTarget = shouldPasteInside ? node.children : level;
 
 			const uniqueNames = new Set<string>();
 			for (const sibling of pasteTarget) {
@@ -459,7 +461,7 @@ const handleClick: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
 		batchSelect(treeState, tree, treeId, node, event.currentTarget);
 	} else {
 		tree.selected.clear();
-		tree.selected.add(node.id);
+		node.select();
 	}
 };
 
@@ -482,7 +484,7 @@ const handleDragEnter: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 
 	{
 		// Prevent the dragged item from being dropped inside itself.
-		let current: TreeItemData | undefined = { node, index, parent };
+		let current: TreeItemData | undefined = { node, index, level, parent };
 		do {
 			if (treeState.isDragged(current.node)) {
 				return;
@@ -568,10 +570,10 @@ const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		case "after": {
 			if (dragged.parent !== parent) {
 				// Remove the dragged item from its parent.
-				getSiblings(tree, dragged.parent).splice(dragged.index, 1);
+				dragged.level.splice(dragged.index, 1);
 
 				// Insert the dragged item into the new parent.
-				dropTarget = getSiblings(tree, parent);
+				dropTarget = level;
 				dropIndex = dropPosition === "before" ? index : index + 1;
 				dropTarget.splice(dropIndex, 0, dragged.node);
 
@@ -584,7 +586,7 @@ const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 			// Instead of removing the dragged item and inserting it back to the
 			// same array, we can repeatedly swap it with its adjacent sibling
 			// until it reaches the new index, which is more efficient.
-			dropTarget = getSiblings(tree, parent);
+			dropTarget = level;
 			if (dragged.index < index) {
 				// Case 1: Swap right
 				//
@@ -621,7 +623,7 @@ const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 			}
 
 			// Remove the dragged item from its parent.
-			getSiblings(tree, dragged.parent).splice(dragged.index, 1);
+			dragged.level.splice(dragged.index, 1);
 
 			// Insert the dragged item into the new parent.
 			dropTarget = node.children;
@@ -656,7 +658,7 @@ const handleDragEnd: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 	aria-expanded={node.type === "folder" ? node.expanded : undefined}
 	aria-level={depth + 1}
 	aria-posinset={index + 1}
-	aria-setsize={getSiblings(tree, parent).length}
+	aria-setsize={level.length}
 	tabindex={treeState.isTabbable(tree, node) ? 0 : -1}
 	onfocusin={handleFocusIn}
 	onkeydown={handleKeyDown}
