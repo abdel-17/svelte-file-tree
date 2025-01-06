@@ -1268,6 +1268,7 @@
 				expect(onRenameError).toHaveBeenCalledWith({
 					reason: "conflict",
 					node: tree.children[0],
+					name: "Section 2",
 					conflicting: tree.children[1],
 				});
 			});

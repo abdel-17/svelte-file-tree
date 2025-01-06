@@ -32,7 +32,7 @@ export type MoveNameConflictErrorArgs = {
 	conflicting: FileTreeNode;
 };
 
-export type MoveConflictResolution = "skip" | "stop";
+export type MoveNameConflictResolution = "skip" | "stop";
 
 export type InsertItemsArgs = {
 	inserted: FileTreeNode[];
@@ -57,6 +57,7 @@ export type RenameErrorArgs =
 	| {
 			reason: "conflict";
 			node: FileTreeNode;
+			name: string;
 			conflicting: FileTreeNode;
 	  };
 
@@ -69,7 +70,7 @@ export interface TreeProps extends Omit<HTMLDivAttributes, "children"> {
 	onMoveCircularReferenceError?: (args: MoveCircularReferenceErrorArgs) => void;
 	onMoveNameConflictError?: (
 		args: MoveNameConflictErrorArgs,
-	) => MoveConflictResolution | void | Promise<MoveConflictResolution | void>;
+	) => MoveNameConflictResolution | void | Promise<MoveNameConflictResolution | void>;
 	onInsertItems?: (args: InsertItemsArgs) => void;
 	onDeleteItems?: (args: DeleteItemsArgs) => void;
 	onRenameItem?: (args: RenameItemArgs) => void;

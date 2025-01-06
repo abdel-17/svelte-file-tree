@@ -59,6 +59,7 @@
 					treeContext.callbacks.onRenameError({
 						reason: "conflict",
 						node,
+						name,
 						conflicting,
 					});
 					break;
