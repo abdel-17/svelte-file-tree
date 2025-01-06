@@ -1,64 +1,56 @@
 <script lang="ts">
-import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
-import TreeItemProvider from "./TreeItemProvider.svelte";
-import type { TreeContext } from "./context.js";
-import { TreeState } from "./state.svelte.js";
-import type { TreeItemData, TreeProps } from "./types.js";
+	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+	import { setContext } from "svelte";
+	import TreeItemContextProvider from "./TreeItemContextProvider.svelte";
+	import { TreeContext, type TreeItemData } from "./context.svelte.js";
+	import type { TreeProps } from "./types.js";
 
-let {
-	tree,
-	item,
-	id = crypto.randomUUID(),
-	element = $bindable(null),
-	onMoveItems,
-	onInsertItems,
-	onDeleteItems,
-	onRenameItem,
-	onRenameError,
-	...attributes
-}: TreeProps = $props();
+	let {
+		tree,
+		item,
+		id = crypto.randomUUID(),
+		element = $bindable(null),
+		onMoveItems,
+		onMoveCircularReferenceError,
+		onMoveNameConflictError,
+		onInsertItems,
+		onDeleteItems,
+		onRenameItem,
+		onRenameError,
+		...attributes
+	}: TreeProps = $props();
 
-const treeState = new TreeState();
-const treeContext: TreeContext = {
-	treeState,
-	getTree: () => tree,
-	getTreeId: () => id,
-	callbacks: {
-		onMoveItems(nodes, start, count) {
-			onMoveItems?.(nodes, start, count);
+	const context = new TreeContext({
+		id: () => id,
+		callbacks: {
+			onMoveItems: (args) => onMoveItems?.(args),
+			onMoveCircularReferenceError: (args) => onMoveCircularReferenceError?.(args),
+			onMoveNameConflictError: (args) => onMoveNameConflictError?.(args),
+			onInsertItems: (args) => onInsertItems?.(args),
+			onDeleteItems: (args) => onDeleteItems?.(args),
+			onRenameItem: (args) => onRenameItem?.(args),
+			onRenameError: (args) => onRenameError?.(args),
 		},
-		onInsertItems(nodes, start, count) {
-			onInsertItems?.(nodes, start, count);
-		},
-		onDeleteItems(nodes) {
-			onDeleteItems?.(nodes);
-		},
-		onRenameItem(node) {
-			onRenameItem?.(node);
-		},
-		onRenameError(node, error) {
-			onRenameError?.(node, error);
-		},
-	},
-};
+	});
+	setContext(TreeContext.key, context);
 </script>
 
-{#snippet items(level: FileTreeNode[], parent?: TreeItemData<FolderNode>, depth: number = 0)}
+{#snippet items(level: FileTreeNode[], parent?: TreeItemData<FolderNode>, depth = 0)}
 	{#each level as node, index (node.id)}
-		<TreeItemProvider {treeContext} {node} {index} {level} {parent} {depth}>
-			{#snippet children(itemState)}
+		<TreeItemContextProvider {node} {index} {level} {parent} {depth}>
+			{#snippet children({ editing, dropPosition })}
 				{@render item({
 					node,
 					index,
-					level,
-					parent,
 					depth,
-					editing: itemState.editing,
-					dragged: treeState.isDragged(node),
-					dropPosition: itemState.dropPosition,
+					editing,
+					copied: context.isCopied(node),
+					cut: context.isCut(node),
+					dragged: context.isDragged(node),
+					dropPosition,
 				})}
 			{/snippet}
-		</TreeItemProvider>
+		</TreeItemContextProvider>
 
 		{#if node.type === "folder" && node.expanded}
 			{@render items(node.children, { node, index, level, parent }, depth + 1)}
@@ -67,5 +59,5 @@ const treeContext: TreeContext = {
 {/snippet}
 
 <div {...attributes} bind:this={element} {id} role="tree" aria-multiselectable="true">
-	{@render items(tree.nodes)}
+	{@render items(tree.children)}
 </div>

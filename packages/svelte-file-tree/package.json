@@ -9,6 +9,8 @@
 		"prepublishOnly": "pnpm run build",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
 		"lint": "biome check",
 		"lint:fix": "biome check --fix",
 		"lint:ci": "biome ci",
@@ -21,8 +23,14 @@
 			"svelte": "./dist/index.js"
 		}
 	},
-	"sideEffects": ["**/*.css"],
-	"files": ["dist", "!dist/**/*.spec.*", "!dist/**/*.test.*"],
+	"sideEffects": [
+		"**/*.css"
+	],
+	"files": [
+		"dist",
+		"!dist/**/*.spec.*",
+		"!dist/**/*.test.*"
+	],
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/abdel-17/svelte-file-tree",

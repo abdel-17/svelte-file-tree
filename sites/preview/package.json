@@ -9,6 +9,8 @@
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
 		"lint": "biome check",
 		"lint:fix": "biome check --fix",
 		"lint:ci": "biome ci"
@@ -19,6 +21,7 @@
 		"@sveltejs/vite-plugin-svelte": "4.0.2",
 		"@tailwindcss/vite": "4.0.0-beta.4",
 		"lucide-svelte": "^0.468.0",
+		"prettier-plugin-tailwindcss": "^0.6.9",
 		"svelte": "5.16.0",
 		"svelte-check": "^4.1.1",
 		"svelte-file-tree": "workspace:^",

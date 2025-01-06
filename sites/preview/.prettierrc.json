@@ -1,0 +1,12 @@
+{
+	"useTabs": true,
+	"printWidth": 100,
+	"plugins": ["prettier-plugin-svelte", "prettier-plugin-tailwindcss"],
+	"overrides": [
+		{
+			"files": "*.svelte",
+			"parser": "svelte"
+		}
+	],
+	"tailwindStylesheet": "./src/app.css"
+}

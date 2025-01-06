@@ -1,31 +1,25 @@
 import { SvelteSet } from "svelte/reactivity";
 
-export interface FileTreeProps {
+export type FileTreeProps = {
 	defaultSelected?: Iterable<string>;
 	selected?: SvelteSet<string>;
-	defaultCopied?: Iterable<string>;
-	copied?: SvelteSet<string>;
 	defaultExpanded?: Iterable<string>;
 	expanded?: SvelteSet<string>;
-}
+};
 
 export class FileTree {
 	readonly selected: SvelteSet<string>;
-	readonly copied: SvelteSet<string>;
 	readonly expanded: SvelteSet<string>;
-	nodes: FileTreeNode[] = $state([]);
+	children: FileTreeNode[] = $state([]);
 
 	constructor(props: FileTreeProps = {}) {
 		const {
 			defaultSelected,
 			selected = new SvelteSet(defaultSelected),
-			defaultCopied,
-			copied = new SvelteSet(defaultCopied),
 			defaultExpanded,
 			expanded = new SvelteSet(defaultExpanded),
 		} = props;
 		this.selected = selected;
-		this.copied = copied;
 		this.expanded = expanded;
 	}
 
@@ -38,10 +32,10 @@ export class FileTree {
 	}
 
 	selectAll(): void {
-		this.#selectAll(this.nodes);
+		this.#selectAll();
 	}
 
-	#selectAll(nodes: FileTreeNode[]): void {
+	#selectAll(nodes = this.children): void {
 		for (const node of nodes) {
 			this.selected.add(node.id);
 
@@ -50,53 +44,42 @@ export class FileTree {
 			}
 		}
 	}
-
-	copy(ids: Iterable<string>): void {
-		this.copied.clear();
-		for (const id of ids) {
-			this.copied.add(id);
-		}
-	}
 }
 
 class BaseFileTreeNode {
-	readonly #selected: SvelteSet<string>;
-	readonly #copied: SvelteSet<string>;
+	readonly tree: FileTree;
 	readonly id: string;
 	name: string = $state.raw("");
 
 	constructor(tree: FileTree, id: string, name: string) {
-		this.#selected = tree.selected;
-		this.#copied = tree.copied;
+		this.tree = tree;
 		this.id = id;
 		this.name = name;
 	}
 
-	readonly selected: boolean = $derived.by(() => this.#selected.has(this.id));
-
-	readonly copied: boolean = $derived.by(() => this.#copied.has(this.id));
+	readonly selected: boolean = $derived.by(() => this.tree.selected.has(this.id));
 
 	select(): void {
-		this.#selected.add(this.id);
+		this.tree.selected.add(this.id);
 	}
 
-	unselect(): void {
-		this.#selected.delete(this.id);
+	deselect(): void {
+		this.tree.selected.delete(this.id);
 	}
 
 	toggleSelected(): void {
 		if (this.selected) {
-			this.#selected.delete(this.id);
+			this.tree.selected.delete(this.id);
 		} else {
-			this.#selected.add(this.id);
+			this.tree.selected.add(this.id);
 		}
 	}
 }
 
-export interface FileNodeProps {
+export type FileNodeProps = {
 	id: string;
 	name: string;
-}
+};
 
 export class FileNode extends BaseFileTreeNode {
 	readonly type = "file";
@@ -107,39 +90,37 @@ export class FileNode extends BaseFileTreeNode {
 	}
 }
 
-export interface FolderNodeProps {
+export type FolderNodeProps = {
 	id: string;
 	name: string;
 	children?: FileTreeNode[];
-}
+};
 
 export class FolderNode extends BaseFileTreeNode {
 	readonly type = "folder";
-	readonly #expanded: SvelteSet<string>;
 	children: FileTreeNode[] = $state([]);
 
 	constructor(tree: FileTree, props: FolderNodeProps) {
 		const { id, name, children = [] } = props;
 		super(tree, id, name);
-		this.#expanded = tree.expanded;
 		this.children = children;
 	}
 
-	readonly expanded: boolean = $derived.by(() => this.#expanded.has(this.id));
+	readonly expanded: boolean = $derived.by(() => this.tree.expanded.has(this.id));
 
 	expand(): void {
-		this.#expanded.add(this.id);
+		this.tree.expanded.add(this.id);
 	}
 
 	collapse(): void {
-		this.#expanded.delete(this.id);
+		this.tree.expanded.delete(this.id);
 	}
 
 	toggleExpanded(): void {
 		if (this.expanded) {
-			this.#expanded.delete(this.id);
+			this.tree.expanded.delete(this.id);
 		} else {
-			this.#expanded.add(this.id);
+			this.tree.expanded.add(this.id);
 		}
 	}
 }

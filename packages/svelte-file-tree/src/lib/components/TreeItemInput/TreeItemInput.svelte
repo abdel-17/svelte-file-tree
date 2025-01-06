@@ -1,90 +1,96 @@
 <script lang="ts">
-import type { Action } from "svelte/action";
-import type { EventHandler } from "svelte/elements";
-import { getTreeItemProviderContext } from "../Tree/context.js";
-import { getElement } from "../TreeItem/helpers.js";
-import type { TreeItemInputProps } from "./types.js";
+	import type { FileTreeNode } from "$lib/tree.svelte.js";
+	import { getContext, hasContext } from "svelte";
+	import type { Action } from "svelte/action";
+	import type { EventHandler } from "svelte/elements";
+	import { TreeContext, TreeItemContext } from "../Tree/context.svelte.js";
+	import type { TreeItemInputProps } from "./types.js";
 
-const {
-	treeContext: { getTreeId, callbacks },
-	itemState,
-	getNode,
-	getParent,
-	getLevel,
-} = getTreeItemProviderContext();
-
-let {
-	name = $bindable(getNode().name),
-	element = $bindable(null),
-	onkeydown,
-	onfocus,
-	onblur,
-	...attributes
-}: TreeItemInputProps = $props();
-
-const handleFocus: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
-	onfocus?.(event);
-
-	itemState.editing = true;
-};
-
-const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => {
-	onkeydown?.(event);
-
-	const treeId = getTreeId();
-	const node = getNode();
-	const level = getLevel();
-
-	switch (event.key) {
-		case "Enter": {
-			if (name.length === 0) {
-				callbacks.onRenameError(node, {
-					type: "empty",
-				});
-				break;
-			}
-
-			if (name === node.name) {
-				getElement(treeId, node)?.focus();
-				break;
-			}
-
-			const duplicated = level.some((current) => current !== node && current.name === name);
-			if (duplicated) {
-				callbacks.onRenameError(node, {
-					type: "duplicate",
-					name,
-				});
-				break;
-			}
-
-			node.name = name;
-			getElement(treeId, node)?.focus();
-			callbacks.onRenameItem(node);
-			break;
-		}
-		case "Escape": {
-			getElement(treeId, node)?.focus();
-			break;
-		}
-		default: {
-			return;
-		}
+	if (!hasContext(TreeItemContext.key)) {
+		throw new Error("<TreeItemInput> must be a child of <TreeItem>");
 	}
 
-	event.preventDefault();
-};
+	const treeContext: TreeContext = getContext(TreeContext.key);
+	const context: TreeItemContext = getContext(TreeItemContext.key);
 
-const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
-	onblur?.(event);
+	let {
+		name = $bindable(context.node.name),
+		element = $bindable(null),
+		onkeydown,
+		onfocus,
+		onblur,
+		...attributes
+	}: TreeItemInputProps = $props();
 
-	itemState.editing = false;
-};
+	const handleFocus: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
+		onfocus?.(event);
 
-const init: Action<HTMLInputElement> = (input) => {
-	input.focus();
-	input.select();
-};
+		context.editing = true;
+	};
+
+	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => {
+		onkeydown?.(event);
+
+		const { node, level } = context;
+		switch (event.key) {
+			case "Enter": {
+				if (name.length === 0) {
+					treeContext.callbacks.onRenameError({
+						reason: "empty",
+						node,
+					});
+					break;
+				}
+
+				if (name === node.name) {
+					treeContext.getItemElement(node)?.focus();
+					break;
+				}
+
+				let conflicting: FileTreeNode | undefined;
+				for (const current of level) {
+					if (current !== node && name === current.name) {
+						conflicting = current;
+						break;
+					}
+				}
+
+				if (conflicting !== undefined) {
+					treeContext.callbacks.onRenameError({
+						reason: "conflict",
+						node,
+						conflicting,
+					});
+					break;
+				}
+
+				node.name = name;
+				treeContext.getItemElement(node)?.focus();
+				treeContext.callbacks.onRenameItem({ node });
+				break;
+			}
+			case "Escape": {
+				treeContext.getItemElement(node)?.focus();
+				break;
+			}
+			default: {
+				return;
+			}
+		}
+
+		event.preventDefault();
+	};
+
+	const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
+		onblur?.(event);
+
+		context.editing = false;
+	};
+
+	const init: Action<HTMLInputElement> = (input) => {
+		input.focus();
+		input.select();
+	};
 </script>
 
 <input
