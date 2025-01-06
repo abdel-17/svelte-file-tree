@@ -1,6 +1,6 @@
 <script lang="ts">
-	import FileWarningIcon from "lucide-svelte/icons/file-warning";
 	import FileIcon from "lucide-svelte/icons/file";
+	import FileWarningIcon from "lucide-svelte/icons/file-warning";
 	import FolderIcon from "lucide-svelte/icons/folder";
 	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
 	import {
