@@ -395,10 +395,10 @@
 
 		const { node, index, level, parent } = context;
 		{
-			// Prevent the dragged item from being dropped inside itself.
 			let current: TreeItemData | undefined = { node, index, level, parent };
 			do {
-				if (treeContext.isDragged(current.node)) {
+				if (treeContext.isDragged(current.node) || current.node.selected) {
+					// Avoid a circular reference.
 					return;
 				}
 				current = current.parent;
@@ -460,7 +460,6 @@
 		context.clearDropPosition();
 	};
 
-	// TODO: dnd multiple items at once
 	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondrop?.(event);
 
@@ -469,7 +468,48 @@
 			return;
 		}
 
-		const { node, index, level, parent } = context;
+		const { node, index, parent } = context;
+		{
+			let ancestor = parent;
+			while (ancestor !== undefined) {
+				if (treeContext.isDragged(ancestor.node) || ancestor.node.selected) {
+					treeContext.callbacks.onMoveCircularReferenceError({
+						node: ancestor.node,
+						descendant: node,
+					});
+					return;
+				}
+				ancestor = ancestor.parent;
+			}
+		}
+
+		const { tree } = node;
+		const dropped: FileTreeNode[] = [];
+		const droppedParents = new Set<FileTree | FolderNode>();
+
+		dropped.push(dragged.node);
+		droppedParents.add(dragged.parent?.node ?? tree);
+
+		for (const id of tree.selected) {
+			if (id === dragged.node.id) {
+				continue;
+			}
+
+			const current = treeContext.getItem(id);
+			if (current === undefined) {
+				continue;
+			}
+
+			dropped.push(current.node);
+			droppedParents.add(current.parent?.node ?? tree);
+		}
+
+		for (const parent of droppedParents) {
+			parent.children = parent.children.filter(
+				(child) => !child.selected && child !== dragged.node,
+			);
+		}
+
 		const dropPosition = context.updateDropPosition(
 			event.currentTarget.getBoundingClientRect(),
 			event.clientY,
@@ -481,55 +521,10 @@
 		switch (dropPosition) {
 			case "before":
 			case "after": {
-				if (dragged.parent !== parent) {
-					// Remove the dragged item from its parent.
-					dragged.level.splice(dragged.index, 1);
-
-					// Insert the dragged item into the new parent.
-					dropParent = parent?.node;
-					dropLevel = level;
-					dropIndex = dropPosition === "before" ? index : index + 1;
-					dropLevel.splice(dropIndex, 0, dragged.node);
-
-					// The dragged item is removed temporarily from the DOM, so it loses focus.
-					flushSync();
-					treeContext.getItemElement(dragged.node)?.focus();
-					break;
-				}
-
-				// Instead of removing the dragged item and inserting it back to the
-				// same array, we can repeatedly swap it with its adjacent sibling
-				// until it reaches the new index, which is more efficient.
 				dropParent = parent?.node;
-				dropLevel = level;
-				if (dragged.index < index) {
-					// Case 1: Swap right
-					//
-					// 1 - 2 - 3 - 4 - 5
-					// ^             *
-					// 2 - 1 - 3 - 4 - 5
-					// 2 - 3 - 1 - 4 - 5
-					// 2 - 3 - 4 - 1 - 5
-					dropIndex = dropPosition === "before" ? index - 1 : index;
-					for (let i = dragged.index; i < dropIndex; i++) {
-						const current = dropLevel[i];
-						dropLevel[i] = dropLevel[i + 1];
-						dropLevel[i + 1] = current;
-					}
-				} else {
-					// Case 2: Swap left
-					//
-					// 1 - 2 - 3 - 4 - 5
-					//   *         ^
-					// 1 - 2 - 4 - 3 - 5
-					// 1 - 4 - 2 - 3 - 5
-					dropIndex = dropPosition === "before" ? index : index + 1;
-					for (let i = dragged.index; i > dropIndex; i--) {
-						const current = dropLevel[i];
-						dropLevel[i] = dropLevel[i - 1];
-						dropLevel[i - 1] = current;
-					}
-				}
+				dropLevel = dropParent?.children ?? tree.children;
+				dropIndex = dropPosition === "before" ? index : index + 1;
+				dropLevel.splice(dropIndex, 0, ...dropped);
 				break;
 			}
 			case "inside": {
@@ -537,26 +532,26 @@
 					throw new Error("Cannot drop an item inside a file");
 				}
 
-				// Remove the dragged item from its parent.
-				dragged.level.splice(dragged.index, 1);
-
-				// Insert the dragged item into the new parent.
 				dropParent = node;
 				dropLevel = node.children;
 				dropIndex = dropLevel.length;
-				dropLevel.push(dragged.node);
+				dropLevel.push(...dropped);
 				node.expand();
-
-				// The dragged item is removed temporarily from the DOM, so it loses focus.
-				flushSync();
-				treeContext.getItemElement(dragged.node)?.focus();
 				break;
 			}
 		}
 
 		context.clearDropPosition();
+
+		flushSync();
+		tree.selected.clear();
+		for (const current of dropped) {
+			current.select();
+		}
+		treeContext.getItemElement(dragged.node)?.focus();
+
 		treeContext.callbacks.onMoveItems({
-			moved: [dragged.node],
+			moved: dropped,
 			start: dropIndex,
 			level: dropLevel,
 			parent: dropParent,
