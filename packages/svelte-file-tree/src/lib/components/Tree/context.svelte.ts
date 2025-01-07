@@ -2,6 +2,7 @@ import type { FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import { SvelteSet } from "svelte/reactivity";
 import { copyNode, getNextItem, getPreviousItem, hasSelectedAncestor } from "./helpers.js";
 import type { TreeItemDropPosition, TreeProps } from "./types.js";
+import { flushSync } from "svelte";
 
 export type TreeCallbacks = Required<
 	Pick<
@@ -207,6 +208,12 @@ export class TreeContext {
 					pasteLevel.splice(pasteIndex, 0, ...pasted);
 				}
 
+				flushSync();
+				node.tree.selected.clear();
+				for (const current of pasted) {
+					current.select();
+				}
+
 				this.clearClipboard();
 				this.callbacks.onInsertItems({
 					inserted: pasted,
@@ -292,6 +299,12 @@ export class TreeContext {
 					pasteLevel.push(...pasted);
 				} else {
 					pasteLevel.splice(pasteIndex, 0, ...pasted);
+				}
+
+				flushSync();
+				node.tree.selected.clear();
+				for (const current of pasted) {
+					current.select();
 				}
 
 				this.clearClipboard();
