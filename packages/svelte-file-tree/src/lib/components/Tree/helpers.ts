@@ -47,7 +47,7 @@ export function getPreviousItem(item: TreeItemData): TreeItemData | undefined {
 	return { node, index, level, parent };
 }
 
-export function hasSelectedAncestor(item: TreeItemData) {
+export function hasSelectedAncestor(item: TreeItemData): boolean {
 	let ancestor = item.parent;
 	while (ancestor !== undefined) {
 		if (ancestor.node.selected) {

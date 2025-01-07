@@ -101,7 +101,7 @@ export class TreeContext {
 		this.#tabbableId = node.id;
 	}
 
-	hasDragged() {
+	hasDragged(): boolean {
 		return this.#draggedId !== undefined;
 	}
 
