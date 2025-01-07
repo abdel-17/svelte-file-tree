@@ -1,14 +1,15 @@
 {
 	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
 	"formatter": {
-		"enabled": true,
-		"indentStyle": "tab",
-		"lineWidth": 100
+		"enabled": false
 	},
 	"linter": {
 		"enabled": true,
 		"rules": {
 			"recommended": true,
+			"suspicious": {
+				"noConfusingVoidType": "off"
+			},
 			"style": {
 				"noNonNullAssertion": "off"
 			}

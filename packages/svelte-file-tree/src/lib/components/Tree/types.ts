@@ -1,49 +1,78 @@
-import type { HTMLDivAttributes } from "$lib/shared.js";
+import type { HTMLDivAttributes } from "$lib/internal/types.js";
 import type { FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 
-export interface EmptyNameRenameError {
-	type: "empty";
-}
-
-export interface DuplicateRenameError {
-	type: "duplicate";
-	name: string;
-}
-
-export type RenameError = EmptyNameRenameError | DuplicateRenameError;
-
-export interface TreeCallbacks {
-	onMoveItems: (nodes: FileTreeNode[], start: number, count: number) => void;
-	onInsertItems: (nodes: FileTreeNode[], start: number, count: number) => void;
-	onDeleteItems: (nodes: FileTreeNode[]) => void;
-	onRenameItem: (node: FileTreeNode) => void;
-	onRenameError: (node: FileTreeNode, error: RenameError) => void;
-}
-
 export type TreeItemDropPosition = "before" | "after" | "inside";
 
-export interface TreeItemData<TNode extends FileTreeNode = FileTreeNode> {
-	node: TNode;
-	index: number;
-	level: FileTreeNode[];
-	parent: TreeItemData<FolderNode> | undefined;
-}
-
-export interface TreeItemRenderProps {
+export type TreeItemRenderProps = {
 	node: FileTreeNode;
 	index: number;
-	level: FileTreeNode[];
-	parent: TreeItemData<FolderNode> | undefined;
 	depth: number;
 	editing: boolean;
+	copied: boolean;
+	cut: boolean;
 	dragged: boolean;
 	dropPosition: TreeItemDropPosition | undefined;
-}
+};
 
-export interface TreeProps extends Partial<TreeCallbacks>, Omit<HTMLDivAttributes, "children"> {
+export type MoveItemsArgs = {
+	moved: FileTreeNode[];
+	start: number;
+	level: FileTreeNode[];
+	parent: FolderNode | undefined;
+};
+
+export type MoveCircularReferenceErrorArgs = {
+	node: FolderNode;
+	descendant: FileTreeNode;
+};
+
+export type MoveNameConflictErrorArgs = {
+	node: FileTreeNode;
+	conflicting: FileTreeNode;
+};
+
+export type MoveNameConflictResolution = "skip" | "stop";
+
+export type InsertItemsArgs = {
+	inserted: FileTreeNode[];
+	start: number;
+	level: FileTreeNode[];
+	parent: FolderNode | undefined;
+};
+
+export type DeleteItemsArgs = {
+	deleted: FileTreeNode[];
+};
+
+export type RenameItemArgs = {
+	node: FileTreeNode;
+};
+
+export type RenameErrorArgs =
+	| {
+			reason: "empty";
+			node: FileTreeNode;
+	  }
+	| {
+			reason: "conflict";
+			node: FileTreeNode;
+			name: string;
+			conflicting: FileTreeNode;
+	  };
+
+export interface TreeProps extends Omit<HTMLDivAttributes, "children"> {
 	tree: FileTree;
 	item: Snippet<[props: TreeItemRenderProps]>;
 	id?: string;
 	element?: HTMLDivElement | null;
+	onMoveItems?: (args: MoveItemsArgs) => void;
+	onMoveCircularReferenceError?: (args: MoveCircularReferenceErrorArgs) => void;
+	onMoveNameConflictError?: (
+		args: MoveNameConflictErrorArgs,
+	) => MoveNameConflictResolution | void | Promise<MoveNameConflictResolution | void>;
+	onInsertItems?: (args: InsertItemsArgs) => void;
+	onDeleteItems?: (args: DeleteItemsArgs) => void;
+	onRenameItem?: (args: RenameItemArgs) => void;
+	onRenameError?: (args: RenameErrorArgs) => void;
 }
