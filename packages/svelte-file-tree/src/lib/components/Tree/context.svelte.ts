@@ -1,8 +1,8 @@
 import type { FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+import { flushSync } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { copyNode, getNextItem, getPreviousItem, hasSelectedAncestor } from "./helpers.js";
 import type { TreeItemDropPosition, TreeProps } from "./types.js";
-import { flushSync } from "svelte";
 
 export type TreeCallbacks = Required<
 	Pick<
