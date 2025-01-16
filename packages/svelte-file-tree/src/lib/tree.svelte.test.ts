@@ -1,40 +1,40 @@
-import { describe, expect, test } from "vitest";
-import { FileTree, type FileTreeNode, type FileTreeProps, type FolderNode } from "./tree.svelte.js";
+import { describe, expect, it } from "vitest";
+import { type FileOrFolder, FileTree, FileTreeClipboard, type FolderNode } from "./tree.svelte.js";
 
-function createTree(props?: FileTreeProps): FileTree {
+function createTree(props?: FileTree.Props): FileTree {
 	const tree = new FileTree(props);
 	tree.children = [
-		tree.createFolder({
+		tree.folder({
 			id: "1",
 			name: "Section 1",
 			children: [
-				tree.createFolder({
+				tree.folder({
 					id: "1.1",
 					name: "Section 1.1",
 					children: [
-						tree.createFile({
+						tree.file({
 							id: "1.1.1",
 							name: "Section 1.1.1",
 						}),
-						tree.createFile({
+						tree.file({
 							id: "1.1.2",
 							name: "Section 1.1.2",
 						}),
-						tree.createFile({
+						tree.file({
 							id: "1.1.3",
 							name: "Section 1.1.3",
 						}),
 					],
 				}),
-				tree.createFolder({
+				tree.folder({
 					id: "1.2",
 					name: "Section 1.2",
 					children: [
-						tree.createFile({
+						tree.file({
 							id: "1.2.1",
 							name: "Section 1.2.1",
 						}),
-						tree.createFile({
+						tree.file({
 							id: "1.2.2",
 							name: "Section 1.2.2",
 						}),
@@ -42,29 +42,29 @@ function createTree(props?: FileTreeProps): FileTree {
 				}),
 			],
 		}),
-		tree.createFolder({
+		tree.folder({
 			id: "2",
 			name: "Section 2",
 			children: [
-				tree.createFile({
+				tree.file({
 					id: "2.1",
 					name: "Section 2.1",
 				}),
-				tree.createFile({
+				tree.file({
 					id: "2.2",
 					name: "Section 2.2",
 				}),
 			],
 		}),
-		tree.createFolder({
+		tree.folder({
 			id: "3",
 			name: "Section 3",
 			children: [
-				tree.createFile({
+				tree.file({
 					id: "3.1",
 					name: "Section 3.1",
 				}),
-				tree.createFile({
+				tree.file({
 					id: "3.2",
 					name: "Section 3.2",
 				}),
@@ -75,27 +75,28 @@ function createTree(props?: FileTreeProps): FileTree {
 }
 
 describe("FileTree", () => {
-	test("FileTree.children", () => {
+	it("initializes children correctly", () => {
 		const tree = createTree();
-		expect(tree.children.map((node) => node.id)).toEqual(["1", "2", "3"]);
+		const children = tree.children.map((node) => node.id);
+		expect(children).toEqual(["1", "2", "3"]);
 	});
 
-	test("FileTree.selectAll() selects all visible nodes", () => {
+	it("selects all visible nodes when selectAll() is called", () => {
 		const tree = createTree();
-		expect(tree.selected).empty;
+		expect(tree.selectedIds).empty;
 
 		tree.selectAll();
-		expect([...tree.selected]).toEqual(["1", "2", "3"]);
+		expect([...tree.selectedIds]).toEqual(["1", "2", "3"]);
 
-		tree.expanded.add("1");
-		tree.selected.clear();
+		tree.expandedIds.add("1");
+		tree.selectedIds.clear();
 		tree.selectAll();
-		expect([...tree.selected]).toEqual(["1", "1.1", "1.2", "2", "3"]);
+		expect([...tree.selectedIds]).toEqual(["1", "1.1", "1.2", "2", "3"]);
 
-		tree.expanded.add("1.1").add("1.2");
-		tree.selected.clear();
+		tree.expandedIds.add("1.1").add("1.2");
+		tree.selectedIds.clear();
 		tree.selectAll();
-		expect([...tree.selected]).toEqual([
+		expect([...tree.selectedIds]).toEqual([
 			"1",
 			"1.1",
 			"1.1.1",
@@ -110,29 +111,89 @@ describe("FileTree", () => {
 	});
 });
 
-describe("FileTreeNode", () => {
-	test("FileTreeNode.type", () => {
-		const tree = createTree();
-		const types = map(tree, (node) => node.type);
-		expect(types).toEqual({
-			"1": "folder",
-			"1.1": "folder",
-			"1.1.1": "file",
-			"1.1.2": "file",
-			"1.1.3": "file",
-			"1.2": "folder",
-			"1.2.1": "file",
-			"1.2.2": "file",
-			"2": "folder",
-			"2.1": "file",
-			"2.2": "file",
-			"3": "folder",
-			"3.1": "file",
-			"3.2": "file",
+describe("FileTreeClipboard", () => {
+	it("sets action and ids when set() is called", () => {
+		const clipboard = new FileTreeClipboard();
+		expect(clipboard.ids).empty;
+		expect(clipboard.action).toBeUndefined();
+
+		clipboard.set({
+			action: "copy",
+			ids: ["1", "2", "3"],
 		});
+		expect([...clipboard.ids]).toEqual(["1", "2", "3"]);
+		expect(clipboard.action).toBe("copy");
+
+		clipboard.set({
+			action: "cut",
+			ids: ["3", "4"],
+		});
+		expect([...clipboard.ids]).toEqual(["3", "4"]);
+		expect(clipboard.action).toBe("cut");
 	});
 
-	test("FileTreeNode.name", () => {
+	it("sets action to undefined when set() is called with empty ids", () => {
+		const clipboard = new FileTreeClipboard();
+		expect(clipboard.ids).empty;
+		expect(clipboard.action).toBeUndefined();
+
+		clipboard.set({
+			action: "copy",
+			ids: [],
+		});
+		expect(clipboard.ids).empty;
+		expect(clipboard.action).toBeUndefined();
+	});
+
+	it("removes the given id when delete() is called", () => {
+		const clipboard = new FileTreeClipboard();
+		clipboard.set({
+			action: "copy",
+			ids: ["1", "2", "3"],
+		});
+		expect([...clipboard.ids]).toEqual(["1", "2", "3"]);
+		expect(clipboard.action).toBe("copy");
+
+		clipboard.delete("2");
+		expect([...clipboard.ids]).toEqual(["1", "3"]);
+		expect(clipboard.action).toBe("copy");
+
+		clipboard.delete("1");
+		expect([...clipboard.ids]).toEqual(["3"]);
+		expect(clipboard.action).toBe("copy");
+	});
+
+	it("sets action to undefined when delete() is called on the last id", () => {
+		const clipboard = new FileTreeClipboard();
+		clipboard.set({
+			action: "copy",
+			ids: ["1"],
+		});
+		expect([...clipboard.ids]).toEqual(["1"]);
+		expect(clipboard.action).toBe("copy");
+
+		clipboard.delete("1");
+		expect(clipboard.ids).empty;
+		expect(clipboard.action).toBeUndefined();
+	});
+
+	it("clears ids and sets action to undefined when clear() is called", () => {
+		const clipboard = new FileTreeClipboard();
+		clipboard.set({
+			action: "copy",
+			ids: ["1", "2", "3"],
+		});
+		expect([...clipboard.ids]).toEqual(["1", "2", "3"]);
+		expect(clipboard.action).toBe("copy");
+
+		clipboard.clear();
+		expect(clipboard.ids).empty;
+		expect(clipboard.action).toBeUndefined();
+	});
+});
+
+describe("FileOrFolder", () => {
+	it("initializes name correctly", () => {
 		const tree = createTree();
 		const names = map(tree, (node) => node.name);
 		expect(names).toEqual({
@@ -153,9 +214,9 @@ describe("FileTreeNode", () => {
 		});
 	});
 
-	test("FileTreeNode.selected", () => {
+	it("initializes selected correctly", () => {
 		const tree = createTree({
-			defaultSelected: ["1", "1.1", "2"],
+			defaultSelectedIds: ["1", "1.1", "2"],
 		});
 		const selected = map(tree, (node) => node.selected);
 		expect(selected).toEqual({
@@ -176,19 +237,59 @@ describe("FileTreeNode", () => {
 		});
 	});
 
-	test("Updating Tree.selected updates FileTreeNode.selected", () => {
+	it("updates selected when FileTree.selectedIds updates", () => {
 		const tree = createTree();
 		const node = tree.children[0];
 		expect(node.selected).false;
 
-		tree.selected.add("1");
+		tree.selectedIds.add("1");
 		expect(node.selected).true;
 
-		tree.selected.delete("1");
+		tree.selectedIds.delete("1");
 		expect(node.selected).false;
 	});
 
-	test("FileTreeNode.select() sets selected to true", () => {
+	it("initializes inClipboard correctly", () => {
+		const tree = createTree();
+		tree.clipboard.set({
+			action: "copy",
+			ids: ["1", "1.1", "2"],
+		});
+		const inClipboard = map(tree, (node) => node.inClipboard);
+		expect(inClipboard).toEqual({
+			"1": true,
+			"1.1": true,
+			"1.1.1": false,
+			"1.1.2": false,
+			"1.1.3": false,
+			"1.2": false,
+			"1.2.1": false,
+			"1.2.2": false,
+			"2": true,
+			"2.1": false,
+			"2.2": false,
+			"3": false,
+			"3.1": false,
+			"3.2": false,
+		});
+	});
+
+	it("updates inClipboard when FileTree.clipboard updates", () => {
+		const tree = createTree();
+		const node = tree.children[0];
+		expect(node.inClipboard).toBe(false);
+
+		tree.clipboard.set({
+			action: "copy",
+			ids: ["1"],
+		});
+		expect(node.inClipboard).toBe(true);
+
+		tree.clipboard.delete("1");
+		expect(node.inClipboard).toBe(false);
+	});
+
+	it("sets selected to true when select() is called", () => {
 		const tree = createTree();
 		const node = tree.children[0];
 		expect(node.selected).false;
@@ -197,9 +298,9 @@ describe("FileTreeNode", () => {
 		expect(node.selected).true;
 	});
 
-	test("FileTreeNode.deselect() sets selected to false", () => {
+	it("sets selected to false when deselect() is called", () => {
 		const tree = createTree({
-			defaultSelected: ["1"],
+			defaultSelectedIds: ["1"],
 		});
 		const node = tree.children[0];
 		expect(node.selected).true;
@@ -208,7 +309,7 @@ describe("FileTreeNode", () => {
 		expect(node.selected).false;
 	});
 
-	test("FileTreeNode.toggleSelected() flips the selected state", () => {
+	it("flips the value of selected when toggleSelected() is called", () => {
 		const tree = createTree();
 		const node = tree.children[0];
 		expect(node.selected).false;
@@ -222,7 +323,7 @@ describe("FileTreeNode", () => {
 });
 
 describe("FolderNode", () => {
-	test("FolderNode.children", () => {
+	it("initializes children correctly", () => {
 		const tree = createTree();
 		const children = mapFolders(tree, (node) => node.children.map((child) => child.id));
 		expect(children).toEqual({
@@ -234,9 +335,9 @@ describe("FolderNode", () => {
 		});
 	});
 
-	test("FolderNode.expanded", () => {
+	it("initializes expanded correctly", () => {
 		const tree = createTree({
-			defaultExpanded: ["1", "1.1", "2"],
+			defaultExpandedIds: ["1", "1.1", "2"],
 		});
 		const expanded = mapFolders(tree, (node) => node.expanded);
 		expect(expanded).toEqual({
@@ -248,19 +349,19 @@ describe("FolderNode", () => {
 		});
 	});
 
-	test("Updating Tree.expanded updates FolderNode.expanded", () => {
+	it("updates expanded when FileTree.expandedIds updates", () => {
 		const tree = createTree();
 		const node = tree.children[0] as FolderNode;
 		expect(node.expanded).false;
 
-		tree.expanded.add("1");
+		tree.expandedIds.add("1");
 		expect(node.expanded).true;
 
-		tree.expanded.delete("1");
+		tree.expandedIds.delete("1");
 		expect(node.expanded).false;
 	});
 
-	test("FolderNode.expand() sets expanded to true", () => {
+	it("sets expanded to true when expand() is called", () => {
 		const tree = createTree();
 		const node = tree.children[0] as FolderNode;
 		expect(node.expanded).false;
@@ -269,9 +370,9 @@ describe("FolderNode", () => {
 		expect(node.expanded).true;
 	});
 
-	test("FolderNode.collapse() sets expanded to false", () => {
+	it("sets expanded to false when collapse() is called", () => {
 		const tree = createTree({
-			defaultExpanded: ["1"],
+			defaultExpandedIds: ["1"],
 		});
 		const node = tree.children[0] as FolderNode;
 		expect(node.expanded).true;
@@ -280,7 +381,7 @@ describe("FolderNode", () => {
 		expect(node.expanded).false;
 	});
 
-	test("FolderNode.toggleExpanded() flips the expanded state", () => {
+	it("flips the value of expanded when toggleExpanded() is called", () => {
 		const tree = createTree();
 		const node = tree.children[0] as FolderNode;
 		expect(node.expanded).false;
@@ -293,7 +394,7 @@ describe("FolderNode", () => {
 	});
 });
 
-function forEach(nodes: FileTreeNode[], callback: (node: FileTreeNode) => void): void {
+function forEach(nodes: FileOrFolder[], callback: (node: FileOrFolder) => void): void {
 	for (const node of nodes) {
 		callback(node);
 
@@ -305,7 +406,7 @@ function forEach(nodes: FileTreeNode[], callback: (node: FileTreeNode) => void):
 
 function map<TValue>(
 	tree: FileTree,
-	transform: (node: FileTreeNode) => TValue,
+	transform: (node: FileOrFolder) => TValue,
 ): Record<string, TValue> {
 	const result: Record<string, TValue> = {};
 	forEach(tree.children, (node) => {

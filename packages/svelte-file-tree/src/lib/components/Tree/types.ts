@@ -1,78 +1,45 @@
 import type { HTMLDivAttributes } from "$lib/internal/types.js";
-import type { FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+import type { FileOrFolder, FileTree, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 
-export type TreeItemDropPosition = "before" | "after" | "inside";
+export declare namespace TreeProps {
+	type ItemParent = {
+		node: FolderNode;
+		index: number;
+		parent: ItemParent | undefined;
+	};
 
-export type TreeItemRenderProps = {
-	node: FileTreeNode;
-	index: number;
-	depth: number;
-	editing: boolean;
-	copied: boolean;
-	cut: boolean;
-	dragged: boolean;
-	dropPosition: TreeItemDropPosition | undefined;
-};
+	type ItemSnippetProps = {
+		node: FileOrFolder;
+		index: number;
+		depth: number;
+		parent: ItemParent | undefined;
+	};
 
-export type MoveItemsArgs = {
-	moved: FileTreeNode[];
-	start: number;
-	level: FileTreeNode[];
-	parent: FolderNode | undefined;
-};
+	type OnTreeChangeArgs = {
+		type: "rename";
+		node: FileOrFolder;
+		oldName: string;
+		newName: string;
+	};
 
-export type MoveCircularReferenceErrorArgs = {
-	node: FolderNode;
-	descendant: FileTreeNode;
-};
+	type OnTreeChangeErrorArgs =
+		| {
+				type: "rename:empty";
+				node: FileOrFolder;
+		  }
+		| {
+				type: "rename:conflict";
+				node: FileOrFolder;
+				name: string;
+				conflicting: FileOrFolder;
+		  };
+}
 
-export type MoveNameConflictErrorArgs = {
-	node: FileTreeNode;
-	conflicting: FileTreeNode;
-};
-
-export type MoveNameConflictResolution = "skip" | "stop";
-
-export type InsertItemsArgs = {
-	inserted: FileTreeNode[];
-	start: number;
-	level: FileTreeNode[];
-	parent: FolderNode | undefined;
-};
-
-export type DeleteItemsArgs = {
-	deleted: FileTreeNode[];
-};
-
-export type RenameItemArgs = {
-	node: FileTreeNode;
-};
-
-export type RenameErrorArgs =
-	| {
-			reason: "empty";
-			node: FileTreeNode;
-	  }
-	| {
-			reason: "conflict";
-			node: FileTreeNode;
-			name: string;
-			conflicting: FileTreeNode;
-	  };
-
-export interface TreeProps extends Omit<HTMLDivAttributes, "children"> {
+export interface TreeProps
+	extends Omit<HTMLDivAttributes, "children" | "role" | "aria-multiselectable"> {
 	tree: FileTree;
-	item: Snippet<[props: TreeItemRenderProps]>;
-	id?: string;
-	element?: HTMLDivElement | null;
-	onMoveItems?: (args: MoveItemsArgs) => void;
-	onMoveCircularReferenceError?: (args: MoveCircularReferenceErrorArgs) => void;
-	onMoveNameConflictError?: (
-		args: MoveNameConflictErrorArgs,
-	) => MoveNameConflictResolution | void | Promise<MoveNameConflictResolution | void>;
-	onInsertItems?: (args: InsertItemsArgs) => void;
-	onDeleteItems?: (args: DeleteItemsArgs) => void;
-	onRenameItem?: (args: RenameItemArgs) => void;
-	onRenameError?: (args: RenameErrorArgs) => void;
+	item: Snippet<[props: TreeProps.ItemSnippetProps]>;
+	onTreeChange?: (args: TreeProps.OnTreeChangeArgs) => void;
+	onTreeChangeError?: (args: TreeProps.OnTreeChangeErrorArgs) => void;
 }
