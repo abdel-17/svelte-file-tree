@@ -2,24 +2,21 @@
 	import { isControlOrMeta } from "$lib/internal/helpers.js";
 	import { flushSync } from "svelte";
 	import type { EventHandler } from "svelte/elements";
-	import {
-		type TreeContext,
-		getTreeContext,
-		getTreeItemProviderContext,
-	} from "../Tree/context.svelte.js";
+	import { getTreeContext, getTreeItemProviderContext } from "../Tree/context.svelte.js";
+	import type { TreeProps } from "../Tree/types.js";
 	import { setTreeItemContext } from "./context.svelte.js";
 	import { DropPositionState } from "./state.svelte.js";
 	import type { TreeItemProps } from "./types.js";
 
 	const {
 		tree,
-		lookup,
-		tabbable,
-		dragged,
+		tabbableId,
+		draggedId,
 		getChildren,
 		getNextItem,
 		getPreviousItem,
 		selectUntil,
+		dropDragged,
 	} = getTreeContext();
 	const { node, index, depth, parent } = getTreeItemProviderContext();
 
@@ -39,7 +36,7 @@
 		...attributes
 	}: TreeItemProps = $props();
 
-	const dropPosition = new DropPositionState({ node });
+	const dropPosition = new DropPositionState(node);
 
 	setTreeItemContext({
 		onEditingChange(value) {
@@ -50,7 +47,7 @@
 	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
 		onfocusin?.(event);
 
-		tabbable.set(node.current);
+		tabbableId.set(node.current);
 	};
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
@@ -160,7 +157,7 @@
 				}
 
 				if (event.shiftKey && isControlOrMeta(event)) {
-					let current: TreeContext.Item | undefined = {
+					let current: TreeProps.Item | undefined = {
 						node: node.current,
 						index: index.current,
 						parent: parent.current,
@@ -185,7 +182,7 @@
 				}
 
 				if (event.shiftKey && isControlOrMeta(event)) {
-					let current: TreeContext.Item | undefined = {
+					let current: TreeProps.Item | undefined = {
 						node: node.current,
 						index: index.current,
 						parent: parent.current,
@@ -309,7 +306,7 @@
 	const handleDragStart: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondragstart?.(event);
 
-		dragged.set(node.current);
+		draggedId.set(node.current);
 
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.effectAllowed = "move";
@@ -319,14 +316,14 @@
 	const handleDragEnter: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondragenter?.(event);
 
-		// Avoid a circular reference.
-		if (dragged.id === undefined || dragged.id === node.current.id) {
+		// Don't drop the dragged item into itself.
+		if (draggedId.current === undefined || draggedId.current === node.current.id) {
 			return;
 		}
 
 		for (let ancestor = parent.current; ancestor !== undefined; ancestor = ancestor.parent) {
-			// Avoid a circular reference.
-			if (dragged.id === ancestor.node.id || ancestor.node.selected) {
+			// Don't drop the dragged item into one of its children.
+			if (draggedId.current === ancestor.node.id) {
 				return;
 			}
 		}
@@ -395,14 +392,31 @@
 	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondrop?.(event);
 
-		// TODO:
+		if (draggedId.current === undefined) {
+			return;
+		}
+
+		const position = dropPosition.update({
+			rect: event.currentTarget.getBoundingClientRect(),
+			clientY: event.clientY,
+		});
 		dropPosition.clear();
+
+		dropDragged({
+			draggedId: draggedId.current,
+			node: node.current,
+			index: index.current,
+			parent: parent.current,
+			position,
+		});
+
+		event.preventDefault();
 	};
 
 	const handleDragEnd: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondragend?.(event);
 
-		dragged.clear();
+		draggedId.clear();
 	};
 </script>
 
@@ -415,7 +429,7 @@
 	aria-level={depth.current + 1}
 	aria-posinset={index.current + 1}
 	aria-setsize={getChildren(parent.current).length}
-	tabindex={tabbable.id === node.current.id ? 0 : -1}
+	tabindex={tabbableId.current === node.current.id ? 0 : -1}
 	onfocusin={handleFocusIn}
 	onkeydown={handleKeyDown}
 	onclick={handleClick}
@@ -428,7 +442,7 @@
 >
 	{@render children({
 		editing,
-		dragged: dragged.id === node.current.id,
+		dragged: draggedId.current === node.current.id,
 		dropPosition: dropPosition.current,
 	})}
 </div>

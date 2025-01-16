@@ -1,37 +1,37 @@
 import type { Ref } from "$lib/internal/ref.js";
 import type { FileOrFolder, FileTree } from "$lib/tree.svelte.js";
 
-export class TabbableState {
+export class TabbableIdState {
 	readonly #tree: Ref<FileTree>;
-	#id?: string = $state.raw();
+	#current?: string = $state.raw();
 
 	constructor(tree: Ref<FileTree>) {
 		this.#tree = tree;
 	}
 
-	readonly id: string = $derived.by(() => this.#id ?? this.#tree.current.children[0].id);
+	readonly current: string = $derived.by(() => this.#current ?? this.#tree.current.children[0].id);
 
 	set(node: FileOrFolder): void {
-		this.#id = node.id;
+		this.#current = node.id;
 	}
 
 	clear(): void {
-		this.#id = undefined;
+		this.#current = undefined;
 	}
 }
 
-export class DraggedState {
-	#id?: string = $state.raw();
+export class DraggedIdState {
+	#current?: string = $state.raw();
 
-	get id(): string | undefined {
-		return this.#id;
+	get current(): string | undefined {
+		return this.#current;
 	}
 
 	set(node: FileOrFolder): void {
-		this.#id = node.id;
+		this.#current = node.id;
 	}
 
 	clear(): void {
-		this.#id = undefined;
+		this.#current = undefined;
 	}
 }

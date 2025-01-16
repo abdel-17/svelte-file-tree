@@ -3,10 +3,6 @@ import type { FileOrFolder } from "$lib/tree.svelte.js";
 import type { TreeItemProps } from "./types.js";
 
 export declare namespace DropPositionState {
-	type Props = {
-		node: Ref<FileOrFolder>;
-	};
-
 	type UpdateArgs = {
 		rect: DOMRect;
 		clientY: number;
@@ -17,7 +13,7 @@ export class DropPositionState {
 	readonly #node: Ref<FileOrFolder>;
 	#current?: TreeItemProps.DropPosition = $state.raw();
 
-	constructor({ node }: DropPositionState.Props) {
+	constructor(node: Ref<FileOrFolder>) {
 		this.#node = node;
 	}
 

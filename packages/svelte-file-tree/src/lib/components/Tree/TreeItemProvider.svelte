@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Ref } from "$lib/internal/ref.js";
-	import type { FileOrFolder } from "$lib/tree.svelte.js";
+	import type { FileOrFolder, FolderNode } from "$lib/tree.svelte.js";
 	import type { Snippet } from "svelte";
-	import { type TreeContext, setTreeItemProviderContext } from "./context.svelte.js";
+	import { setTreeItemProviderContext } from "./context.svelte.js";
 	import type { TreeProps } from "./types.js";
 
 	const {
@@ -17,8 +17,8 @@
 		node: FileOrFolder;
 		index: number;
 		depth: number;
-		parent: TreeProps.ItemParent | undefined;
-		onSetItem: (item: TreeContext.Item) => void;
+		parent: TreeProps.Item<FolderNode> | undefined;
+		onSetItem: (item: TreeProps.Item) => void;
 		onDeleteItem: (id: string) => void;
 		children: Snippet;
 	} = $props();

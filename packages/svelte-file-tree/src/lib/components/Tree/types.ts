@@ -3,25 +3,44 @@ import type { FileOrFolder, FileTree, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 
 export declare namespace TreeProps {
-	type ItemParent = {
-		node: FolderNode;
+	type Item<TNode extends FileOrFolder = FileOrFolder> = {
+		node: TNode;
 		index: number;
-		parent: ItemParent | undefined;
+		parent: Item<FolderNode> | undefined;
 	};
 
 	type ItemSnippetProps = {
 		node: FileOrFolder;
 		index: number;
 		depth: number;
-		parent: ItemParent | undefined;
+		parent: Item<FolderNode> | undefined;
 	};
 
-	type OnTreeChangeArgs = {
-		type: "rename";
-		node: FileOrFolder;
+	type RenameChange = {
+		id: string;
 		oldName: string;
 		newName: string;
 	};
+
+	type ReorderChange = {
+		id: string;
+		oldParentId: string | undefined;
+		oldIndex: number;
+		newParentId: string | undefined;
+		newIndex: number;
+	};
+
+	type OnTreeChangeArgs =
+		| {
+				type: "rename";
+				change: RenameChange;
+				rollback: () => void;
+		  }
+		| {
+				type: "reorder";
+				changes: ReorderChange[];
+				rollback: () => void;
+		  };
 
 	type OnTreeChangeErrorArgs =
 		| {
@@ -32,7 +51,6 @@ export declare namespace TreeProps {
 				type: "rename:conflict";
 				node: FileOrFolder;
 				name: string;
-				conflicting: FileOrFolder;
 		  };
 }
 

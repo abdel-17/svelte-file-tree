@@ -1,18 +1,12 @@
 import type { Ref } from "$lib/internal/ref.js";
-import type { FileOrFolder, FileTree } from "$lib/tree.svelte.js";
+import type { FileOrFolder, FileTree, FolderNode } from "$lib/tree.svelte.js";
 import { getContext, setContext } from "svelte";
-import type { DraggedState, TabbableState } from "./state.svelte.js";
+import type { DraggedIdState, TabbableIdState } from "./state.svelte.js";
 import type { TreeProps } from "./types.js";
 
 const TreeContextKey = Symbol("TreeContextKey");
 
 export declare namespace TreeContext {
-	type Item = {
-		node: FileOrFolder;
-		index: number;
-		parent: TreeProps.ItemParent | undefined;
-	};
-
 	type SelectUntilArgs = {
 		node: FileOrFolder;
 		element: HTMLElement;
@@ -21,20 +15,28 @@ export declare namespace TreeContext {
 	type RenameItemArgs = {
 		node: FileOrFolder;
 		name: string;
-		parent: TreeProps.ItemParent | undefined;
+		parent: TreeProps.Item<FolderNode> | undefined;
+	};
+
+	type DropDraggedArgs = {
+		draggedId: string;
+		node: FileOrFolder;
+		index: number;
+		parent: TreeProps.Item<FolderNode> | undefined;
+		position: "before" | "inside" | "after";
 	};
 }
 
 export type TreeContext = {
 	tree: Ref<FileTree>;
-	lookup: ReadonlyMap<string, TreeContext.Item>;
-	tabbable: TabbableState;
-	dragged: DraggedState;
-	getChildren: (parent: TreeProps.ItemParent | undefined) => FileOrFolder[];
-	getNextItem: (item: TreeContext.Item) => TreeContext.Item | undefined;
-	getPreviousItem: (item: TreeContext.Item) => TreeContext.Item | undefined;
+	tabbableId: TabbableIdState;
+	draggedId: DraggedIdState;
+	getChildren: (item: TreeProps.Item<FolderNode> | undefined) => FileOrFolder[];
+	getNextItem: (item: TreeProps.Item) => TreeProps.Item | undefined;
+	getPreviousItem: (item: TreeProps.Item) => TreeProps.Item | undefined;
 	selectUntil: (args: TreeContext.SelectUntilArgs) => void;
 	renameItem: (args: TreeContext.RenameItemArgs) => boolean;
+	dropDragged: (args: TreeContext.DropDraggedArgs) => void;
 };
 
 export function getTreeContext(): TreeContext {
@@ -55,7 +57,7 @@ export type TreeItemProviderContext = {
 	node: Ref<FileOrFolder>;
 	index: Ref<number>;
 	depth: Ref<number>;
-	parent: Ref<TreeProps.ItemParent | undefined>;
+	parent: Ref<TreeProps.Item<FolderNode> | undefined>;
 };
 
 export function getTreeItemProviderContext(): TreeItemProviderContext {
