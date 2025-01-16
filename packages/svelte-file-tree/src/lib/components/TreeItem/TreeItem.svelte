@@ -25,7 +25,7 @@
 		element = $bindable(null),
 		onfocusin,
 		onkeydown,
-		onclick,
+		onpointerdown,
 		ondragstart,
 		ondragenter,
 		ondragover,
@@ -362,8 +362,8 @@
 		event.preventDefault();
 	};
 
-	const handleClick: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
-		onclick?.(event);
+	const handlePointerDown: EventHandler<PointerEvent, HTMLDivElement> = (event) => {
+		onpointerdown?.(event);
 
 		const { node } = context;
 		if (isControlOrMeta(event)) {
@@ -578,7 +578,7 @@
 	tabindex={treeContext.isTabbable(context.node) ? 0 : -1}
 	onfocusin={handleFocusIn}
 	onkeydown={handleKeyDown}
-	onclick={handleClick}
+	onpointerdown={handlePointerDown}
 	ondragstart={handleDragStart}
 	ondragenter={handleDragEnter}
 	ondragover={handleDragOver}
