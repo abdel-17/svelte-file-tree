@@ -4,7 +4,6 @@
 	import { flushSync } from "svelte";
 	import type { EventHandler } from "svelte/elements";
 	import { TreeContext, TreeItemProviderContext } from "../Tree/context.js";
-	import type { TreeProps } from "../Tree/types.js";
 	import { TreeItemContext } from "./context.js";
 	import { DropPositionState } from "./state.svelte.js";
 	import type { TreeItemProps } from "./types.js";
@@ -20,6 +19,7 @@
 		getNextItem,
 		getPreviousItem,
 		selectUntil,
+		deleteSelected,
 		dropDragged,
 	} = TreeContext.get();
 
@@ -239,7 +239,7 @@
 				break;
 			}
 			case "Delete": {
-				// TODO:
+				deleteSelected(node.current, index.current, parent.current);
 				break;
 			}
 			case "a": {

@@ -7,9 +7,6 @@
 		"enabled": true,
 		"rules": {
 			"recommended": true,
-			"suspicious": {
-				"noConfusingVoidType": "off"
-			},
 			"style": {
 				"noNonNullAssertion": "off"
 			}

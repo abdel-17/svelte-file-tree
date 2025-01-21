@@ -3,15 +3,7 @@ import type { FileTree } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 
 export declare namespace TreeProps {
-	type ItemSnippetParameters = [node: FileTree.Node, index: number, depth: number];
-
-	type RenameChange = {
-		id: string;
-		oldName: string;
-		newName: string;
-	};
-
-	type ReorderChange = {
+	type Reorder = {
 		id: string;
 		oldParentId: string | undefined;
 		oldIndex: number;
@@ -22,11 +14,18 @@ export declare namespace TreeProps {
 	type OnTreeChangeArgs =
 		| {
 				type: "rename";
-				change: RenameChange;
+				id: string;
+				oldName: string;
+				newName: string;
 		  }
 		| {
 				type: "reorder";
-				changes: ReadonlyArray<ReorderChange>;
+				reorders: ReadonlyArray<Reorder>;
+		  }
+		| {
+				type: "delete";
+				deleted: ReadonlyArray<string>;
+				reorders: ReadonlyArray<Reorder>;
 		  };
 
 	type OnTreeChangeErrorArgs =
@@ -42,7 +41,7 @@ export declare namespace TreeProps {
 export interface TreeProps
 	extends Omit<HTMLDivAttributes, "children" | "role" | "aria-multiselectable"> {
 	tree: FileTree;
-	item: Snippet<TreeProps.ItemSnippetParameters>;
+	item: Snippet<[node: FileTree.Node, index: number, depth: number]>;
 	element?: HTMLElement | null;
 	onTreeChange?: (args: TreeProps.OnTreeChangeArgs) => void;
 	onTreeChangeError?: (args: TreeProps.OnTreeChangeErrorArgs) => void;

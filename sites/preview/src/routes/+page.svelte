@@ -2,27 +2,26 @@
 	import FileIcon from "lucide-svelte/icons/file";
 	import FolderIcon from "lucide-svelte/icons/folder";
 	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
-	import {
-		type FileOrFolder,
-		FileTree,
-		Tree,
-		TreeItem,
-		TreeItemInput,
-		type TreeProps,
-	} from "svelte-file-tree";
+	import { FileTree, Tree, TreeItem, TreeItemInput, type TreeProps } from "svelte-file-tree";
 	import { Toaster, toast } from "svelte-sonner";
 	import data from "./data.json";
 
-	const tree = new FileTree();
-	tree.children = data.map(function getChild({ id, name, children }): FileOrFolder {
-		if (children === undefined) {
-			return tree.file({ id, name });
-		}
-		return tree.folder({
-			id,
-			name,
-			children: children.map(getChild),
-		});
+	const tree = new FileTree({
+		items: data.map(function getItem({ id, name, children }): FileTree.Item {
+			if (children === undefined) {
+				return {
+					type: "file",
+					id,
+					name,
+				};
+			}
+			return {
+				type: "folder",
+				id,
+				name,
+				children: children.map(getItem),
+			};
+		}),
 	});
 
 	function onTreeChange(args: TreeProps.OnTreeChangeArgs): void {
@@ -46,14 +45,14 @@
 <Toaster richColors />
 <main class="p-8">
 	<Tree {tree} {onTreeChange} {onTreeChangeError} class="space-y-4">
-		{#snippet item({ node, depth })}
+		{#snippet item(node, _, depth)}
 			<TreeItem
 				editable
 				draggable
 				style="--depth: {depth}"
 				class="relative ms-[calc(var(--spacing)*var(--depth)*4)] flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-200 aria-selected:text-blue-800"
 			>
-				{#snippet children({ editing, dropPosition })}
+				{#snippet children(editing, _, dropPosition)}
 					<div
 						aria-hidden="true"
 						data-drop-position={dropPosition}
@@ -66,10 +65,14 @@
 						<FolderOpenIcon
 							role="presentation"
 							class="fill-blue-300"
-							onclick={() => node.collapse()}
+							onclick={() => tree.collapse(node)}
 						/>
 					{:else}
-						<FolderIcon role="presentation" class="fill-blue-300" onclick={() => node.expand()} />
+						<FolderIcon
+							role="presentation"
+							class="fill-blue-300"
+							onclick={() => tree.expand(node)}
+						/>
 					{/if}
 
 					{#if editing}
