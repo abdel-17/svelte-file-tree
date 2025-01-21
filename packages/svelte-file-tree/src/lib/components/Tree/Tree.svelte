@@ -196,7 +196,7 @@
 		index: number,
 		parent: TreeContext.ParentItem | undefined,
 	) {
-		const parentsOfSelected: Array<TreeContext.ParentItem | undefined> = [];
+		const parentsOfDeleted: Array<TreeContext.ParentItem | undefined> = [];
 		for (const id of tree.selectedIds) {
 			const current = lookup.get(id);
 			if (current === undefined) {
@@ -204,7 +204,7 @@
 			}
 
 			const parent = current.parent;
-			if (parentsOfSelected.includes(parent)) {
+			if (parentsOfDeleted.includes(parent)) {
 				// Don't delete a parent's children twice.
 				continue;
 			}
@@ -215,10 +215,10 @@
 				continue;
 			}
 
-			parentsOfSelected.push(parent);
+			parentsOfDeleted.push(parent);
 		}
 
-		if (parentsOfSelected.length === 0) {
+		if (parentsOfDeleted.length === 0) {
 			return;
 		}
 
@@ -258,8 +258,8 @@
 		} while (focusTarget !== undefined);
 
 		const deleted: Array<string> = [];
-		const reorders: Array<TreeProps.Reorder> = [];
-		for (const parent of parentsOfSelected) {
+		const reorders: Array<TreeProps.InPlaceReorder> = [];
+		for (const parent of parentsOfDeleted) {
 			const parentId = parent?.node.id;
 			const parentOrTree = parent?.node ?? tree;
 			const siblings = parentOrTree.children;
@@ -277,9 +277,8 @@
 				if (i !== newIndex) {
 					reorders.push({
 						id: sibling.id,
-						oldParentId: parentId,
+						parentId,
 						oldIndex: i,
-						newParentId: parentId,
 						newIndex: newIndex,
 					});
 				}

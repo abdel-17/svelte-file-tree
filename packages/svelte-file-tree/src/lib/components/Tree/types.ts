@@ -3,6 +3,13 @@ import type { FileTree } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 
 export declare namespace TreeProps {
+	type InPlaceReorder = {
+		id: string;
+		parentId: string | undefined;
+		oldIndex: number;
+		newIndex: number;
+	};
+
 	type Reorder = {
 		id: string;
 		oldParentId: string | undefined;
@@ -25,7 +32,7 @@ export declare namespace TreeProps {
 		| {
 				type: "delete";
 				deleted: ReadonlyArray<string>;
-				reorders: ReadonlyArray<Reorder>;
+				reorders: ReadonlyArray<InPlaceReorder>;
 		  };
 
 	type OnTreeChangeErrorArgs =
