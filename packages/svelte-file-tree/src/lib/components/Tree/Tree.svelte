@@ -1,43 +1,55 @@
 <script lang="ts">
-	import { Ref } from "$lib/internal/ref.js";
-	import type { FileOrFolder, FolderNode } from "$lib/tree.svelte.js";
+	import { Ref } from "$lib/internal/box.svelte.js";
+	import type { FileTree } from "$lib/tree.svelte.js";
 	import { flushSync } from "svelte";
+	import type { TreeItemProps } from "../TreeItem/types.js";
 	import TreeItemProvider from "./TreeItemProvider.svelte";
-	import { type TreeContext, setTreeContext } from "./context.svelte.js";
-	import { DraggedIdState, TabbableIdState } from "./state.svelte.js";
+	import { TreeContext } from "./context.js";
+	import { ClipboardState, DragState, FocusState } from "./state.svelte.js";
 	import type { TreeProps } from "./types.js";
 
-	const { tree, item, onTreeChange, onTreeChangeError, ...attributes }: TreeProps = $props();
+	let {
+		tree,
+		item,
+		element: treeElement = $bindable(null),
+		onTreeChange,
+		onTreeChangeError,
+		...attributes
+	}: TreeProps = $props();
+
 	const treeRef = new Ref(() => tree);
+	const treeElementRef = new Ref(() => treeElement);
 
-	const lookup = new Map<string, TreeProps.Item>();
-	const tabbableId = new TabbableIdState(treeRef);
-	const draggedId = new DraggedIdState();
+	const lookup = new Map<string, TreeContext.Item>();
+	const clipboardState = new ClipboardState();
+	const focusState = new FocusState(treeRef);
+	const dragState = new DragState();
 
-	function onSetItem(item: TreeProps.Item): void {
+	function onSetItem(item: TreeContext.Item) {
 		lookup.set(item.node.id, item);
 	}
 
-	function onDeleteItem(id: string): void {
+	function onDeleteItem(id: string) {
 		lookup.delete(id);
 
-		if (tabbableId.current === id) {
-			tabbableId.clear();
+		if (focusState.tabbableId === id) {
+			focusState.clearTabbable();
 		}
 
-		if (draggedId.current === id) {
-			draggedId.clear();
+		if (dragState.draggedId === id) {
+			dragState.clearDragged();
 		}
 	}
 
-	function getChildren(item: TreeProps.Item<FolderNode> | undefined): FileOrFolder[] {
+	function getChildren(item: TreeContext.ParentItem | undefined) {
 		if (item === undefined) {
 			return tree.children;
 		}
 		return item.node.children;
 	}
 
-	function getNextItem({ node, index, parent }: TreeProps.Item): TreeProps.Item | undefined {
+	function getNextItem(item: TreeContext.Item) {
+		let { node, index, parent } = item;
 		if (node.type === "folder" && node.expanded && node.children.length !== 0) {
 			return {
 				node: node.children[0],
@@ -66,13 +78,14 @@
 		}
 	}
 
-	function getPreviousItem({ node, index, parent }: TreeProps.Item): TreeProps.Item | undefined {
+	function getPreviousItem(item: TreeContext.Item) {
+		let { node, index, parent } = item;
 		if (index === 0) {
 			return parent;
 		}
 
 		index--;
-		node = parent === undefined ? tree.children[index] : parent.node.children[index];
+		node = getChildren(parent)[index];
 
 		while (node.type === "folder" && node.expanded && node.children.length !== 0) {
 			parent = { node, index, parent };
@@ -83,8 +96,8 @@
 		return { node, index, parent };
 	}
 
-	function selectUntil({ node, element }: TreeContext.SelectUntilArgs): void {
-		let lastSelected: TreeProps.Item | undefined;
+	function selectUntil(node: FileTree.Node, element: HTMLElement) {
+		let lastSelected: TreeContext.Item | undefined;
 		for (const id of tree.selectedIds) {
 			const current = lookup.get(id);
 			if (current !== undefined) {
@@ -93,13 +106,13 @@
 		}
 
 		if (lastSelected === undefined) {
-			let current: TreeProps.Item | undefined = {
+			let current: TreeContext.Item | undefined = {
 				node: tree.children[0],
 				index: 0,
 				parent: undefined,
 			};
 			do {
-				current.node.select();
+				tree.select(current.node);
 				if (current.node === node) {
 					break;
 				}
@@ -116,21 +129,28 @@
 		const following = positionBitmask & Node.DOCUMENT_POSITION_FOLLOWING;
 		const navigate = following ? getNextItem : getPreviousItem;
 
-		let current: TreeProps.Item | undefined = lastSelected;
+		let current: TreeContext.Item | undefined = lastSelected;
 		while (current.node !== node) {
 			current = navigate(current);
 			if (current === undefined) {
 				break;
 			}
-			current.node.select();
+			tree.select(current.node);
 		}
 	}
 
-	function renameItem({ node, name, parent }: TreeContext.RenameItemArgs): boolean {
+	function renameItem(
+		node: FileTree.Node,
+		name: string,
+		parent: TreeContext.ParentItem | undefined,
+	) {
+		if (name === node.name) {
+			return true;
+		}
+
 		if (name.length === 0) {
 			onTreeChangeError?.({
 				type: "rename:empty",
-				node,
 			});
 			return false;
 		}
@@ -140,7 +160,6 @@
 			if (sibling !== node && name === sibling.name) {
 				onTreeChangeError?.({
 					type: "rename:conflict",
-					node,
 					name,
 				});
 				return false;
@@ -156,20 +175,17 @@
 				oldName,
 				newName: name,
 			},
-			rollback() {
-				node.name = oldName;
-			},
 		});
 		return true;
 	}
 
-	function dropDragged({
-		draggedId,
-		node,
-		index,
-		parent,
-		position,
-	}: TreeContext.DropDraggedArgs): void {
+	function dropDragged(
+		draggedId: string,
+		node: FileTree.Node,
+		index: number,
+		parent: TreeContext.ParentItem | undefined,
+		position: TreeItemProps.DropPosition,
+	) {
 		const dragged = lookup.get(draggedId);
 		if (dragged === undefined) {
 			return;
@@ -219,19 +235,6 @@
 							newIndex: i,
 						});
 					}
-
-					onDropDragged(dragged, parentChanged);
-					onTreeChange?.({
-						type: "reorder",
-						changes,
-						rollback() {
-							siblings.splice(newIndex, 1);
-							draggedSiblings.splice(dragged.index, 0, dragged.node);
-
-							flushSync();
-							dragged.node.element?.focus();
-						},
-					});
 				} else {
 					// It's more efficient to reorder the items in-place.
 					let newIndex: number;
@@ -288,29 +291,6 @@
 						newParentId: draggedParentId,
 						newIndex,
 					});
-
-					onDropDragged(dragged, parentChanged);
-					onTreeChange?.({
-						type: "reorder",
-						changes,
-						rollback() {
-							if (newIndex < dragged.index) {
-								for (let i = newIndex; i < dragged.index; i++) {
-									const current = draggedSiblings[i];
-									const next = draggedSiblings[i + 1];
-									draggedSiblings[i] = next;
-									draggedSiblings[i + 1] = current;
-								}
-							} else {
-								for (let i = newIndex; i > dragged.index; i--) {
-									const current = draggedSiblings[i];
-									const previous = draggedSiblings[i - 1];
-									draggedSiblings[i] = previous;
-									draggedSiblings[i - 1] = current;
-								}
-							}
-						},
-					});
 				}
 				break;
 			}
@@ -333,6 +313,7 @@
 						});
 					}
 
+					tree.expand(node);
 					const newLength = node.children.push(dragged.node);
 					const newIndex = newLength - 1;
 
@@ -343,18 +324,6 @@
 						newParentId: node.id,
 						newIndex,
 					});
-
-					onDropDragged(dragged, parentChanged);
-					onTreeChange?.({
-						type: "reorder",
-						changes,
-						rollback() {
-							node.children.pop();
-							draggedSiblings.splice(dragged.index, 0, dragged.node);
-						},
-					});
-
-					node.expand();
 				} else {
 					const lastIndex = draggedSiblings.length - 1;
 					if (dragged.index === lastIndex) {
@@ -384,40 +353,31 @@
 						newParentId: draggedParentId,
 						newIndex: lastIndex,
 					});
-
-					onDropDragged(dragged, parentChanged);
-					onTreeChange?.({
-						type: "reorder",
-						changes,
-						rollback() {
-							for (let i = lastIndex; i > dragged.index; i--) {
-								const current = draggedSiblings[i];
-								const previous = draggedSiblings[i - 1];
-								draggedSiblings[i] = previous;
-								draggedSiblings[i - 1] = current;
-							}
-						},
-					});
 				}
 				break;
 			}
 		}
-	}
 
-	function onDropDragged(dragged: TreeProps.Item, parentChanged: boolean): void {
 		tree.selectedIds.clear();
-		dragged.node.select();
+		tree.selectedIds.add(draggedId);
 
 		if (parentChanged) {
 			flushSync();
 			dragged.node.element?.focus();
 		}
+
+		onTreeChange?.({
+			type: "reorder",
+			changes,
+		});
 	}
 
-	setTreeContext({
+	TreeContext.set({
 		tree: treeRef,
-		tabbableId,
-		draggedId,
+		treeElement: treeElementRef,
+		clipboardState,
+		focusState,
+		dragState,
 		getChildren,
 		getNextItem,
 		getPreviousItem,
@@ -427,10 +387,10 @@
 	});
 </script>
 
-{#snippet items(nodes = tree.children, depth = 0, parent?: TreeProps.Item<FolderNode>)}
+{#snippet items(nodes = tree.children, depth = 0, parent?: TreeContext.ParentItem)}
 	{#each nodes as node, index (node.id)}
 		<TreeItemProvider {node} {index} {depth} {parent} {onSetItem} {onDeleteItem}>
-			{@render item({ node, index, depth, parent })}
+			{@render item(node, index, depth)}
 		</TreeItemProvider>
 
 		{#if node.type === "folder" && node.expanded}
@@ -439,6 +399,6 @@
 	{/each}
 {/snippet}
 
-<div bind:this={tree._element} {...attributes} role="tree" aria-multiselectable="true">
+<div bind:this={treeElement} {...attributes} role="tree" aria-multiselectable="true">
 	{@render items()}
 </div>

@@ -1,4 +1,4 @@
-export function isControlOrMeta(event: KeyboardEvent | MouseEvent): boolean {
+export function isControlOrMeta(event: KeyboardEvent | MouseEvent) {
 	// https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples
 	if (navigator.platform.indexOf("Mac") === 0 || navigator.platform === "iPhone") {
 		return event.metaKey;

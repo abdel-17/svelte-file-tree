@@ -4,11 +4,11 @@ import type { Snippet } from "svelte";
 export declare namespace TreeItemProps {
 	type DropPosition = "before" | "inside" | "after";
 
-	type ChildrenSnippetProps = {
-		editing: boolean;
-		dragged: boolean;
-		dropPosition: DropPosition | undefined;
-	};
+	type ChildrenSnippetParameters = [
+		editing: boolean,
+		dragged: boolean,
+		dropPosition: DropPosition | undefined,
+	];
 }
 
 export interface TreeItemProps
@@ -22,7 +22,7 @@ export interface TreeItemProps
 		| "aria-setsize"
 		| "tabindex"
 	> {
-	children: Snippet<[props: TreeItemProps.ChildrenSnippetProps]>;
+	children: Snippet<TreeItemProps.ChildrenSnippetParameters>;
 	editable?: boolean;
 	editing?: boolean;
 }

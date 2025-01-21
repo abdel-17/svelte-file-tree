@@ -1,13 +1,13 @@
 <script lang="ts">
 	import type { Action } from "svelte/action";
 	import type { EventHandler } from "svelte/elements";
-	import { getTreeContext, getTreeItemProviderContext } from "../Tree/context.svelte.js";
-	import { getTreeItemContext } from "../TreeItem/context.svelte.js";
+	import { TreeContext, TreeItemProviderContext } from "../Tree/context.js";
+	import { TreeItemContext } from "../TreeItem/context.js";
 	import type { TreeItemInputProps } from "./types.js";
 
-	const { renameItem } = getTreeContext();
-	const { node, parent } = getTreeItemProviderContext();
-	const { onEditingChange } = getTreeItemContext();
+	const { editing } = TreeItemContext.get();
+	const { node, parent } = TreeItemProviderContext.get();
+	const { renameItem } = TreeContext.get();
 
 	let {
 		name = $bindable(node.current.name),
@@ -21,7 +21,7 @@
 	const handleFocus: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
 		onfocus?.(event);
 
-		onEditingChange(true);
+		editing.current = true;
 	};
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => {
@@ -29,16 +29,7 @@
 
 		switch (event.key) {
 			case "Enter": {
-				if (name === node.current.name) {
-					node.current.element?.focus();
-					break;
-				}
-
-				const renamed = renameItem({
-					node: node.current,
-					name,
-					parent: parent.current,
-				});
+				const renamed = renameItem(node.current, name, parent.current);
 				if (renamed) {
 					node.current.element?.focus();
 				}
@@ -59,7 +50,7 @@
 	const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
 		onblur?.(event);
 
-		onEditingChange(false);
+		editing.current = false;
 	};
 
 	const init: Action<HTMLInputElement> = (input) => {

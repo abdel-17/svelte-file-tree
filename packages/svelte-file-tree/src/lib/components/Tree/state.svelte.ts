@@ -1,37 +1,79 @@
-import type { Ref } from "$lib/internal/ref.js";
-import type { FileOrFolder, FileTree } from "$lib/tree.svelte.js";
+import type { Ref } from "$lib/internal/box.svelte.js";
+import type { FileTree } from "$lib/tree.svelte.js";
 
-export class TabbableIdState {
+export class ClipboardState {
+	#action?: "copy" | "cut";
+	#ids: Array<string> = $state([]);
+
+	get action() {
+		return this.#action;
+	}
+
+	get ids(): ReadonlyArray<string> {
+		return this.#ids;
+	}
+
+	copy(ids: Set<string>) {
+		this.#action = "copy";
+		this.#ids = Array.from(ids);
+	}
+
+	cut(ids: Set<string>) {
+		this.#action = "cut";
+		this.#ids = Array.from(ids);
+	}
+
+	delete(id: string) {
+		const ids = this.#ids;
+		for (let i = 0; i < ids.length; i++) {
+			if (ids[i] === id) {
+				ids.splice(i, 1);
+				break;
+			}
+		}
+
+		if (ids.length === 0) {
+			this.#action = undefined;
+		}
+	}
+
+	clear() {
+		this.#action = undefined;
+		this.#ids.length = 0;
+	}
+}
+
+export class FocusState {
 	readonly #tree: Ref<FileTree>;
-	#current?: string = $state.raw();
+	#tabbableId?: string = $state.raw();
 
 	constructor(tree: Ref<FileTree>) {
 		this.#tree = tree;
 	}
 
-	readonly current: string = $derived.by(() => this.#current ?? this.#tree.current.children[0].id);
+	readonly tabbableId = $derived.by(() => this.#tabbableId ?? this.#tree.current.children[0].id);
 
-	set(node: FileOrFolder): void {
-		this.#current = node.id;
+	setTabbable(node: FileTree.Node) {
+		this.#tabbableId = node.id;
 	}
 
-	clear(): void {
-		this.#current = undefined;
+	clearTabbable() {
+		this.#tabbableId = undefined;
 	}
 }
 
-export class DraggedIdState {
-	#current?: string = $state.raw();
+export class DragState {
+	#draggedId?: string = $state.raw();
 
-	get current(): string | undefined {
-		return this.#current;
+	get draggedId() {
+		return this.#draggedId;
 	}
 
-	set(node: FileOrFolder): void {
-		this.#current = node.id;
+	setDragged(node: FileTree.Node) {
+		this.#draggedId = node.id;
 	}
 
-	clear(): void {
-		this.#current = undefined;
+	clearDragged() {
+		this.#draggedId = undefined;
 	}
 }

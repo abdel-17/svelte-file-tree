@@ -1,24 +1,27 @@
 <script lang="ts">
+	import { WritableRef } from "$lib/internal/box.svelte.js";
 	import { isControlOrMeta } from "$lib/internal/helpers.js";
 	import { flushSync } from "svelte";
 	import type { EventHandler } from "svelte/elements";
-	import { getTreeContext, getTreeItemProviderContext } from "../Tree/context.svelte.js";
+	import { TreeContext, TreeItemProviderContext } from "../Tree/context.js";
 	import type { TreeProps } from "../Tree/types.js";
-	import { setTreeItemContext } from "./context.svelte.js";
+	import { TreeItemContext } from "./context.js";
 	import { DropPositionState } from "./state.svelte.js";
 	import type { TreeItemProps } from "./types.js";
 
+	const { node, index, depth, parent } = TreeItemProviderContext.get();
 	const {
 		tree,
-		tabbableId,
-		draggedId,
+		treeElement,
+		clipboardState,
+		focusState,
+		dragState,
 		getChildren,
 		getNextItem,
 		getPreviousItem,
 		selectUntil,
 		dropDragged,
-	} = getTreeContext();
-	const { node, index, depth, parent } = getTreeItemProviderContext();
+	} = TreeContext.get();
 
 	let {
 		children,
@@ -36,18 +39,23 @@
 		...attributes
 	}: TreeItemProps = $props();
 
-	const dropPosition = new DropPositionState(node);
-
-	setTreeItemContext({
-		onEditingChange(value) {
+	const editingRef = new WritableRef(
+		() => editing,
+		(value) => {
 			editing = value;
 		},
+	);
+
+	const dropPosition = new DropPositionState(node);
+
+	TreeItemContext.set({
+		editing: editingRef,
 	});
 
 	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
 		onfocusin?.(event);
 
-		tabbableId.set(node.current);
+		focusState.setTabbable(node.current);
 	};
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
@@ -66,7 +74,7 @@
 				}
 
 				if (!node.current.expanded) {
-					node.current.expand();
+					tree.current.expand(node.current);
 				} else if (node.current.children.length !== 0) {
 					node.current.children[0].element?.focus();
 				}
@@ -74,7 +82,7 @@
 			}
 			case "ArrowLeft": {
 				if (node.current.type === "folder" && node.current.expanded) {
-					node.current.collapse();
+					tree.current.collapse(node.current);
 				} else {
 					parent.current?.node.element?.focus();
 				}
@@ -93,8 +101,8 @@
 				}
 
 				if (event.shiftKey) {
-					node.current.select();
-					next.node.select();
+					tree.current.select(node.current);
+					tree.current.select(next.node);
 				}
 
 				next.node.element.focus();
@@ -102,13 +110,9 @@
 			}
 			case "PageDown":
 			case "PageUp": {
-				if (tree.current.element === null) {
-					break;
-				}
-
 				const navigate = event.key === "PageDown" ? getNextItem : getPreviousItem;
 				const maxScrollDistance = Math.min(
-					tree.current.element.clientHeight,
+					treeElement.current!.clientHeight,
 					document.documentElement.clientHeight,
 				);
 				const itemRect = event.currentTarget.getBoundingClientRect();
@@ -132,7 +136,7 @@
 					}
 
 					if (event.shiftKey) {
-						current.node.select();
+						tree.current.select(current.node);
 					}
 
 					current = next;
@@ -144,7 +148,7 @@
 				}
 
 				if (event.shiftKey) {
-					current.node.select();
+					tree.current.select(current.node);
 				}
 
 				currentElement.focus();
@@ -157,13 +161,13 @@
 				}
 
 				if (event.shiftKey && isControlOrMeta(event)) {
-					let current: TreeProps.Item | undefined = {
+					let current: TreeContext.Item | undefined = {
 						node: node.current,
 						index: index.current,
 						parent: parent.current,
 					};
 					do {
-						current.node.select();
+						tree.current.select(current.node);
 						current = getPreviousItem(current);
 					} while (current !== undefined);
 				}
@@ -182,13 +186,13 @@
 				}
 
 				if (event.shiftKey && isControlOrMeta(event)) {
-					let current: TreeProps.Item | undefined = {
+					let current: TreeContext.Item | undefined = {
 						node: node.current,
 						index: index.current,
 						parent: parent.current,
 					};
 					do {
-						current.node.select();
+						tree.current.select(current.node);
 						current = getNextItem(current);
 					} while (current !== undefined);
 				}
@@ -198,25 +202,22 @@
 			}
 			case " ": {
 				if (event.shiftKey) {
-					selectUntil({
-						node: node.current,
-						element: event.currentTarget,
-					});
+					selectUntil(node.current, event.currentTarget);
 				} else {
-					node.current.toggleSelected();
+					tree.current.toggleSelected(node.current);
 				}
 				break;
 			}
 			case "Escape": {
 				tree.current.selectedIds.clear();
-				tree.current.clipboard.clear();
+				clipboardState.clear();
 				break;
 			}
 			case "*": {
 				const siblings = getChildren(parent.current);
 				for (const sibling of siblings) {
 					if (sibling.type === "folder") {
-						sibling.expand();
+						tree.current.expand(sibling);
 					}
 				}
 
@@ -254,10 +255,7 @@
 					break;
 				}
 
-				tree.current.clipboard.set({
-					action: "copy",
-					ids: tree.current.selectedIds,
-				});
+				clipboardState.copy(tree.current.selectedIds);
 				break;
 			}
 			case "x": {
@@ -265,10 +263,7 @@
 					break;
 				}
 
-				tree.current.clipboard.set({
-					action: "cut",
-					ids: tree.current.selectedIds,
-				});
+				clipboardState.cut(tree.current.selectedIds);
 				break;
 			}
 			case "v": {
@@ -291,22 +286,19 @@
 		onclick?.(event);
 
 		if (isControlOrMeta(event)) {
-			node.current.toggleSelected();
+			tree.current.toggleSelected(node.current);
 		} else if (event.shiftKey) {
-			selectUntil({
-				node: node.current,
-				element: event.currentTarget,
-			});
+			selectUntil(node.current, event.currentTarget);
 		} else {
 			tree.current.selectedIds.clear();
-			node.current.select();
+			tree.current.select(node.current);
 		}
 	};
 
 	const handleDragStart: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondragstart?.(event);
 
-		draggedId.set(node.current);
+		dragState.setDragged(node.current);
 
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.effectAllowed = "move";
@@ -317,21 +309,18 @@
 		ondragenter?.(event);
 
 		// Don't drop the dragged item into itself.
-		if (draggedId.current === undefined || draggedId.current === node.current.id) {
+		if (dragState.draggedId === undefined || dragState.draggedId === node.current.id) {
 			return;
 		}
 
 		for (let ancestor = parent.current; ancestor !== undefined; ancestor = ancestor.parent) {
 			// Don't drop the dragged item into one of its children.
-			if (draggedId.current === ancestor.node.id) {
+			if (dragState.draggedId === ancestor.node.id) {
 				return;
 			}
 		}
 
-		dropPosition.update({
-			rect: event.currentTarget.getBoundingClientRect(),
-			clientY: event.clientY,
-		});
+		dropPosition.update(event.currentTarget.getBoundingClientRect(), event.clientY);
 
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.dropEffect = "move";
@@ -368,10 +357,7 @@
 		dragOverThrottled = true;
 		window.requestAnimationFrame(() => {
 			if (dropPosition.current !== undefined) {
-				dropPosition.update({
-					rect: currentTarget.getBoundingClientRect(),
-					clientY,
-				});
+				dropPosition.update(currentTarget.getBoundingClientRect(), clientY);
 			}
 
 			dragOverThrottled = false;
@@ -392,23 +378,13 @@
 	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondrop?.(event);
 
-		if (draggedId.current === undefined) {
+		if (dragState.draggedId === undefined) {
 			return;
 		}
 
-		const position = dropPosition.update({
-			rect: event.currentTarget.getBoundingClientRect(),
-			clientY: event.clientY,
-		});
+		const position = dropPosition.get(event.currentTarget.getBoundingClientRect(), event.clientY);
 		dropPosition.clear();
-
-		dropDragged({
-			draggedId: draggedId.current,
-			node: node.current,
-			index: index.current,
-			parent: parent.current,
-			position,
-		});
+		dropDragged(dragState.draggedId, node.current, index.current, parent.current, position);
 
 		event.preventDefault();
 	};
@@ -416,20 +392,20 @@
 	const handleDragEnd: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondragend?.(event);
 
-		draggedId.clear();
+		dragState.clearDragged();
 	};
 </script>
 
 <div
 	{...attributes}
-	bind:this={node.current._element}
+	bind:this={node.current.element}
 	role="treeitem"
 	aria-selected={node.current.selected}
 	aria-expanded={node.current.type === "folder" ? node.current.expanded : undefined}
 	aria-level={depth.current + 1}
 	aria-posinset={index.current + 1}
 	aria-setsize={getChildren(parent.current).length}
-	tabindex={tabbableId.current === node.current.id ? 0 : -1}
+	tabindex={focusState.tabbableId === node.current.id ? 0 : -1}
 	onfocusin={handleFocusIn}
 	onkeydown={handleKeyDown}
 	onclick={handleClick}
@@ -440,9 +416,5 @@
 	ondrop={handleDrop}
 	ondragend={handleDragEnd}
 >
-	{@render children({
-		editing,
-		dragged: draggedId.current === node.current.id,
-		dropPosition: dropPosition.current,
-	})}
+	{@render children(editing, dragState.draggedId === node.current.id, dropPosition.current)}
 </div>

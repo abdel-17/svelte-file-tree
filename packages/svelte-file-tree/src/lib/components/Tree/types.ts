@@ -1,20 +1,9 @@
 import type { HTMLDivAttributes } from "$lib/internal/types.js";
-import type { FileOrFolder, FileTree, FolderNode } from "$lib/tree.svelte.js";
+import type { FileTree } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 
 export declare namespace TreeProps {
-	type Item<TNode extends FileOrFolder = FileOrFolder> = {
-		node: TNode;
-		index: number;
-		parent: Item<FolderNode> | undefined;
-	};
-
-	type ItemSnippetProps = {
-		node: FileOrFolder;
-		index: number;
-		depth: number;
-		parent: Item<FolderNode> | undefined;
-	};
+	type ItemSnippetParameters = [node: FileTree.Node, index: number, depth: number];
 
 	type RenameChange = {
 		id: string;
@@ -34,22 +23,18 @@ export declare namespace TreeProps {
 		| {
 				type: "rename";
 				change: RenameChange;
-				rollback: () => void;
 		  }
 		| {
 				type: "reorder";
-				changes: ReorderChange[];
-				rollback: () => void;
+				changes: ReadonlyArray<ReorderChange>;
 		  };
 
 	type OnTreeChangeErrorArgs =
 		| {
 				type: "rename:empty";
-				node: FileOrFolder;
 		  }
 		| {
 				type: "rename:conflict";
-				node: FileOrFolder;
 				name: string;
 		  };
 }
@@ -57,7 +42,8 @@ export declare namespace TreeProps {
 export interface TreeProps
 	extends Omit<HTMLDivAttributes, "children" | "role" | "aria-multiselectable"> {
 	tree: FileTree;
-	item: Snippet<[props: TreeProps.ItemSnippetProps]>;
+	item: Snippet<TreeProps.ItemSnippetParameters>;
+	element?: HTMLElement | null;
 	onTreeChange?: (args: TreeProps.OnTreeChangeArgs) => void;
 	onTreeChangeError?: (args: TreeProps.OnTreeChangeErrorArgs) => void;
 }
