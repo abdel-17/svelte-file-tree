@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Ref } from "$lib/internal/box.svelte.js";
-	import type { FileTree } from "$lib/tree.svelte.js";
+	import type { FileTree, FolderNode } from "$lib/tree.svelte.js";
+	import { DEV } from "esm-env";
 	import { flushSync } from "svelte";
 	import type { TreeItemProps } from "../TreeItem/types.js";
 	import TreeItemProvider from "./TreeItemProvider.svelte";
@@ -42,29 +43,22 @@
 		}
 	}
 
-	function getChildren(item: TreeContext.ParentItem | undefined) {
-		if (item === undefined) {
-			return tree.children;
-		}
-		return item.node.children;
-	}
-
 	function getNextItem(item: TreeContext.Item) {
-		const { node, index, parent } = item;
+		const { node } = item;
 		if (node.type === "folder" && node.expanded && node.children.length !== 0) {
 			return {
 				node: node.children[0],
 				index: 0,
-				parent: { node, index, parent },
+				parent: item as TreeContext.ParentItem,
 			};
 		}
 		return getNextNonChildItem(item);
 	}
 
 	function getNextNonChildItem(item: TreeContext.Item) {
-		let { node, index, parent } = item;
+		let { index, parent } = item;
 		while (true) {
-			const siblings = getChildren(parent);
+			const siblings = parent?.node.children ?? tree.children;
 			if (index !== siblings.length - 1) {
 				return {
 					node: siblings[index + 1],
@@ -77,7 +71,6 @@
 				return;
 			}
 
-			node = parent.node;
 			index = parent.index;
 			parent = parent.parent;
 		}
@@ -90,7 +83,7 @@
 		}
 
 		index--;
-		node = getChildren(parent)[index];
+		node = parent?.node.children[index] ?? tree.children[index];
 
 		while (node.type === "folder" && node.expanded && node.children.length !== 0) {
 			parent = { node, index, parent };
@@ -101,21 +94,12 @@
 		return { node, index, parent };
 	}
 
-	function hasSelectedAncestor(item: TreeContext.Item) {
-		for (let ancestor = item.parent; ancestor !== undefined; ancestor = ancestor.parent) {
-			if (ancestor.node.selected) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	function selectUntil(node: FileTree.Node, element: HTMLElement) {
 		let lastSelected: TreeContext.Item | undefined;
 		for (const id of tree.selectedIds) {
-			const current = lookup.get(id);
-			if (current !== undefined) {
-				lastSelected = current;
+			const selected = lookup.get(id);
+			if (selected !== undefined) {
+				lastSelected = selected;
 			}
 		}
 
@@ -155,8 +139,8 @@
 
 	function renameItem(
 		node: FileTree.Node,
-		name: string,
 		parent: TreeContext.ParentItem | undefined,
+		name: string,
 	) {
 		if (name === node.name) {
 			return true;
@@ -165,15 +149,17 @@
 		if (name.length === 0) {
 			onTreeChangeError?.({
 				type: "rename:empty",
+				node,
 			});
 			return false;
 		}
 
-		const siblings = getChildren(parent);
+		const siblings = parent?.node.children ?? tree.children;
 		for (const sibling of siblings) {
 			if (sibling !== node && name === sibling.name) {
 				onTreeChangeError?.({
 					type: "rename:conflict",
+					node,
 					name,
 				});
 				return false;
@@ -184,7 +170,7 @@
 		node.name = name;
 		onTreeChange?.({
 			type: "rename",
-			id: node.id,
+			node,
 			oldName,
 			newName: name,
 		});
@@ -196,29 +182,7 @@
 		index: number,
 		parent: TreeContext.ParentItem | undefined,
 	) {
-		const parentsOfDeleted: Array<TreeContext.ParentItem | undefined> = [];
-		for (const id of tree.selectedIds) {
-			const current = lookup.get(id);
-			if (current === undefined) {
-				continue;
-			}
-
-			const parent = current.parent;
-			if (parentsOfDeleted.includes(parent)) {
-				// Don't delete a parent's children twice.
-				continue;
-			}
-
-			if (hasSelectedAncestor(current)) {
-				// If one of this item's ancestors is selected, it will be deleted
-				// when the ancestor is deleted, so we don't need to delete it now.
-				continue;
-			}
-
-			parentsOfDeleted.push(parent);
-		}
-
-		if (parentsOfDeleted.length === 0) {
+		if (tree.selectedIds.size === 0) {
 			return;
 		}
 
@@ -250,43 +214,64 @@
 				}
 			}
 
-			if (nearestUnselected === focusTarget) {
+			if (focusTarget === nearestUnselected) {
+				focusTarget.node.element?.focus();
 				break;
 			}
 
 			focusTarget = nearestUnselected;
 		} while (focusTarget !== undefined);
 
-		const deleted: Array<string> = [];
+		const deleted: Array<FileTree.Node> = [];
+		const parentsOfDeleted: Array<TreeContext.ParentItem | undefined> = [];
+		outer: for (const id of tree.selectedIds) {
+			const selected = lookup.get(id);
+			if (selected === undefined) {
+				continue;
+			}
+
+			const selectedParent = selected.parent;
+			for (let ancestor = selectedParent; ancestor !== undefined; ancestor = ancestor.parent) {
+				if (ancestor.node.selected) {
+					// If one of this item's ancestors is selected, it will be deleted
+					// when the ancestor is deleted, so we don't need to delete it.
+					continue outer;
+				}
+			}
+
+			deleted.push(selected.node);
+
+			if (!parentsOfDeleted.includes(selectedParent)) {
+				parentsOfDeleted.push(selectedParent);
+			}
+		}
+
+		if (deleted.length === 0) {
+			return;
+		}
+
 		const reorders: Array<TreeProps.InPlaceReorder> = [];
 		for (const parent of parentsOfDeleted) {
-			const parentId = parent?.node.id;
 			const parentOrTree = parent?.node ?? tree;
-			const siblings = parentOrTree.children;
-
 			const remaining: Array<FileTree.Node> = [];
-			for (let i = 0; i < siblings.length; i++) {
-				const sibling = siblings[i];
-				if (sibling.selected) {
-					deleted.push(sibling.id);
+			for (let i = 0, children = parentOrTree.children; i < children.length; i++) {
+				const child = children[i];
+				if (child.selected) {
 					continue;
 				}
 
-				const newLength = remaining.push(sibling);
-				const newIndex = newLength - 1;
+				const newIndex = remaining.push(child) - 1;
 				if (i !== newIndex) {
 					reorders.push({
-						id: sibling.id,
-						parentId,
+						node: child,
 						oldIndex: i,
-						newIndex: newIndex,
+						newIndex,
 					});
 				}
 			}
 			parentOrTree.children = remaining;
 		}
 
-		focusTarget?.node.element?.focus();
 		onTreeChange?.({
 			type: "delete",
 			deleted,
@@ -294,192 +279,230 @@
 		});
 	}
 
-	function dropDragged(
-		draggedId: string,
+	function dropSelected(
 		node: FileTree.Node,
-		index: number,
 		parent: TreeContext.ParentItem | undefined,
 		position: TreeItemProps.DropPosition,
 	) {
-		const dragged = lookup.get(draggedId);
-		if (dragged === undefined) {
+		if (node.selected) {
+			if (DEV) {
+				throw new Error("Cannot drop a selected item onto itself");
+			}
 			return;
 		}
 
-		const draggedParentId = dragged.parent?.node.id;
-		const draggedSiblings = getChildren(dragged.parent);
+		for (let ancestor = parent; ancestor !== undefined; ancestor = ancestor.parent) {
+			if (ancestor.node.selected) {
+				// Don't drop a selected item into one of its children.
+				onTreeChangeError?.({
+					type: "reorder:circular-reference",
+					node: ancestor.node,
+				});
+				return;
+			}
+		}
 
-		const reorders: Array<TreeProps.Reorder> = [];
-		let parentChanged: boolean;
+		const dropped: Array<TreeContext.Item> = [];
+		const parentsOfDropped: Array<TreeContext.ParentItem | undefined> = [];
+		outer: for (const id of tree.selectedIds) {
+			const selected = lookup.get(id);
+			if (selected === undefined) {
+				continue;
+			}
+
+			const selectedParent = selected.parent;
+			for (let ancestor = selectedParent; ancestor !== undefined; ancestor = ancestor.parent) {
+				if (ancestor.node.selected) {
+					// Only drop the top-level selected items to avoid changing the hierarchy.
+					continue outer;
+				}
+			}
+
+			dropped.push(selected);
+
+			if (!parentsOfDropped.includes(selectedParent)) {
+				parentsOfDropped.push(selectedParent);
+			}
+		}
+
+		if (dropped.length === 0) {
+			return;
+		}
+
+		let newParent: FolderNode | undefined;
 		switch (position) {
 			case "before":
 			case "after": {
-				const parentId = parent?.node.id;
-				parentChanged = draggedParentId !== parentId;
-				if (parentChanged) {
-					draggedSiblings.splice(dragged.index, 1);
-
-					for (let i = dragged.index; i < draggedSiblings.length; i++) {
-						reorders.push({
-							id: draggedSiblings[i].id,
-							oldParentId: draggedParentId,
-							oldIndex: i + 1,
-							newParentId: draggedParentId,
-							newIndex: i,
-						});
-					}
-
-					const siblings = getChildren(parent);
-					const newIndex = position === "before" ? index : index + 1;
-					siblings.splice(newIndex, 0, dragged.node);
-
-					reorders.push({
-						id: draggedId,
-						oldParentId: draggedParentId,
-						oldIndex: dragged.index,
-						newParentId: parentId,
-						newIndex,
-					});
-
-					for (let i = newIndex + 1; i < siblings.length; i++) {
-						reorders.push({
-							id: siblings[i].id,
-							oldParentId: parentId,
-							oldIndex: i - 1,
-							newParentId: parentId,
-							newIndex: i,
-						});
-					}
-				} else {
-					// It's more efficient to reorder the items in-place.
-					let newIndex: number;
-					if (dragged.index < index) {
-						//      d         z
-						// 1    2 <> 3    4    5
-						// 1    3    2 <> 4    5
-						// 1    3    4    2    5
-						newIndex = position === "before" ? index - 1 : index;
-						for (let i = dragged.index; i < newIndex; i++) {
-							const current = draggedSiblings[i];
-							const next = draggedSiblings[i + 1];
-							draggedSiblings[i] = next;
-							draggedSiblings[i + 1] = current;
-
-							reorders.push({
-								id: next.id,
-								oldParentId: draggedParentId,
-								oldIndex: i + 1,
-								newParentId: draggedParentId,
-								newIndex: i,
-							});
-						}
-					} else {
-						//      z         d
-						// 1    2    3 <> 4    5
-						// 1    2 <> 4    3    5
-						// 1    4    2    3    5
-						newIndex = position === "before" ? index : index + 1;
-						for (let i = dragged.index; i > newIndex; i--) {
-							const current = draggedSiblings[i];
-							const previous = draggedSiblings[i - 1];
-							draggedSiblings[i] = previous;
-							draggedSiblings[i - 1] = current;
-
-							reorders.push({
-								id: previous.id,
-								oldParentId: draggedParentId,
-								oldIndex: i - 1,
-								newParentId: draggedParentId,
-								newIndex: i,
-							});
-						}
-					}
-
-					if (newIndex === dragged.index) {
-						return;
-					}
-
-					reorders.push({
-						id: draggedId,
-						oldParentId: draggedParentId,
-						oldIndex: dragged.index,
-						newParentId: draggedParentId,
-						newIndex,
-					});
-				}
+				newParent = parent?.node;
 				break;
 			}
 			case "inside": {
 				if (node.type === "file") {
-					throw new Error("Cannot drop an item inside a file");
+					if (DEV) {
+						throw new Error("Cannot drop selected items inside a file");
+					}
+					return;
 				}
 
-				parentChanged = draggedParentId !== node.id;
-				if (parentChanged) {
-					draggedSiblings.splice(dragged.index, 1);
-
-					for (let i = dragged.index; i < draggedSiblings.length; i++) {
-						reorders.push({
-							id: draggedSiblings[i].id,
-							oldParentId: draggedParentId,
-							oldIndex: i + 1,
-							newParentId: draggedParentId,
-							newIndex: i,
-						});
-					}
-
-					tree.expand(node);
-					const newLength = node.children.push(dragged.node);
-					const newIndex = newLength - 1;
-
-					reorders.push({
-						id: draggedId,
-						oldParentId: draggedParentId,
-						oldIndex: dragged.index,
-						newParentId: node.id,
-						newIndex,
-					});
-				} else {
-					const lastIndex = draggedSiblings.length - 1;
-					if (dragged.index === lastIndex) {
-						return;
-					}
-
-					// It's more efficient to reorder the items in-place.
-					for (let i = dragged.index; i < lastIndex; i++) {
-						const current = draggedSiblings[i];
-						const next = draggedSiblings[i + 1];
-						draggedSiblings[i] = next;
-						draggedSiblings[i + 1] = current;
-
-						reorders.push({
-							id: next.id,
-							oldParentId: draggedParentId,
-							oldIndex: i + 1,
-							newParentId: draggedParentId,
-							newIndex: i,
-						});
-					}
-
-					reorders.push({
-						id: draggedId,
-						oldParentId: draggedParentId,
-						oldIndex: dragged.index,
-						newParentId: draggedParentId,
-						newIndex: lastIndex,
-					});
-				}
+				newParent = node;
 				break;
 			}
 		}
 
-		tree.selectedIds.clear();
-		tree.selectedIds.add(draggedId);
+		const reorders: Array<TreeProps.Reorder> = [];
+		for (const parent of parentsOfDropped) {
+			const parentNode = parent?.node;
+			if (parentNode === newParent) {
+				// This case is handled separately below.
+				continue;
+			}
 
-		if (parentChanged) {
-			flushSync();
-			dragged.node.element?.focus();
+			const parentOrTree = parentNode ?? tree;
+			const remaining: Array<FileTree.Node> = [];
+			for (let i = 0, children = parentOrTree.children; i < children.length; i++) {
+				const child = children[i];
+				if (child.selected) {
+					continue;
+				}
+
+				const newIndex = remaining.push(child) - 1;
+				if (i !== newIndex) {
+					reorders.push({
+						node: child,
+						oldParent: parentNode,
+						oldIndex: i,
+						newIndex,
+						newParent: parentNode,
+					});
+				}
+			}
+			parentOrTree.children = remaining;
 		}
+
+		switch (position) {
+			case "before":
+			case "after": {
+				const newParentOrTree = newParent ?? tree;
+				const newChildren: Array<FileTree.Node> = [];
+				for (let i = 0, children = newParentOrTree.children; i < children.length; i++) {
+					const child = children[i];
+					if (child.selected) {
+						continue;
+					}
+
+					if (child !== node) {
+						const newIndex = newChildren.push(child) - 1;
+						if (i !== newIndex) {
+							reorders.push({
+								node: child,
+								oldParent: newParent,
+								oldIndex: i,
+								newIndex,
+								newParent,
+							});
+						}
+						continue;
+					}
+
+					if (position === "after") {
+						const newIndex = newChildren.push(child) - 1;
+						if (i !== newIndex) {
+							reorders.push({
+								node: child,
+								oldParent: newParent,
+								oldIndex: i,
+								newIndex,
+								newParent,
+							});
+						}
+					}
+
+					for (const item of dropped) {
+						const oldParent = item.parent?.node;
+						const oldIndex = item.index;
+						const newIndex = newChildren.push(item.node) - 1;
+						if (oldParent !== newParent || oldIndex !== newIndex) {
+							reorders.push({
+								node: item.node,
+								oldParent,
+								oldIndex,
+								newIndex,
+								newParent,
+							});
+						}
+					}
+
+					if (position === "before") {
+						const newIndex = newChildren.push(child) - 1;
+						if (i !== newIndex) {
+							reorders.push({
+								node: child,
+								oldParent: newParent,
+								oldIndex: i,
+								newIndex,
+								newParent,
+							});
+						}
+					}
+				}
+				newParentOrTree.children = newChildren;
+				break;
+			}
+			case "inside": {
+				const newChildren: Array<FileTree.Node> = [];
+				for (let i = 0, children = newParent!.children; i < children.length; i++) {
+					const child = children[i];
+					if (child.selected) {
+						continue;
+					}
+
+					const newIndex = newChildren.push(child) - 1;
+					if (i !== newIndex) {
+						reorders.push({
+							node: child,
+							oldParent: newParent,
+							oldIndex: i,
+							newIndex,
+							newParent,
+						});
+					}
+				}
+
+				for (const item of dropped) {
+					const oldParent = item.parent?.node;
+					const oldIndex = item.index;
+					const newIndex = newChildren.push(item.node) - 1;
+					if (oldParent !== newParent || oldIndex !== newIndex) {
+						reorders.push({
+							node: item.node,
+							oldParent,
+							oldIndex,
+							newIndex,
+							newParent,
+						});
+					}
+				}
+
+				newParent!.children = newChildren;
+				tree.expand(newParent!);
+				break;
+			}
+		}
+
+		// Select only the dropped items to move the user's focus to them.
+		tree.selectedIds.clear();
+		for (const item of dropped) {
+			tree.selectedIds.add(item.node.id);
+		}
+
+		// Focus the last dropped item.
+		const lastDropped = dropped[dropped.length - 1];
+		if (lastDropped.parent?.node !== newParent) {
+			// The parent changed, so the element will be removed from the
+			// DOM temporarily. We need to focus it *after* it's reinserted.
+			flushSync();
+		}
+		lastDropped.node.element?.focus();
 
 		onTreeChange?.({
 			type: "reorder",
@@ -493,13 +516,12 @@
 		clipboardState,
 		focusState,
 		dragState,
-		getChildren,
 		getNextItem,
 		getPreviousItem,
 		selectUntil,
 		renameItem,
 		deleteSelected,
-		dropDragged,
+		dropSelected,
 	});
 </script>
 

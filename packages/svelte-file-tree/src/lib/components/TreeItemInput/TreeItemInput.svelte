@@ -29,7 +29,7 @@
 
 		switch (event.key) {
 			case "Enter": {
-				const renamed = renameItem(node.current, name, parent.current);
+				const renamed = renameItem(node.current, parent.current, name);
 				if (renamed) {
 					node.current.element?.focus();
 				}

@@ -20,24 +20,21 @@ export const TreeContext = new Context<{
 	clipboardState: ClipboardState;
 	focusState: FocusState;
 	dragState: DragState;
-	getChildren: (item: TreeContext.ParentItem | undefined) => Array<FileTree.Node>;
 	getNextItem: (item: TreeContext.Item) => TreeContext.Item | undefined;
 	getPreviousItem: (item: TreeContext.Item) => TreeContext.Item | undefined;
 	selectUntil: (node: FileTree.Node, element: HTMLElement) => void;
 	renameItem: (
 		node: FileTree.Node,
-		name: string,
 		parent: TreeContext.ParentItem | undefined,
+		name: string,
 	) => boolean;
 	deleteSelected: (
 		node: FileTree.Node,
 		index: number,
 		parent: TreeContext.ParentItem | undefined,
 	) => void;
-	dropDragged: (
-		draggedId: string,
+	dropSelected: (
 		node: FileTree.Node,
-		index: number,
 		parent: TreeContext.ParentItem | undefined,
 		position: TreeItemProps.DropPosition,
 	) => void;

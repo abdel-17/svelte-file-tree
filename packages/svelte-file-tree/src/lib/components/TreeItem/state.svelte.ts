@@ -5,6 +5,7 @@ import type { TreeItemProps } from "./types.js";
 export class DropPositionState {
 	readonly #node: Ref<FileTree.Node>;
 	#current?: TreeItemProps.DropPosition = $state.raw();
+	#updateRequestId?: number;
 
 	constructor(node: Ref<FileTree.Node>) {
 		this.#node = node;
@@ -33,13 +34,25 @@ export class DropPositionState {
 		}
 	}
 
-	update(rect: DOMRect, clientY: number) {
-		const position = this.get(rect, clientY);
-		this.#current = position;
-		return position;
+	update(element: HTMLElement, clientY: number) {
+		if (this.#updateRequestId !== undefined) {
+			return;
+		}
+
+		// The dragover event fires at a high rate, so computing
+		// the drop position needs to be throttled to avoid jank.
+		this.#updateRequestId = window.requestAnimationFrame(() => {
+			this.#current = this.get(element.getBoundingClientRect(), clientY);
+			this.#updateRequestId = undefined;
+		});
 	}
 
 	clear() {
 		this.#current = undefined;
+
+		if (this.#updateRequestId !== undefined) {
+			window.cancelAnimationFrame(this.#updateRequestId);
+			this.#updateRequestId = undefined;
+		}
 	}
 }

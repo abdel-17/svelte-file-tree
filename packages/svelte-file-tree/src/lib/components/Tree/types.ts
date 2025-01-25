@@ -1,27 +1,26 @@
 import type { HTMLDivAttributes } from "$lib/internal/types.js";
-import type { FileTree } from "$lib/tree.svelte.js";
+import type { FileTree, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 
 export declare namespace TreeProps {
 	type InPlaceReorder = {
-		id: string;
-		parentId: string | undefined;
+		node: FileTree.Node;
 		oldIndex: number;
 		newIndex: number;
 	};
 
 	type Reorder = {
-		id: string;
-		oldParentId: string | undefined;
+		node: FileTree.Node;
+		oldParent: FolderNode | undefined;
 		oldIndex: number;
-		newParentId: string | undefined;
+		newParent: FolderNode | undefined;
 		newIndex: number;
 	};
 
 	type OnTreeChangeArgs =
 		| {
 				type: "rename";
-				id: string;
+				node: FileTree.Node;
 				oldName: string;
 				newName: string;
 		  }
@@ -31,17 +30,23 @@ export declare namespace TreeProps {
 		  }
 		| {
 				type: "delete";
-				deleted: ReadonlyArray<string>;
+				deleted: ReadonlyArray<FileTree.Node>;
 				reorders: ReadonlyArray<InPlaceReorder>;
 		  };
 
 	type OnTreeChangeErrorArgs =
 		| {
 				type: "rename:empty";
+				node: FileTree.Node;
 		  }
 		| {
 				type: "rename:conflict";
+				node: FileTree.Node;
 				name: string;
+		  }
+		| {
+				type: "reorder:circular-reference";
+				node: FolderNode;
 		  };
 }
 

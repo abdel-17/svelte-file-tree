@@ -15,12 +15,11 @@
 		clipboardState,
 		focusState,
 		dragState,
-		getChildren,
 		getNextItem,
 		getPreviousItem,
 		selectUntil,
 		deleteSelected,
-		dropDragged,
+		dropSelected,
 	} = TreeContext.get();
 
 	let {
@@ -29,9 +28,8 @@
 		editing = $bindable(false),
 		onfocusin,
 		onkeydown,
-		onclick,
+		onpointerdown,
 		ondragstart,
-		ondragenter,
 		ondragover,
 		ondragleave,
 		ondrop,
@@ -46,7 +44,8 @@
 		},
 	);
 
-	const dropPosition = new DropPositionState(node);
+	const dropPositionState = new DropPositionState(node);
+	const dragged = $derived(dragState.draggedId === node.current.id);
 
 	TreeItemContext.set({
 		editing: editingRef,
@@ -214,7 +213,7 @@
 				break;
 			}
 			case "*": {
-				const siblings = getChildren(parent.current);
+				const siblings = parent.current?.node.children ?? tree.current.children;
 				for (const sibling of siblings) {
 					if (sibling.type === "folder") {
 						tree.current.expand(sibling);
@@ -282,8 +281,8 @@
 		event.preventDefault();
 	};
 
-	const handleClick: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
-		onclick?.(event);
+	const handlePointerDown: EventHandler<PointerEvent, HTMLDivElement> = (event) => {
+		onpointerdown?.(event);
 
 		if (isControlOrMeta(event)) {
 			tree.current.toggleSelected(node.current);
@@ -299,69 +298,33 @@
 		ondragstart?.(event);
 
 		dragState.setDragged(node.current);
+		tree.current.select(node.current);
 
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.effectAllowed = "move";
 		}
 	};
 
-	const handleDragEnter: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		ondragenter?.(event);
-
-		// Don't drop the dragged item into itself.
-		if (dragState.draggedId === undefined || dragState.draggedId === node.current.id) {
-			return;
-		}
-
-		for (let ancestor = parent.current; ancestor !== undefined; ancestor = ancestor.parent) {
-			// Don't drop the dragged item into one of its children.
-			if (dragState.draggedId === ancestor.node.id) {
-				return;
-			}
-		}
-
-		dropPosition.update(event.currentTarget.getBoundingClientRect(), event.clientY);
-
-		if (event.dataTransfer !== null) {
-			event.dataTransfer.dropEffect = "move";
-		}
-
-		event.preventDefault();
-	};
-
-	// The dragover event fires at a high rate, so computing
-	// the drop position needs to be throttled to avoid jank.
-	let dragOverThrottled = false;
-
 	const handleDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		ondragover?.(event);
 
-		if (dropPosition.current === undefined) {
+		if (dragState.draggedId === undefined) {
 			return;
 		}
+
+		if (node.current.selected) {
+			// Prevent a selected item from being dropped onto itself.
+			dropPositionState.clear();
+			return;
+		}
+
+		dropPositionState.update(event.currentTarget, event.clientY);
 
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.dropEffect = "move";
 		}
 
 		event.preventDefault();
-
-		if (dragOverThrottled) {
-			return;
-		}
-
-		// Destructure the event early because `event.currentTarget`
-		// is set to `null` after the event is handled.
-		const { currentTarget, clientY } = event;
-
-		dragOverThrottled = true;
-		window.requestAnimationFrame(() => {
-			if (dropPosition.current !== undefined) {
-				dropPosition.update(currentTarget.getBoundingClientRect(), clientY);
-			}
-
-			dragOverThrottled = false;
-		});
 	};
 
 	const handleDragLeave: EventHandler<DragEvent, HTMLDivElement> = (event) => {
@@ -369,10 +332,11 @@
 
 		const { currentTarget, relatedTarget } = event;
 		if (relatedTarget instanceof Node && currentTarget.contains(relatedTarget)) {
+			// Skip if the pointer moves to a child element.
 			return;
 		}
 
-		dropPosition.clear();
+		dropPositionState.clear();
 	};
 
 	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
@@ -382,9 +346,14 @@
 			return;
 		}
 
-		const position = dropPosition.get(event.currentTarget.getBoundingClientRect(), event.clientY);
-		dropPosition.clear();
-		dropDragged(dragState.draggedId, node.current, index.current, parent.current, position);
+		const position = dropPositionState.get(
+			event.currentTarget.getBoundingClientRect(),
+			event.clientY,
+		);
+		dropPositionState.clear();
+
+		tree.current.selectedIds.add(dragState.draggedId);
+		dropSelected(node.current, parent.current, position);
 
 		event.preventDefault();
 	};
@@ -404,17 +373,16 @@
 	aria-expanded={node.current.type === "folder" ? node.current.expanded : undefined}
 	aria-level={depth.current + 1}
 	aria-posinset={index.current + 1}
-	aria-setsize={getChildren(parent.current).length}
+	aria-setsize={parent.current?.node.children.length ?? tree.current.children.length}
 	tabindex={focusState.tabbableId === node.current.id ? 0 : -1}
 	onfocusin={handleFocusIn}
 	onkeydown={handleKeyDown}
-	onclick={handleClick}
+	onpointerdown={handlePointerDown}
 	ondragstart={handleDragStart}
-	ondragenter={handleDragEnter}
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
 	ondrop={handleDrop}
 	ondragend={handleDragEnd}
 >
-	{@render children(editing, dragState.draggedId === node.current.id, dropPosition.current)}
+	{@render children(editing, dragged, dropPositionState.current)}
 </div>
