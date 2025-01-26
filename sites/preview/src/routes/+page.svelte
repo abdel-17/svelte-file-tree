@@ -45,14 +45,14 @@
 <Toaster richColors />
 <main class="p-8">
 	<Tree {tree} {onTreeChange} {onTreeChangeError} class="space-y-4">
-		{#snippet item(node, _index, depth)}
+		{#snippet item({ node, depth })}
 			<TreeItem
 				editable
 				draggable
 				style="--depth: {depth}"
 				class="relative ms-[calc(var(--spacing)*var(--depth)*4)] flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-200 aria-selected:text-blue-800"
 			>
-				{#snippet children(editing, _dragged, dropPosition)}
+				{#snippet children({ editing, dropPosition })}
 					<div
 						aria-hidden="true"
 						data-drop-position={dropPosition}

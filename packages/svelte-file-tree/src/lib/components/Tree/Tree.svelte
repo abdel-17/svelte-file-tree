@@ -528,7 +528,7 @@
 {#snippet items(nodes = tree.children, depth = 0, parent?: TreeContext.ParentItem)}
 	{#each nodes as node, index (node.id)}
 		<TreeItemProvider {node} {index} {depth} {parent} {onSetItem} {onDeleteItem}>
-			{@render item(node, index, depth)}
+			{@render item({ node, index, depth })}
 		</TreeItemProvider>
 
 		{#if node.type === "folder" && node.expanded}

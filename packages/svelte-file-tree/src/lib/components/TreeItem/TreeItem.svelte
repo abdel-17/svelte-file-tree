@@ -384,5 +384,9 @@
 	ondrop={handleDrop}
 	ondragend={handleDragEnd}
 >
-	{@render children(editing, dragged, dropPositionState.current)}
+	{@render children({
+		editing,
+		dragged,
+		dropPosition: dropPositionState.current,
+	})}
 </div>

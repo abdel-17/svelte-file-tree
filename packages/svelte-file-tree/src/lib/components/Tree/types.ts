@@ -3,6 +3,12 @@ import type { FileTree, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 
 export declare namespace TreeProps {
+	type ItemSnippetProps = {
+		node: FileTree.Node;
+		index: number;
+		depth: number;
+	};
+
 	type InPlaceReorder = {
 		node: FileTree.Node;
 		oldIndex: number;
@@ -53,7 +59,7 @@ export declare namespace TreeProps {
 export interface TreeProps
 	extends Omit<HTMLDivAttributes, "children" | "role" | "aria-multiselectable"> {
 	tree: FileTree;
-	item: Snippet<[node: FileTree.Node, index: number, depth: number]>;
+	item: Snippet<[props: TreeProps.ItemSnippetProps]>;
 	element?: HTMLElement | null;
 	onTreeChange?: (args: TreeProps.OnTreeChangeArgs) => void;
 	onTreeChangeError?: (args: TreeProps.OnTreeChangeErrorArgs) => void;
