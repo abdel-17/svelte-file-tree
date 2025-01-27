@@ -15,6 +15,7 @@ export interface TreeItemProps
 	extends Omit<
 		HTMLDivAttributes,
 		| "children"
+		| "role"
 		| "aria-selected"
 		| "aria-expanded"
 		| "aria-level"
