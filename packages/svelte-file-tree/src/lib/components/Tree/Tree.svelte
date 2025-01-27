@@ -13,8 +13,11 @@
 		tree,
 		item,
 		element: treeElement = $bindable(null),
-		onTreeChange,
-		onTreeChangeError,
+		onRenameItem,
+		onRenameItemError,
+		onReorderItems,
+		onReorderItemsError,
+		onDeleteItems,
 		...attributes
 	}: TreeProps = $props();
 
@@ -147,9 +150,10 @@
 		}
 
 		if (name.length === 0) {
-			onTreeChangeError?.({
-				type: "rename:empty",
+			onRenameItemError?.({
+				reason: "empty",
 				node,
+				name,
 			});
 			return false;
 		}
@@ -157,8 +161,8 @@
 		const siblings = parent?.node.children ?? tree.children;
 		for (const sibling of siblings) {
 			if (sibling !== node && name === sibling.name) {
-				onTreeChangeError?.({
-					type: "rename:conflict",
+				onRenameItemError?.({
+					reason: "conflict",
 					node,
 					name,
 				});
@@ -168,8 +172,7 @@
 
 		const oldName = node.name;
 		node.name = name;
-		onTreeChange?.({
-			type: "rename",
+		onRenameItem?.({
 			node,
 			oldName,
 			newName: name,
@@ -272,11 +275,7 @@
 			parentOrTree.children = remaining;
 		}
 
-		onTreeChange?.({
-			type: "delete",
-			deleted,
-			reorders,
-		});
+		onDeleteItems?.({ deleted, reorders });
 	}
 
 	function dropSelected(
@@ -294,8 +293,8 @@
 		for (let ancestor = parent; ancestor !== undefined; ancestor = ancestor.parent) {
 			if (ancestor.node.selected) {
 				// Don't drop a selected item into one of its children.
-				onTreeChangeError?.({
-					type: "reorder:circular-reference",
+				onReorderItemsError?.({
+					reason: "circular-reference",
 					node: ancestor.node,
 				});
 				return;
@@ -504,10 +503,7 @@
 		}
 		lastDropped.node.element?.focus();
 
-		onTreeChange?.({
-			type: "reorder",
-			reorders,
-		});
+		onReorderItems?.({ reorders });
 	}
 
 	TreeContext.set({

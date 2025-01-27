@@ -9,10 +9,16 @@ export declare namespace TreeProps {
 		depth: number;
 	};
 
-	type InPlaceReorder = {
+	type OnRenameItemArgs = {
 		node: FileTree.Node;
-		oldIndex: number;
-		newIndex: number;
+		oldName: string;
+		newName: string;
+	};
+
+	type OnRenameItemErrorArgs = {
+		reason: "empty" | "conflict";
+		node: FileTree.Node;
+		name: string;
 	};
 
 	type Reorder = {
@@ -23,37 +29,25 @@ export declare namespace TreeProps {
 		newIndex: number;
 	};
 
-	type OnTreeChangeArgs =
-		| {
-				type: "rename";
-				node: FileTree.Node;
-				oldName: string;
-				newName: string;
-		  }
-		| {
-				type: "reorder";
-				reorders: ReadonlyArray<Reorder>;
-		  }
-		| {
-				type: "delete";
-				deleted: ReadonlyArray<FileTree.Node>;
-				reorders: ReadonlyArray<InPlaceReorder>;
-		  };
+	type OnReorderItemsArgs = {
+		reorders: ReadonlyArray<Reorder>;
+	};
 
-	type OnTreeChangeErrorArgs =
-		| {
-				type: "rename:empty";
-				node: FileTree.Node;
-		  }
-		| {
-				type: "rename:conflict";
-				node: FileTree.Node;
-				name: string;
-		  }
-		| {
-				type: "reorder:circular-reference";
-				node: FolderNode;
-		  };
+	type OnReorderItemsErrorArgs = {
+		reason: "circular-reference";
+		node: FolderNode;
+	};
+
+	type InPlaceReorder = {
+		node: FileTree.Node;
+		oldIndex: number;
+		newIndex: number;
+	};
+
+	type OnDeleteItemsArgs = {
+		deleted: ReadonlyArray<FileTree.Node>;
+		reorders: ReadonlyArray<InPlaceReorder>;
+	};
 }
 
 export interface TreeProps
@@ -61,6 +55,9 @@ export interface TreeProps
 	tree: FileTree;
 	item: Snippet<[props: TreeProps.ItemSnippetProps]>;
 	element?: HTMLElement | null;
-	onTreeChange?: (args: TreeProps.OnTreeChangeArgs) => void;
-	onTreeChangeError?: (args: TreeProps.OnTreeChangeErrorArgs) => void;
+	onRenameItem?: (args: TreeProps.OnRenameItemArgs) => void;
+	onRenameItemError?: (args: TreeProps.OnRenameItemErrorArgs) => void;
+	onReorderItems?: (args: TreeProps.OnReorderItemsArgs) => void;
+	onReorderItemsError?: (args: TreeProps.OnReorderItemsErrorArgs) => void;
+	onDeleteItems?: (args: TreeProps.OnDeleteItemsArgs) => void;
 }
