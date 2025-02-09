@@ -1,40 +1,28 @@
 <script lang="ts">
-	import { Ref } from "$lib/internal/box.svelte.js";
-	import type { FileTree } from "$lib/tree.svelte.js";
+	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 	import type { Snippet } from "svelte";
-	import { type TreeContext, TreeItemProviderContext } from "./context.js";
+	import { TreeItemProviderContext } from "./context.js";
+	import type { TreeItemPosition } from "./state.svelte.js";
 
 	const {
 		node,
 		index,
 		depth,
 		parent,
-		onSetItem,
-		onDeleteItem,
 		children,
 	}: {
-		node: FileTree.Node;
+		node: FileTreeNode;
 		index: number;
 		depth: number;
-		parent: TreeContext.ParentItem | undefined;
-		onSetItem: (item: TreeContext.Item) => void;
-		onDeleteItem: (id: string) => void;
+		parent: TreeItemPosition<FolderNode> | undefined;
 		children: Snippet;
 	} = $props();
 
 	TreeItemProviderContext.set({
-		node: new Ref(() => node),
-		index: new Ref(() => index),
-		depth: new Ref(() => depth),
-		parent: new Ref(() => parent),
-	});
-
-	$effect(() => {
-		onSetItem({ node, index, parent });
-	});
-
-	$effect(() => {
-		return () => onDeleteItem(node.id);
+		node: () => node,
+		index: () => index,
+		depth: () => depth,
+		parent: () => parent,
 	});
 </script>
 

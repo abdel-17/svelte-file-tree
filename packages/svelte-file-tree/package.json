@@ -40,21 +40,21 @@
 		"svelte": "^5.0.0"
 	},
 	"devDependencies": {
-		"@sveltejs/kit": "^2.9.0",
-		"@sveltejs/package": "^2.3.7",
-		"@sveltejs/vite-plugin-svelte": "4.0.2",
-		"@vitest/browser": "^2.1.8",
-		"jsdom": "^25.0.1",
-		"publint": "^0.2.12",
-		"svelte": "5.16.0",
-		"svelte-check": "^4.1.1",
-		"typescript": "^5.7.2",
-		"vite": "^5.4.11",
-		"vitest": "2.1.8",
-		"vitest-browser-svelte": "^0.0.1"
+		"@sveltejs/kit": "^2.17.1",
+		"@sveltejs/package": "^2.3.10",
+		"@sveltejs/vite-plugin-svelte": "5.0.3",
+		"@vitest/browser": "^3.0.5",
+		"jsdom": "^26.0.0",
+		"publint": "^0.3.4",
+		"svelte": "5.19.9",
+		"svelte-check": "^4.1.4",
+		"typescript": "^5.7.3",
+		"vite": "^6.1.0",
+		"vitest": "3.0.5",
+		"vitest-browser-svelte": "^0.1.0"
 	},
 	"dependencies": {
 		"esm-env": "^1.2.2",
-		"runed": "^0.23.1"
+		"runed": "^0.23.2"
 	}
 }

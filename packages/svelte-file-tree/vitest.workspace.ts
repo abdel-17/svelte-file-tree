@@ -1,7 +1,13 @@
 /// <reference types="@vitest/browser/providers/playwright" />
 
 import { defineWorkspace } from "vitest/config";
-import type { BrowserCommandContext } from "vitest/node";
+import type { BrowserCommand } from "vitest/node";
+
+type PressCommand = BrowserCommand<[string]>;
+
+const press: PressCommand = async (context, key) => {
+	await context.page.keyboard.press(key);
+};
 
 export default defineWorkspace([
 	{
@@ -24,11 +30,7 @@ export default defineWorkspace([
 				enabled: true,
 				provider: "playwright",
 				name: "chromium",
-				commands: {
-					async press(context: BrowserCommandContext, key: string) {
-						await context.page.keyboard.press(key);
-					},
-				},
+				commands: { press },
 			},
 		},
 	},
@@ -36,6 +38,6 @@ export default defineWorkspace([
 
 declare module "@vitest/browser/context" {
 	interface BrowserCommands {
-		press: (key: string) => Promise<void>;
+		press: PressCommand;
 	}
 }

@@ -1,20 +1,18 @@
 import type { HTMLDivAttributes } from "$lib/internal/types.js";
 import type { Snippet } from "svelte";
+import type { DropPosition } from "../Tree/state.svelte.js";
 
-export declare namespace TreeItemProps {
-	type DropPosition = "before" | "inside" | "after";
-
-	type ChildrenSnippetProps = {
-		editing: boolean;
-		dragged: boolean;
-		dropPosition: DropPosition | undefined;
-	};
-}
+export type TreeItemChildrenSnippetProps = {
+	editing: boolean;
+	dragged: boolean;
+	dropPosition: DropPosition | undefined;
+};
 
 export interface TreeItemProps
 	extends Omit<
 		HTMLDivAttributes,
 		| "children"
+		| "id"
 		| "role"
 		| "aria-selected"
 		| "aria-expanded"
@@ -23,7 +21,8 @@ export interface TreeItemProps
 		| "aria-setsize"
 		| "tabindex"
 	> {
-	children: Snippet<[props: TreeItemProps.ChildrenSnippetProps]>;
+	children: Snippet<[props: TreeItemChildrenSnippetProps]>;
 	editable?: boolean;
 	editing?: boolean;
+	element?: HTMLElement | null;
 }

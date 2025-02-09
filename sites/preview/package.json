@@ -18,16 +18,17 @@
 	"devDependencies": {
 		"@sveltejs/adapter-static": "^3.0.6",
 		"@sveltejs/kit": "^2.9.0",
-		"@sveltejs/vite-plugin-svelte": "4.0.2",
-		"@tailwindcss/vite": "4.0.0-beta.4",
-		"lucide-svelte": "^0.468.0",
+		"@sveltejs/vite-plugin-svelte": "5.0.3",
+		"@tailwindcss/vite": "4.0.5",
+		"bits-ui": "1.0.0-next.90",
+		"lucide-svelte": "^0.475.0",
 		"prettier-plugin-tailwindcss": "^0.6.9",
-		"svelte": "5.16.0",
+		"svelte": "5.19.9",
 		"svelte-check": "^4.1.1",
 		"svelte-file-tree": "workspace:^",
 		"svelte-sonner": "^0.3.28",
-		"tailwindcss": "4.0.0-beta.4",
+		"tailwindcss": "4.0.5",
 		"typescript": "^5.7.2",
-		"vite": "^5.4.11"
+		"vite": "^6.1.0"
 	}
 }
