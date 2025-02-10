@@ -1,32 +1,39 @@
-export const createDialogState = <TData, TResult>() => {
-	let dialogData: TData | undefined = $state.raw();
-	let resolveOpenDialogPromise: (result?: TResult) => void;
+export type DialogStateProps<TResult> = {
+	closeResult: TResult;
+};
 
-	const openDialog = (data: TData): Promise<TResult | undefined> => {
+export const createDialogState = <TData, TResult>(props: DialogStateProps<TResult>) => {
+	const { closeResult } = props;
+
+	let dialogData: TData | undefined = $state.raw();
+	let resolveOpenDialog: (result: TResult) => void;
+
+	const openDialog = (data: TData): Promise<TResult> => {
 		dialogData = data;
 		return new Promise((resolve) => {
-			resolveOpenDialogPromise = resolve;
+			resolveOpenDialog = resolve;
 		});
 	};
 
-	const closeDialog = (result?: TResult): void => {
+	const closeDialog = (result: TResult): void => {
 		dialogData = undefined;
-		resolveOpenDialogPromise?.(result);
+		resolveOpenDialog?.(result);
 	};
 
 	const dialogOpen = (): boolean => dialogData !== undefined;
 
 	const onDialogOpenChange = (value: boolean): void => {
 		if (!value) {
-			closeDialog();
+			dialogData = undefined;
+			resolveOpenDialog?.(closeResult);
 		}
 	};
 
 	return {
 		dialogData: () => dialogData,
-		dialogOpen,
-		onDialogOpenChange,
 		openDialog,
 		closeDialog,
+		dialogOpen,
+		onDialogOpenChange,
 	};
 };

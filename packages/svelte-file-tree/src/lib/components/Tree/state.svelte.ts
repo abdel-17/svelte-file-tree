@@ -3,7 +3,6 @@ import { FileNode, type FileTree, type FileTreeNode, FolderNode } from "$lib/tre
 import { DEV } from "esm-env";
 import { flushSync } from "svelte";
 import type {
-	CircularReferenceErrorEvent,
 	CopyPasteItemsEvent,
 	DeleteItemsEvent,
 	NameConflictEvent,
@@ -12,6 +11,7 @@ import type {
 	RenameErrorEvent,
 	RenameItemEvent,
 	Reorder,
+	ReorderErrorEvent,
 	ReorderItemsEvent,
 } from "./types.js";
 
@@ -42,9 +42,9 @@ export type TreeStateProps = {
 	onRenameItem: (event: RenameItemEvent) => void;
 	onRenameError: (event: RenameErrorEvent) => void;
 	onReorderItems: (event: ReorderItemsEvent) => void;
+	onReorderError: (event: ReorderErrorEvent) => void;
 	onCopyPasteItems: (event: CopyPasteItemsEvent) => void;
-	onCircularReferenceError: (event: CircularReferenceErrorEvent) => void;
-	onNameConflict: (event: NameConflictEvent) => MaybePromise<NameConflictResolution | void>;
+	onNameConflict: (event: NameConflictEvent) => MaybePromise<NameConflictResolution>;
 	onDeleteItems: (event: DeleteItemsEvent) => void;
 };
 
@@ -58,8 +58,8 @@ export const createTreeState = (props: TreeStateProps) => {
 		onRenameItem,
 		onRenameError,
 		onReorderItems,
+		onReorderError,
 		onCopyPasteItems,
-		onCircularReferenceError,
 		onNameConflict,
 		onDeleteItems,
 	} = props;
@@ -297,11 +297,11 @@ export const createTreeState = (props: TreeStateProps) => {
 			validateDropPosition(position, item);
 		}
 
-		if (item.node.selected && position === "inside") {
+		if (item.node.selected) {
 			// Don't move an item next to or inside itself.
-			onCircularReferenceError({
+			onReorderError({
+				error: "circular-reference",
 				target: item.node,
-				operation: "reorder",
 			});
 			return false;
 		}
@@ -309,9 +309,9 @@ export const createTreeState = (props: TreeStateProps) => {
 		for (let ancestor = item.parent; ancestor !== undefined; ancestor = ancestor.parent) {
 			if (ancestor.node.selected) {
 				// Don't move an item inside itself.
-				onCircularReferenceError({
+				onReorderError({
+					error: "circular-reference",
 					target: ancestor.node,
-					operation: "reorder",
 				});
 				return false;
 			}
@@ -365,10 +365,8 @@ export const createTreeState = (props: TreeStateProps) => {
 						skippedIds.add(selectedItem.node.id);
 						continue;
 					}
-					case "cancel": {
-						return false;
-					}
-					default: {
+					case "cancel":
+					case "default": {
 						return false;
 					}
 				}
@@ -539,26 +537,6 @@ export const createTreeState = (props: TreeStateProps) => {
 			validateDropPosition(position, item);
 		}
 
-		if (item.node.selected && position === "inside") {
-			// Don't move an item next to or inside itself.
-			onCircularReferenceError({
-				target: item.node,
-				operation: "copy-paste",
-			});
-			return false;
-		}
-
-		for (let ancestor = item.parent; ancestor !== undefined; ancestor = ancestor.parent) {
-			if (ancestor.node.selected) {
-				// Don't move an item inside itself.
-				onCircularReferenceError({
-					target: ancestor.node,
-					operation: "copy-paste",
-				});
-				return false;
-			}
-		}
-
 		let parentNode: FolderNode | undefined;
 		switch (position) {
 			case "before":
@@ -598,7 +576,7 @@ export const createTreeState = (props: TreeStateProps) => {
 					case "cancel": {
 						return false;
 					}
-					default: {
+					case "default": {
 						let i = 1;
 						let name: string;
 						do {

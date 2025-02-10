@@ -32,6 +32,11 @@ export type ReorderItemsEvent = {
 	reorders: ReadonlyArray<Reorder>;
 };
 
+export type ReorderErrorEvent = {
+	error: "circular-reference";
+	target: FileTreeNode;
+};
+
 export type CopyPasteItemsEvent = {
 	copies: ReadonlyArray<FileTreeNode>;
 	parentNode: FolderNode | undefined;
@@ -44,12 +49,7 @@ export type NameConflictEvent = {
 	operation: "reorder" | "copy-paste";
 };
 
-export type NameConflictResolution = "skip" | "cancel";
-
-export type CircularReferenceErrorEvent = {
-	target: FileTreeNode;
-	operation: "reorder" | "copy-paste";
-};
+export type NameConflictResolution = "skip" | "cancel" | "default";
 
 export type DeleteItemsEvent = {
 	deleted: ReadonlyArray<FileTreeNode>;
@@ -67,8 +67,8 @@ export interface TreeProps
 	onRenameItem?: (event: RenameItemEvent) => void;
 	onRenameError?: (event: RenameErrorEvent) => void;
 	onReorderItems?: (event: ReorderItemsEvent) => void;
+	onReorderError?: (event: ReorderErrorEvent) => void;
 	onCopyPasteItems?: (event: CopyPasteItemsEvent) => void;
-	onCircularReferenceError?: (event: CircularReferenceErrorEvent) => void;
-	onNameConflict?: (event: NameConflictEvent) => MaybePromise<NameConflictResolution | void>;
+	onNameConflict?: (event: NameConflictEvent) => MaybePromise<NameConflictResolution>;
 	onDeleteItems?: (event: DeleteItemsEvent) => void;
 }

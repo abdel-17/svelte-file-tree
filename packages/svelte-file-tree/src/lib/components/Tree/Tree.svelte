@@ -15,9 +15,9 @@
 		onRenameItem,
 		onRenameError,
 		onReorderItems,
+		onReorderError,
 		onCopyPasteItems,
-		onCircularReferenceError,
-		onNameConflict,
+		onNameConflict = () => "default",
 		onDeleteItems,
 		...attributes
 	}: TreeProps = $props();
@@ -33,9 +33,9 @@
 		onRenameItem: (event) => onRenameItem?.(event),
 		onRenameError: (event) => onRenameError?.(event),
 		onReorderItems: (event) => onReorderItems?.(event),
+		onReorderError: (event) => onReorderError?.(event),
 		onCopyPasteItems: (event) => onCopyPasteItems?.(event),
-		onCircularReferenceError: (event) => onCircularReferenceError?.(event),
-		onNameConflict: (event) => onNameConflict?.(event),
+		onNameConflict: (event) => onNameConflict(event),
 		onDeleteItems: (event) => onDeleteItems?.(event),
 	});
 

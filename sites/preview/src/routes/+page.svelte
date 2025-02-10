@@ -4,7 +4,6 @@
 	import FolderIcon from "lucide-svelte/icons/folder";
 	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
 	import {
-		type CircularReferenceErrorEvent,
 		type CopyPasteItemsEvent,
 		type DeleteItemsEvent,
 		FileTree,
@@ -12,6 +11,7 @@
 		type NameConflictResolution,
 		type RenameErrorEvent,
 		type RenameItemEvent,
+		type ReorderErrorEvent,
 		type ReorderItemsEvent,
 		Tree,
 		TreeItem,
@@ -27,14 +27,47 @@
 		children: data.children,
 	});
 
-	const { dialogData, dialogOpen, onDialogOpenChange, openDialog, closeDialog } = createDialogState<
+	type DialogButton = {
+		result: NameConflictResolution;
+		type: "neutral" | "error";
+		label: string;
+	};
+
+	const { dialogData, openDialog, closeDialog, dialogOpen, onDialogOpenChange } = createDialogState<
 		{
 			title: string;
 			description: string;
-			closeButtonLabel?: string;
+			buttons: ReadonlyArray<DialogButton>;
 		},
 		NameConflictResolution
-	>();
+	>({
+		closeResult: "cancel",
+	});
+
+	const dialogButtonClasses = {
+		neutral:
+			"rounded-md border-1 border-current bg-neutral-100 px-3 py-1.5 text-sm leading-5 font-semibold text-neutral-800 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-neutral-300",
+		error:
+			"rounded-md border-1 border-current bg-red-100 px-3 py-1.5 text-sm leading-5 font-semibold text-red-800 hover:bg-red-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-red-300",
+	};
+
+	const dialogGenerateNameButton: DialogButton = {
+		result: "default",
+		type: "neutral",
+		label: "Generate Name",
+	};
+
+	const dialogSkipButton: DialogButton = {
+		result: "skip",
+		type: "neutral",
+		label: "Skip",
+	};
+
+	const dialogCancelButton: DialogButton = {
+		result: "cancel",
+		type: "error",
+		label: "Cancel",
+	};
 
 	const onRenameItem = (event: RenameItemEvent): void => {
 		console.info("onRenameItem", $state.snapshot(event));
@@ -59,43 +92,38 @@
 		console.info("onReorderItems", $state.snapshot(event));
 	};
 
-	const onCopyPasteItems = (event: CopyPasteItemsEvent): void => {
-		console.info("onCopyPasteItems", $state.snapshot(event));
-	};
+	const onReorderError = (event: ReorderErrorEvent): void => {
+		console.error("onReorderError", $state.snapshot(event));
 
-	const onCircularReferenceError = (event: CircularReferenceErrorEvent): void => {
-		console.error("onCircularReferenceError", $state.snapshot(event));
-
-		switch (event.operation) {
-			case "reorder": {
-				toast.error(`Cannot move "${event.target.name}" into itself`);
-				break;
-			}
-			case "copy-paste": {
-				toast.error(`Cannot paste "${event.target.name}" into itself`);
+		switch (event.error) {
+			case "circular-reference": {
+				toast.error(`Cannot move "${event.target.name}" into or next to itself`);
 				break;
 			}
 		}
 	};
 
-	const onNameConflict = async (
-		event: NameConflictEvent,
-	): Promise<NameConflictResolution | undefined> => {
+	const onCopyPasteItems = (event: CopyPasteItemsEvent): void => {
+		console.info("onCopyPasteItems", $state.snapshot(event));
+	};
+
+	const onNameConflict = async (event: NameConflictEvent): Promise<NameConflictResolution> => {
 		console.info("onNameConflict", $state.snapshot(event));
 
-		const description = `An item with the name "${event.target.name} already exists`;
+		const description = `An item with the name "${event.target.name}" already exists`;
 		switch (event.operation) {
 			case "reorder": {
 				return openDialog({
 					title: "Failed to move items",
 					description,
+					buttons: [dialogSkipButton, dialogCancelButton],
 				});
 			}
 			case "copy-paste": {
 				return openDialog({
 					title: "Failed to paste items",
 					description,
-					closeButtonLabel: "Generate new name",
+					buttons: [dialogGenerateNameButton, dialogSkipButton, dialogCancelButton],
 				});
 			}
 		}
@@ -112,8 +140,8 @@
 		{onRenameItem}
 		{onRenameError}
 		{onReorderItems}
+		{onReorderError}
 		{onCopyPasteItems}
-		{onCircularReferenceError}
 		{onNameConflict}
 		{onDeleteItems}
 		class="space-y-4"
@@ -167,12 +195,11 @@
 
 		<Dialog.Content
 			forceMount
-			interactOutsideBehavior="ignore"
 			class="fixed top-0 left-1/2 z-50 w-xs -translate-x-1/2 rounded-b-lg bg-neutral-200 p-4 md:w-md"
 		>
 			{#snippet child({ props, open })}
 				{#if open}
-					{@const { title, description, closeButtonLabel } = dialogData()!}
+					{@const { title, description, buttons } = dialogData()!}
 					<div {...props} transition:fly={{ y: "-100%" }}>
 						<Dialog.Title class="text-center text-lg font-semibold tracking-tight">
 							{title}
@@ -183,25 +210,14 @@
 						</Dialog.Description>
 
 						<div class="mt-5 flex justify-end gap-3">
-							{#if closeButtonLabel !== undefined}
-								<Dialog.Close
-									class="rounded-md border-1 border-current bg-neutral-100 px-3 py-1.5 text-sm leading-5 font-semibold text-neutral-800 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-neutral-300"
+							{#each buttons as button}
+								<button
+									class={dialogButtonClasses[button.type]}
+									onclick={() => closeDialog(button.result)}
 								>
-									{closeButtonLabel}
-								</Dialog.Close>
-							{/if}
-							<button
-								class="rounded-md border-1 border-current bg-neutral-100 px-3 py-1.5 text-sm leading-5 font-semibold text-neutral-800 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-neutral-300"
-								onclick={() => closeDialog("skip")}
-							>
-								Skip
-							</button>
-							<button
-								class="rounded-md border-1 border-current bg-red-100 px-3 py-1.5 text-sm leading-5 font-semibold text-red-800 hover:bg-red-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-red-300"
-								onclick={() => closeDialog("cancel")}
-							>
-								Cancel
-							</button>
+									{button.label}
+								</button>
+							{/each}
 						</div>
 					</div>
 				{/if}
