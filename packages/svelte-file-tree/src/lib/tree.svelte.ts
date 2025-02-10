@@ -1,82 +1,106 @@
 import { SvelteSet } from "svelte/reactivity";
 
+export type FileItem = {
+	type: "file";
+	id: string;
+	name: string;
+};
+
+export type FolderItem = {
+	type: "folder";
+	id: string;
+	name: string;
+	children: ReadonlyArray<FileTreeItem>;
+};
+
+export type FileTreeItem = FileItem | FolderItem;
+
 export type FileTreeProps = {
+	children: ReadonlyArray<FileTreeItem>;
 	defaultSelected?: Iterable<string>;
 	selected?: SvelteSet<string>;
 	defaultExpanded?: Iterable<string>;
 	expanded?: SvelteSet<string>;
 };
 
+export type FileTreeJSON = {
+	selected: Array<string>;
+	expanded: Array<string>;
+	children: Array<FileTreeItem>;
+};
+
 export class FileTree {
 	readonly selected: SvelteSet<string>;
 	readonly expanded: SvelteSet<string>;
-	children: FileTreeNode[] = $state([]);
+	children: Array<FileTreeNode> = $state([]);
 
-	constructor(props: FileTreeProps = {}) {
-		const {
-			defaultSelected,
-			selected = new SvelteSet(defaultSelected),
-			defaultExpanded,
-			expanded = new SvelteSet(defaultExpanded),
-		} = props;
-		this.selected = selected;
-		this.expanded = expanded;
+	constructor(props: FileTreeProps) {
+		this.selected = props.selected ?? new SvelteSet(props.defaultSelected);
+		this.expanded = props.expanded ?? new SvelteSet(props.defaultExpanded);
+		this.children = props.children.map(this.#createNode, this);
 	}
 
-	createFile(props: FileNodeProps): FileNode {
-		return new FileNode(this, props);
-	}
-
-	createFolder(props: FolderNodeProps): FolderNode {
-		return new FolderNode(this, props);
-	}
-
-	selectAll(): void {
-		this.#selectAll();
-	}
-
-	#selectAll(nodes = this.children): void {
-		for (const node of nodes) {
-			this.selected.add(node.id);
-
-			if (node.type === "folder" && node.expanded) {
-				this.#selectAll(node.children);
+	#createNode(item: FileTreeItem): FileTreeNode {
+		switch (item.type) {
+			case "file": {
+				return new FileNode({
+					tree: this,
+					id: item.id,
+					name: item.name,
+				});
+			}
+			case "folder": {
+				return new FolderNode({
+					tree: this,
+					id: item.id,
+					name: item.name,
+					children: item.children.map(this.#createNode, this),
+				});
 			}
 		}
+	}
+
+	toJSON(): FileTreeJSON {
+		return {
+			selected: Array.from(this.selected),
+			expanded: Array.from(this.expanded),
+			children: this.children.map((child) => child.toJSON()),
+		};
 	}
 }
 
 class BaseFileTreeNode {
-	readonly tree: FileTree;
+	readonly #selectedIds: SvelteSet<string>;
 	readonly id: string;
-	name: string = $state.raw("");
+	name = $state.raw("");
 
 	constructor(tree: FileTree, id: string, name: string) {
-		this.tree = tree;
+		this.#selectedIds = tree.selected;
 		this.id = id;
 		this.name = name;
 	}
 
-	readonly selected: boolean = $derived.by(() => this.tree.selected.has(this.id));
+	readonly selected: boolean = $derived.by(() => this.#selectedIds.has(this.id));
 
 	select(): void {
-		this.tree.selected.add(this.id);
+		this.#selectedIds.add(this.id);
 	}
 
 	deselect(): void {
-		this.tree.selected.delete(this.id);
+		this.#selectedIds.delete(this.id);
 	}
 
 	toggleSelected(): void {
 		if (this.selected) {
-			this.tree.selected.delete(this.id);
+			this.#selectedIds.delete(this.id);
 		} else {
-			this.tree.selected.add(this.id);
+			this.#selectedIds.add(this.id);
 		}
 	}
 }
 
 export type FileNodeProps = {
+	tree: FileTree;
 	id: string;
 	name: string;
 };
@@ -84,44 +108,62 @@ export type FileNodeProps = {
 export class FileNode extends BaseFileTreeNode {
 	readonly type = "file";
 
-	constructor(tree: FileTree, props: FileNodeProps) {
-		const { id, name } = props;
-		super(tree, id, name);
+	constructor(props: FileNodeProps) {
+		super(props.tree, props.id, props.name);
+	}
+
+	toJSON(): FileItem {
+		return {
+			type: "file",
+			id: this.id,
+			name: this.name,
+		};
 	}
 }
 
 export type FolderNodeProps = {
+	tree: FileTree;
 	id: string;
 	name: string;
-	children?: FileTreeNode[];
+	children: Array<FileTreeNode>;
 };
 
 export class FolderNode extends BaseFileTreeNode {
 	readonly type = "folder";
-	children: FileTreeNode[] = $state([]);
+	readonly #expandedIds: SvelteSet<string>;
+	children: Array<FileTreeNode> = $state([]);
 
-	constructor(tree: FileTree, props: FolderNodeProps) {
-		const { id, name, children = [] } = props;
-		super(tree, id, name);
-		this.children = children;
+	constructor(props: FolderNodeProps) {
+		super(props.tree, props.id, props.name);
+		this.#expandedIds = props.tree.expanded;
+		this.children = props.children;
 	}
 
-	readonly expanded: boolean = $derived.by(() => this.tree.expanded.has(this.id));
+	readonly expanded: boolean = $derived.by(() => this.#expandedIds.has(this.id));
 
 	expand(): void {
-		this.tree.expanded.add(this.id);
+		this.#expandedIds.add(this.id);
 	}
 
 	collapse(): void {
-		this.tree.expanded.delete(this.id);
+		this.#expandedIds.delete(this.id);
 	}
 
 	toggleExpanded(): void {
 		if (this.expanded) {
-			this.tree.expanded.delete(this.id);
+			this.#expandedIds.delete(this.id);
 		} else {
-			this.tree.expanded.add(this.id);
+			this.#expandedIds.add(this.id);
 		}
+	}
+
+	toJSON(): FolderItem {
+		return {
+			type: "folder",
+			id: this.id,
+			name: this.name,
+			children: this.children.map((child) => child.toJSON()),
+		};
 	}
 }
 

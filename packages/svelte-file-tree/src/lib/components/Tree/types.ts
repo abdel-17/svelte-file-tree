@@ -1,78 +1,74 @@
-import type { HTMLDivAttributes } from "$lib/internal/types.js";
+import type { HTMLDivAttributes, MaybePromise } from "$lib/internal/types.js";
 import type { FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 
-export type TreeItemDropPosition = "before" | "after" | "inside";
-
-export type TreeItemRenderProps = {
-	node: FileTreeNode;
+export type TreeItemSnippetProps<TNode extends FileTreeNode = FileTreeNode> = {
+	node: TNode;
 	index: number;
 	depth: number;
-	editing: boolean;
-	copied: boolean;
-	cut: boolean;
-	dragged: boolean;
-	dropPosition: TreeItemDropPosition | undefined;
+	parent: TreeItemSnippetProps<FolderNode> | undefined;
 };
 
-export type MoveItemsArgs = {
-	moved: FileTreeNode[];
+export type PasteOperation = "copy" | "cut";
+
+export type RenameItemEvent = {
+	target: FileTreeNode;
+	name: string;
+};
+
+export type RenameErrorEvent = {
+	error: "empty" | "already-exists";
+	target: FileTreeNode;
+	name: string;
+};
+
+export type Reorder = {
+	target: FileTreeNode;
+	parentNode: FolderNode | undefined;
+	index: number;
+};
+
+export type ReorderItemsEvent = {
+	reorders: ReadonlyArray<Reorder>;
+};
+
+export type ReorderErrorEvent = {
+	error: "circular-reference";
+	target: FileTreeNode;
+};
+
+export type CopyPasteItemsEvent = {
+	copies: ReadonlyArray<FileTreeNode>;
+	parentNode: FolderNode | undefined;
 	start: number;
-	level: FileTreeNode[];
-	parent: FolderNode | undefined;
+	reorders: ReadonlyArray<Reorder>;
 };
 
-export type MoveCircularReferenceErrorArgs = {
-	node: FolderNode;
-	descendant: FileTreeNode;
+export type NameConflictEvent = {
+	target: FileTreeNode;
+	operation: "reorder" | "copy-paste";
 };
 
-export type MoveNameConflictErrorArgs = {
-	node: FileTreeNode;
-	conflicting: FileTreeNode;
+export type NameConflictResolution = "skip" | "cancel" | "default";
+
+export type DeleteItemsEvent = {
+	deleted: ReadonlyArray<FileTreeNode>;
+	reorders: ReadonlyArray<Reorder>;
 };
 
-export type MoveNameConflictResolution = "skip" | "stop";
-
-export type InsertItemsArgs = {
-	inserted: FileTreeNode[];
-	start: number;
-	level: FileTreeNode[];
-	parent: FolderNode | undefined;
-};
-
-export type DeleteItemsArgs = {
-	deleted: FileTreeNode[];
-};
-
-export type RenameItemArgs = {
-	node: FileTreeNode;
-};
-
-export type RenameErrorArgs =
-	| {
-			reason: "empty";
-			node: FileTreeNode;
-	  }
-	| {
-			reason: "conflict";
-			node: FileTreeNode;
-			name: string;
-			conflicting: FileTreeNode;
-	  };
-
-export interface TreeProps extends Omit<HTMLDivAttributes, "children"> {
+export interface TreeProps
+	extends Omit<HTMLDivAttributes, "children" | "role" | "aria-multiselectable"> {
 	tree: FileTree;
-	item: Snippet<[props: TreeItemRenderProps]>;
+	item: Snippet<[props: TreeItemSnippetProps]>;
+	pasteOperation?: PasteOperation;
 	id?: string;
-	element?: HTMLDivElement | null;
-	onMoveItems?: (args: MoveItemsArgs) => void;
-	onMoveCircularReferenceError?: (args: MoveCircularReferenceErrorArgs) => void;
-	onMoveNameConflictError?: (
-		args: MoveNameConflictErrorArgs,
-	) => MoveNameConflictResolution | void | Promise<MoveNameConflictResolution | void>;
-	onInsertItems?: (args: InsertItemsArgs) => void;
-	onDeleteItems?: (args: DeleteItemsArgs) => void;
-	onRenameItem?: (args: RenameItemArgs) => void;
-	onRenameError?: (args: RenameErrorArgs) => void;
+	element?: HTMLElement | null;
+	generateCopyId?: () => string;
+	onRenameItem?: (event: RenameItemEvent) => void;
+	onRenameError?: (event: RenameErrorEvent) => void;
+	onReorderItems?: (event: ReorderItemsEvent) => void;
+	onReorderError?: (event: ReorderErrorEvent) => void;
+	onCopyPasteItems?: (event: CopyPasteItemsEvent) => void;
+	onNameConflict?: (event: NameConflictEvent) => MaybePromise<NameConflictResolution>;
+	onDeleteItems?: (event: DeleteItemsEvent) => void;
 }

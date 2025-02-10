@@ -1,20 +1,16 @@
 <script lang="ts">
-	import type { FileTreeNode } from "$lib/tree.svelte.js";
-	import { getContext, hasContext } from "svelte";
-	import type { Action } from "svelte/action";
-	import type { EventHandler } from "svelte/elements";
-	import { TreeContext, TreeItemContext } from "../Tree/context.svelte.js";
+	import { composeEventHandlers } from "$lib/internal/helpers.js";
+	import { TreeContext, TreeItemProviderContext } from "../Tree/context.js";
+	import { TreeItemContext } from "../TreeItem/context.js";
+	import { createTreeItemInputState } from "./state.js";
 	import type { TreeItemInputProps } from "./types.js";
 
-	if (!hasContext(TreeItemContext.key)) {
-		throw new Error("<TreeItemInput> must be a child of <TreeItem>");
-	}
-
-	const treeContext: TreeContext = getContext(TreeContext.key);
-	const context: TreeItemContext = getContext(TreeItemContext.key);
+	const { setEditing } = TreeItemContext.get();
+	const { node, index, parent } = TreeItemProviderContext.get();
+	const { treeState } = TreeContext.get();
 
 	let {
-		name = $bindable(context.node.name),
+		name = $bindable(node().name),
 		element = $bindable(null),
 		onkeydown,
 		onfocus,
@@ -22,84 +18,22 @@
 		...attributes
 	}: TreeItemInputProps = $props();
 
-	const handleFocus: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
-		onfocus?.(event);
-
-		context.editing = true;
-	};
-
-	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => {
-		onkeydown?.(event);
-
-		const { node, level } = context;
-		switch (event.key) {
-			case "Enter": {
-				if (name.length === 0) {
-					treeContext.callbacks.onRenameError({
-						reason: "empty",
-						node,
-					});
-					break;
-				}
-
-				if (name === node.name) {
-					treeContext.getItemElement(node)?.focus();
-					break;
-				}
-
-				let conflicting: FileTreeNode | undefined;
-				for (const current of level) {
-					if (current !== node && name === current.name) {
-						conflicting = current;
-						break;
-					}
-				}
-
-				if (conflicting !== undefined) {
-					treeContext.callbacks.onRenameError({
-						reason: "conflict",
-						node,
-						name,
-						conflicting,
-					});
-					break;
-				}
-
-				node.name = name;
-				treeContext.getItemElement(node)?.focus();
-				treeContext.callbacks.onRenameItem({ node });
-				break;
-			}
-			case "Escape": {
-				treeContext.getItemElement(node)?.focus();
-				break;
-			}
-			default: {
-				return;
-			}
-		}
-
-		event.preventDefault();
-	};
-
-	const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
-		onblur?.(event);
-
-		context.editing = false;
-	};
-
-	const init: Action<HTMLInputElement> = (input) => {
-		input.focus();
-		input.select();
-	};
+	const { onInit, handleFocus, handleKeyDown, handleBlur } = createTreeItemInputState({
+		treeState,
+		node,
+		index,
+		parent,
+		setEditing,
+		name: () => name,
+	});
 </script>
 
 <input
-	{...attributes}
 	bind:this={element}
+	{...attributes}
 	bind:value={name}
-	onfocus={handleFocus}
-	onkeydown={handleKeyDown}
-	onblur={handleBlur}
-	use:init
+	onfocus={composeEventHandlers(onfocus, handleFocus)}
+	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
+	onblur={composeEventHandlers(onblur, handleBlur)}
+	use:onInit
 />
