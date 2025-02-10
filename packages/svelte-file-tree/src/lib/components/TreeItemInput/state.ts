@@ -1,5 +1,4 @@
 import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
-import type { Action } from "svelte/action";
 import type { EventHandler } from "svelte/elements";
 import type { TreeItemPosition, TreeState } from "../Tree/state.svelte.js";
 

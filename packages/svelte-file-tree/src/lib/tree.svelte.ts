@@ -37,27 +37,7 @@ export class FileTree {
 	constructor(props: FileTreeProps) {
 		this.selected = props.selected ?? new SvelteSet(props.defaultSelected);
 		this.expanded = props.expanded ?? new SvelteSet(props.defaultExpanded);
-		this.children = props.children.map(this.#createNode, this);
-	}
-
-	#createNode(item: FileTreeItem): FileTreeNode {
-		switch (item.type) {
-			case "file": {
-				return new FileNode({
-					tree: this,
-					id: item.id,
-					name: item.name,
-				});
-			}
-			case "folder": {
-				return new FolderNode({
-					tree: this,
-					id: item.id,
-					name: item.name,
-					children: item.children.map(this.#createNode, this),
-				});
-			}
-		}
+		this.children = props.children.map(createNode, this);
 	}
 
 	toJSON(): FileTreeJSON {
@@ -66,6 +46,26 @@ export class FileTree {
 			expanded: Array.from(this.expanded),
 			children: this.children.map((child) => child.toJSON()),
 		};
+	}
+}
+
+function createNode(this: FileTree, item: FileTreeItem): FileTreeNode {
+	switch (item.type) {
+		case "file": {
+			return new FileNode({
+				tree: this,
+				id: item.id,
+				name: item.name,
+			});
+		}
+		case "folder": {
+			return new FolderNode({
+				tree: this,
+				id: item.id,
+				name: item.name,
+				children: item.children.map(createNode, this),
+			});
+		}
 	}
 }
 

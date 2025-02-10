@@ -1,5 +1,4 @@
-/// <reference types="@vitest/browser/providers/playwright" />
-
+// @ts-check
 import { defineWorkspace } from "vitest/config";
 import type { BrowserCommand } from "vitest/node";
 
