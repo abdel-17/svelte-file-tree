@@ -1,4 +1,3 @@
-// @ts-check
 import { includeIgnoreFile } from "@eslint/compat";
 import eslint from "@eslint/js";
 import svelte from "eslint-plugin-svelte";

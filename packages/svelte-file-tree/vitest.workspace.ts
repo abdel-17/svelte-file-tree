@@ -1,4 +1,3 @@
-// @ts-check
 import { defineWorkspace } from "vitest/config";
 import type { BrowserCommand } from "vitest/node";
 
