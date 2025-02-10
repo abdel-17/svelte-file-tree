@@ -30,7 +30,7 @@ jobs:
 
       - run: pnpm check
 
-  # TODO: renable tests in CI
+  # TODO: re-enable tests in CI
   # test:
   #   name: Test
   #   runs-on: ubuntu-latest
