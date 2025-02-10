@@ -1,5 +1,3 @@
-/// <reference types="@vitest/browser/providers/playwright" />
-
 import { defineWorkspace } from "vitest/config";
 import type { BrowserCommand } from "vitest/node";
 

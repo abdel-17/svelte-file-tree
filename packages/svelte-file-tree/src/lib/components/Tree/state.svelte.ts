@@ -778,7 +778,9 @@ export const createTreeState = (props: TreeStateProps) => {
 		getItemElementId,
 		getItemElement,
 		selectUntil,
-		selectAll: () => selectAll(tree().children),
+		selectAll: (): void => {
+			selectAll(tree().children);
+		},
 		renameItem,
 		reorderSelected,
 		pasteSelected,

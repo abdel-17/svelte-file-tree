@@ -138,7 +138,9 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 	});
 
 	$effect(() => {
-		return () => onDestroyItem(node().id);
+		return () => {
+			onDestroyItem(node().id);
+		};
 	});
 
 	const handleFocusIn: EventHandler<FocusEvent, HTMLElement> = () => {
@@ -354,7 +356,7 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 			}
 			case "v": {
 				if (isControlOrMeta(event)) {
-					pasteSelected(item);
+					void pasteSelected(item);
 				}
 				break;
 			}

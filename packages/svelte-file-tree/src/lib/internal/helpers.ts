@@ -2,7 +2,8 @@ import type { EventHandler } from "svelte/elements";
 
 export const isControlOrMeta = (event: KeyboardEvent | MouseEvent): boolean => {
 	// https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples
-	if (navigator.platform.indexOf("Mac") === 0 || navigator.platform === "iPhone") {
+	// eslint-disable-next-line @typescript-eslint/no-deprecated
+	if (navigator.platform.startsWith("Mac") || navigator.platform === "iPhone") {
 		return event.metaKey;
 	}
 	return event.ctrlKey;
