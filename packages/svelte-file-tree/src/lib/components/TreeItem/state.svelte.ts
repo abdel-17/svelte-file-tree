@@ -1,4 +1,4 @@
-import { isControlOrMeta } from "$lib/internal/helpers.js";
+import { isControlOrMeta } from "$lib/internal/helpers.svelte.js";
 import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import { flushSync } from "svelte";
 import type { EventHandler } from "svelte/elements";

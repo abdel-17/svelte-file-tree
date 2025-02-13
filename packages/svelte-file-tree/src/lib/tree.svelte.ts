@@ -1,22 +1,8 @@
 import { SvelteSet } from "svelte/reactivity";
-
-export type FileItem = {
-	type: "file";
-	id: string;
-	name: string;
-};
-
-export type FolderItem = {
-	type: "folder";
-	id: string;
-	name: string;
-	children: ReadonlyArray<FileTreeItem>;
-};
-
-export type FileTreeItem = FileItem | FolderItem;
+import { createLinkedState } from "./internal/helpers.svelte.js";
 
 export type FileTreeProps = {
-	children: ReadonlyArray<FileTreeItem>;
+	children: (tree: FileTree) => Array<FileTreeNode>;
 	defaultSelected?: Iterable<string>;
 	selected?: SvelteSet<string>;
 	defaultExpanded?: Iterable<string>;
@@ -26,18 +12,27 @@ export type FileTreeProps = {
 export type FileTreeJSON = {
 	selected: Array<string>;
 	expanded: Array<string>;
-	children: Array<FileTreeItem>;
+	children: Array<FileTreeNodeJSON>;
 };
 
 export class FileTree {
 	readonly selected: SvelteSet<string>;
 	readonly expanded: SvelteSet<string>;
-	children: Array<FileTreeNode> = $state([]);
+	readonly #children: () => Array<FileTreeNode>;
+	readonly #setChildren: (value: Array<FileTreeNode>) => void;
 
 	constructor(props: FileTreeProps) {
 		this.selected = props.selected ?? new SvelteSet(props.defaultSelected);
 		this.expanded = props.expanded ?? new SvelteSet(props.defaultExpanded);
-		this.children = props.children.map(createNode, this);
+		[this.#children, this.#setChildren] = createLinkedState(() => props.children(this));
+	}
+
+	get children(): Array<FileTreeNode> {
+		return this.#children();
+	}
+
+	set children(value: Array<FileTreeNode>) {
+		this.#setChildren(value);
 	}
 
 	toJSON(): FileTreeJSON {
@@ -46,26 +41,6 @@ export class FileTree {
 			expanded: Array.from(this.expanded),
 			children: this.children.map((child) => child.toJSON()),
 		};
-	}
-}
-
-function createNode(this: FileTree, item: FileTreeItem): FileTreeNode {
-	switch (item.type) {
-		case "file": {
-			return new FileNode({
-				tree: this,
-				id: item.id,
-				name: item.name,
-			});
-		}
-		case "folder": {
-			return new FolderNode({
-				tree: this,
-				id: item.id,
-				name: item.name,
-				children: item.children.map(createNode, this),
-			});
-		}
 	}
 }
 
@@ -105,6 +80,12 @@ export type FileNodeProps = {
 	name: string;
 };
 
+export type FileNodeJSON = {
+	type: "file";
+	id: string;
+	name: string;
+};
+
 export class FileNode extends BaseFileTreeNode {
 	readonly type = "file";
 
@@ -112,7 +93,7 @@ export class FileNode extends BaseFileTreeNode {
 		super(props.tree, props.id, props.name);
 	}
 
-	toJSON(): FileItem {
+	toJSON(): FileNodeJSON {
 		return {
 			type: "file",
 			id: this.id,
@@ -126,6 +107,13 @@ export type FolderNodeProps = {
 	id: string;
 	name: string;
 	children: Array<FileTreeNode>;
+};
+
+export type FolderNodeJSON = {
+	type: "folder";
+	id: string;
+	name: string;
+	children: Array<FileTreeNodeJSON>;
 };
 
 export class FolderNode extends BaseFileTreeNode {
@@ -157,7 +145,7 @@ export class FolderNode extends BaseFileTreeNode {
 		}
 	}
 
-	toJSON(): FolderItem {
+	toJSON(): FolderNodeJSON {
 		return {
 			type: "folder",
 			id: this.id,
@@ -168,3 +156,5 @@ export class FolderNode extends BaseFileTreeNode {
 }
 
 export type FileTreeNode = FileNode | FolderNode;
+
+export type FileTreeNodeJSON = FileNodeJSON | FolderNodeJSON;

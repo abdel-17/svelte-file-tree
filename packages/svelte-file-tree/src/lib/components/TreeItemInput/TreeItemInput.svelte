@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { composeEventHandlers } from "$lib/internal/helpers.js";
+	import { composeEventHandlers } from "$lib/internal/helpers.svelte.js";
 	import { TreeContext, TreeItemProviderContext } from "../Tree/context.js";
 	import { TreeItemContext } from "../TreeItem/context.js";
 	import { createTreeItemInputState } from "./state.js";

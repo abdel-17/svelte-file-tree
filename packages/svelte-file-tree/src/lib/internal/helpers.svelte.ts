@@ -25,3 +25,23 @@ export const composeEventHandlers = <TEvent extends Event, TTarget extends Event
 		b(event);
 	};
 };
+
+export const createState = <T>(initial: T) => {
+	let current = $state(initial);
+	return [
+		(): T => current,
+		(value: T): void => {
+			current = value;
+		},
+	] as const;
+};
+
+export const createLinkedState = <T>(fn: () => T) => {
+	const state = $derived(createState(fn()));
+	return [
+		(): T => state[0](),
+		(value: T): void => {
+			state[1](value);
+		},
+	] as const;
+};

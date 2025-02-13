@@ -6,7 +6,10 @@
 	import {
 		type CopyPasteItemsEvent,
 		type DeleteItemsEvent,
+		FileNode,
 		FileTree,
+		type FileTreeNode,
+		FolderNode,
 		type NameConflictEvent,
 		type NameConflictResolution,
 		type RenameErrorEvent,
@@ -19,12 +22,27 @@
 	} from "svelte-file-tree";
 	import { Toaster, toast } from "svelte-sonner";
 	import { fade, fly } from "svelte/transition";
+	import data from "./data.json" with { type: "json" };
 	import { createDialogState } from "./state.svelte.js";
 
-	const { data } = $props();
-
 	const tree = new FileTree({
-		children: data.children,
+		children: (tree) =>
+			data.map(function transform(item): FileTreeNode {
+				if (item.children === undefined) {
+					return new FileNode({
+						tree,
+						id: item.id,
+						name: item.name,
+					});
+				}
+
+				return new FolderNode({
+					tree,
+					id: item.id,
+					name: item.name,
+					children: item.children.map(transform),
+				});
+			}),
 	});
 
 	type DialogButton = {
@@ -95,12 +113,7 @@
 	const onReorderError = (event: ReorderErrorEvent): void => {
 		console.error("onReorderError", $state.snapshot(event));
 
-		switch (event.error) {
-			case "circular-reference": {
-				toast.error(`Cannot move "${event.target.name}" into or next to itself`);
-				break;
-			}
-		}
+		toast.error(`Cannot move "${event.target.name}" into or next to itself`);
 	};
 
 	const onCopyPasteItems = (event: CopyPasteItemsEvent): void => {
