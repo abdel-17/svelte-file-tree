@@ -3,7 +3,7 @@
 	import { TreeContext, TreeItemProviderContext } from "../Tree/context.js";
 	import { TreeItemContext } from "./context.js";
 	import { createTreeItemState } from "./state.svelte.js";
-	import type { TreeItemProps } from "./types.js";
+	import type { TreeItemChildrenSnippetProps, TreeItemProps } from "./types.js";
 
 	const { node, index, depth, parent } = TreeItemProviderContext.get();
 	const { treeState } = TreeContext.get();
@@ -13,6 +13,8 @@
 		editable = false,
 		editing = $bindable(false),
 		element = $bindable(null),
+		class: className,
+		style,
 		onfocusin,
 		onkeydown,
 		onpointerdown,
@@ -57,6 +59,12 @@
 	});
 
 	TreeItemContext.set({ setEditing });
+
+	const childrenProps: TreeItemChildrenSnippetProps = $derived({
+		editing,
+		dragged: dragged(),
+		dropPosition: dropPosition(),
+	});
 </script>
 
 <div
@@ -70,6 +78,8 @@
 	aria-posinset={ariaPosInSet()}
 	aria-setsize={ariaSetSize()}
 	tabindex={tabIndex()}
+	class={typeof className === "function" ? className(childrenProps) : className}
+	style={typeof style === "function" ? style(childrenProps) : style}
 	onfocusin={composeEventHandlers(onfocusin, handleFocusIn)}
 	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
 	onpointerdown={composeEventHandlers(onpointerdown, handlePointerDown)}
@@ -79,9 +89,5 @@
 	ondrop={composeEventHandlers(ondrop, handleDrop)}
 	ondragend={composeEventHandlers(ondragend, handleDragEnd)}
 >
-	{@render children({
-		editing,
-		dragged: dragged(),
-		dropPosition: dropPosition(),
-	})}
+	{@render children(childrenProps)}
 </div>

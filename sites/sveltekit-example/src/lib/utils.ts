@@ -15,7 +15,7 @@ export type MaybeThrowErrorOptions = {
 };
 
 export const maybeThrowError = (options: MaybeThrowErrorOptions = {}): void => {
-	const { chance = 0.2, message = "Unknown error" } = options;
+	const { chance = 0.2, message = "maybeThrowError()" } = options;
 	if (Math.random() < chance) {
 		throw new Error(message);
 	}

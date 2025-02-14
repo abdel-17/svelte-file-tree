@@ -163,16 +163,16 @@
 			<TreeItem
 				editable
 				draggable
+				class={({ dropPosition }) => [
+					"relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 before:pointer-events-none before:absolute before:-inset-[2px] before:rounded-[inherit] hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
+					dropPosition !== undefined && "before:border-2",
+					dropPosition === "before" && "before:border-transparent before:border-t-red-500",
+					dropPosition === "inside" && "before:border-red-500",
+					dropPosition === "after" && "before:border-transparent before:border-b-red-500",
+				]}
 				style="margin-inline-start: {depth * 16}px;"
-				class="relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200"
 			>
-				{#snippet children({ editing, dropPosition })}
-					<div
-						aria-hidden="true"
-						data-drop-position={dropPosition}
-						class="pointer-events-none absolute -inset-[2px] rounded-[inherit] border-2 border-transparent data-[drop-position='after']:border-b-red-500 data-[drop-position='before']:border-t-red-500 data-[drop-position='inside']:border-red-500"
-					></div>
-
+				{#snippet children({ editing })}
 					{#if node.type === "file"}
 						<FileIcon role="presentation" />
 					{:else if node.expanded}
