@@ -1,18 +1,16 @@
 import type { MaybePromise } from "$lib/internal/types.js";
 import { FileNode, type FileTree, type FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import { DEV } from "esm-env";
-import { flushSync } from "svelte";
 import type {
-	CopyPasteItemsEvent,
-	DeleteItemsEvent,
-	NameConflictEvent,
+	DeleteItemsArgs,
+	InsertItemsArgs,
+	MoveErrorArgs,
+	MoveItemsArgs,
+	NameConflictArgs,
 	NameConflictResolution,
 	PasteOperation,
-	RenameErrorEvent,
-	RenameItemEvent,
-	Reorder,
-	ReorderErrorEvent,
-	ReorderItemsEvent,
+	RenameErrorArgs,
+	RenameItemArgs,
 } from "./types.js";
 
 export type TreeItemPosition<TNode extends FileTreeNode = FileTreeNode> = {
@@ -21,9 +19,9 @@ export type TreeItemPosition<TNode extends FileTreeNode = FileTreeNode> = {
 	parent: TreeItemPosition<FolderNode> | undefined;
 };
 
-export type DropPosition = "before" | "inside" | "after";
+export type DropPosition = "before" | "after" | "inside";
 
-const selectAll = (nodes: ReadonlyArray<FileTreeNode>): void => {
+const selectAll = (nodes: Array<FileTreeNode>): void => {
 	for (const node of nodes) {
 		node.select();
 
@@ -39,31 +37,29 @@ export type TreeStateProps = {
 	setPasteOperation: (value: PasteOperation | undefined) => void;
 	treeId: () => string;
 	generateCopyId: () => string;
-	onRenameItem: (event: RenameItemEvent) => void;
-	onRenameError: (event: RenameErrorEvent) => void;
-	onReorderItems: (event: ReorderItemsEvent) => void;
-	onReorderError: (event: ReorderErrorEvent) => void;
-	onCopyPasteItems: (event: CopyPasteItemsEvent) => void;
-	onNameConflict: (event: NameConflictEvent) => MaybePromise<NameConflictResolution>;
-	onDeleteItems: (event: DeleteItemsEvent) => void;
+	onRenameItem: (args: RenameItemArgs) => MaybePromise<boolean>;
+	onRenameError: (args: RenameErrorArgs) => void;
+	onMoveItems: (args: MoveItemsArgs) => MaybePromise<boolean>;
+	onMoveError: (args: MoveErrorArgs) => void;
+	onInsertItems: (args: InsertItemsArgs) => MaybePromise<boolean>;
+	onNameConflict: (args: NameConflictArgs) => MaybePromise<NameConflictResolution>;
+	onDeleteItems: (args: DeleteItemsArgs) => MaybePromise<boolean>;
 };
 
-export const createTreeState = (props: TreeStateProps) => {
-	const {
-		tree,
-		pasteOperation,
-		setPasteOperation,
-		treeId,
-		generateCopyId,
-		onRenameItem,
-		onRenameError,
-		onReorderItems,
-		onReorderError,
-		onCopyPasteItems,
-		onNameConflict,
-		onDeleteItems,
-	} = props;
-
+export const createTreeState = ({
+	tree,
+	pasteOperation,
+	setPasteOperation,
+	treeId,
+	generateCopyId,
+	onRenameItem,
+	onRenameError,
+	onMoveItems,
+	onMoveError,
+	onInsertItems,
+	onNameConflict,
+	onDeleteItems,
+}: TreeStateProps) => {
 	const lookup = new Map<string, TreeItemPosition>();
 	let tabbableId: string | undefined = $state.raw();
 	let draggedId: string | undefined = $state.raw();
@@ -250,7 +246,7 @@ export const createTreeState = (props: TreeStateProps) => {
 		}
 	};
 
-	const renameItem = (name: string, item: TreeItemPosition): boolean => {
+	const renameItem = async (name: string, item: TreeItemPosition): Promise<boolean> => {
 		if (DEV) {
 			validateItem(item);
 		}
@@ -280,18 +276,13 @@ export const createTreeState = (props: TreeStateProps) => {
 			return false;
 		}
 
-		item.node.name = name;
-		onRenameItem({
+		return onRenameItem({
 			target: item.node,
 			name,
 		});
-		return true;
 	};
 
-	const reorderSelected = async (
-		position: DropPosition,
-		item: TreeItemPosition,
-	): Promise<boolean> => {
+	const moveSelected = async (position: DropPosition, item: TreeItemPosition): Promise<boolean> => {
 		if (DEV) {
 			validateItem(item);
 			validateDropPosition(position, item);
@@ -299,7 +290,7 @@ export const createTreeState = (props: TreeStateProps) => {
 
 		if (item.node.selected) {
 			// Don't move an item next to or inside itself.
-			onReorderError({
+			onMoveError({
 				error: "circular-reference",
 				target: item.node,
 			});
@@ -309,7 +300,7 @@ export const createTreeState = (props: TreeStateProps) => {
 		for (let ancestor = item.parent; ancestor !== undefined; ancestor = ancestor.parent) {
 			if (ancestor.node.selected) {
 				// Don't move an item inside itself.
-				onReorderError({
+				onMoveError({
 					error: "circular-reference",
 					target: ancestor.node,
 				});
@@ -317,26 +308,26 @@ export const createTreeState = (props: TreeStateProps) => {
 			}
 		}
 
-		let parentNode: FolderNode | undefined;
+		let owner: FolderNode | FileTree;
 		switch (position) {
 			case "before":
-			case "after":
-				parentNode = item.parent?.node;
+			case "after": {
+				owner = item.parent?.node ?? tree();
 				break;
+			}
 			case "inside": {
-				parentNode = item.node as FolderNode;
+				owner = item.node as FolderNode;
 				break;
 			}
 		}
 
-		const owner = parentNode ?? tree();
 		const ownerChildrenNames = new Set<string>();
 		for (const child of owner.children) {
 			ownerChildrenNames.add(child.name);
 		}
 
-		const moved: Array<TreeItemPosition> = [];
-		const movedParents = new Set<TreeItemPosition<FolderNode> | undefined>();
+		const moved: Array<FileTreeNode> = [];
+		const movedOwners = new Set<FolderNode | FileTree>();
 		const skippedIds = new Set<string>();
 		outer: for (const id of tree().selected) {
 			const selectedItem = lookup.get(id);
@@ -351,13 +342,11 @@ export const createTreeState = (props: TreeStateProps) => {
 				}
 			}
 
-			if (
-				selectedItem.parent?.node !== parentNode &&
-				ownerChildrenNames.has(selectedItem.node.name)
-			) {
+			const selectedItemOwner = selectedItem.parent?.node ?? tree();
+			if (selectedItemOwner !== owner && ownerChildrenNames.has(selectedItem.node.name)) {
 				const result = onNameConflict({
+					operation: "move",
 					target: selectedItem.node,
-					operation: "reorder",
 				});
 				const conflictResolution = result instanceof Promise ? await result : result;
 				switch (conflictResolution) {
@@ -365,146 +354,81 @@ export const createTreeState = (props: TreeStateProps) => {
 						skippedIds.add(selectedItem.node.id);
 						continue;
 					}
-					case "cancel":
-					case "default": {
+					case "cancel": {
 						return false;
 					}
 				}
 			}
 
 			ownerChildrenNames.add(selectedItem.node.name);
-			moved.push(selectedItem);
-			movedParents.add(selectedItem.parent);
+			moved.push(selectedItem.node);
+			movedOwners.add(selectedItemOwner);
 		}
 
 		if (moved.length === 0) {
 			return false;
 		}
 
-		const reorders: Array<Reorder> = [];
-		for (const movedParent of movedParents) {
-			const movedParentNode = movedParent?.node;
-			if (movedParentNode === parentNode) {
-				// This case is handled separately below.
-				continue;
+		const updates: MoveItemsArgs["updates"] = [];
+		for (const movedOwner of movedOwners) {
+			if (movedOwner !== owner) {
+				updates.push({
+					target: movedOwner,
+					children: movedOwner.children.filter(
+						(child) => !child.selected || skippedIds.has(child.id),
+					),
+				});
 			}
-
-			const movedOwner = movedParentNode ?? tree();
-			const remainingChildren: Array<FileTreeNode> = [];
-			for (let i = 0, children = movedOwner.children; i < children.length; i++) {
-				const child = children[i];
-				if (child.selected && !skippedIds.has(child.id)) {
-					continue;
-				}
-
-				const newIndex = remainingChildren.push(child) - 1;
-				if (i !== newIndex) {
-					reorders.push({
-						target: child,
-						parentNode: movedParentNode,
-						index: newIndex,
-					});
-				}
-			}
-
-			movedOwner.children = remainingChildren;
 		}
 
+		let children: Array<FileTreeNode>;
 		switch (position) {
-			case "before":
-			case "after": {
-				const newChildren: Array<FileTreeNode> = [];
-				for (let i = 0, children = owner.children; i < children.length; i++) {
-					const child = children[i];
-					if (child.selected && !skippedIds.has(child.id)) {
+			case "before": {
+				children = [];
+				for (const child of owner.children) {
+					if (child.selected) {
 						continue;
 					}
 
-					if (child === item.node && position === "before") {
-						for (const movedItem of moved) {
-							const newIndex = newChildren.push(movedItem.node) - 1;
-							if (movedItem.parent?.node !== parentNode || movedItem.index !== newIndex) {
-								reorders.push({
-									target: movedItem.node,
-									parentNode,
-									index: newIndex,
-								});
-							}
-						}
+					if (child === item.node) {
+						children.push(...moved);
 					}
 
-					const newIndex = newChildren.push(child) - 1;
-					if (i !== newIndex) {
-						reorders.push({
-							target: child,
-							parentNode: parentNode,
-							index: newIndex,
-						});
+					children.push(child);
+				}
+				break;
+			}
+			case "after": {
+				children = [];
+				for (const child of owner.children) {
+					if (child.selected) {
+						continue;
 					}
 
-					if (child === item.node && position === "after") {
-						for (const movedItem of moved) {
-							const newIndex = newChildren.push(movedItem.node) - 1;
-							if (movedItem.parent?.node !== parentNode || movedItem.index !== newIndex) {
-								reorders.push({
-									target: movedItem.node,
-									parentNode,
-									index: newIndex,
-								});
-							}
-						}
+					children.push(child);
+
+					if (child === item.node) {
+						children.push(...moved);
 					}
 				}
-
-				owner.children = newChildren;
 				break;
 			}
 			case "inside": {
-				const newChildren: Array<FileTreeNode> = [];
-				for (let i = 0, children = parentNode!.children; i < children.length; i++) {
-					const child = children[i];
-					if (child.selected && !skippedIds.has(child.id)) {
-						continue;
-					}
-
-					const newIndex = newChildren.push(child) - 1;
-					if (i !== newIndex) {
-						reorders.push({
-							target: child,
-							parentNode,
-							index: newIndex,
-						});
-					}
-				}
-
-				for (const movedItem of moved) {
-					const newIndex = newChildren.push(movedItem.node) - 1;
-					if (movedItem.parent?.node !== parentNode || movedItem.index !== newIndex) {
-						reorders.push({
-							target: movedItem.node,
-							parentNode,
-							index: newIndex,
-						});
-					}
-				}
-
-				parentNode!.children = newChildren;
-				parentNode!.expand();
+				children = owner.children.filter((child) => !child.selected);
+				children.push(...moved);
 				break;
 			}
 		}
 
-		// If an item is moved inside a different parent, it will be
-		// destroyed and recreated, causing it to get deselected, so
-		// we need to reselect the moved items after reordering.
-		flushSync();
-		tree().selected.clear();
-		for (const movedItem of moved) {
-			movedItem.node.select();
-		}
+		updates.push({
+			target: owner,
+			children,
+		});
 
-		onReorderItems({ reorders });
-		return true;
+		return onMoveItems({
+			updates,
+			moved,
+		});
 	};
 
 	const copyNode = (node: FileTreeNode): FileTreeNode => {
@@ -537,36 +461,42 @@ export const createTreeState = (props: TreeStateProps) => {
 			validateDropPosition(position, item);
 		}
 
-		let parentNode: FolderNode | undefined;
+		let owner: FolderNode | FileTree;
 		switch (position) {
 			case "before":
 			case "after":
-				parentNode = item.parent?.node;
+				owner = item.parent?.node ?? tree();
 				break;
 			case "inside": {
-				parentNode = item.node as FolderNode;
+				owner = item.node as FolderNode;
 				break;
 			}
 		}
 
-		const owner = parentNode ?? tree();
 		const ownerChildrenNames = new Set<string>();
 		for (const child of owner.children) {
 			ownerChildrenNames.add(child.name);
 		}
 
 		const copies: FileTreeNode[] = [];
-		for (const id of tree().selected) {
+		outer: for (const id of tree().selected) {
 			const selectedItem = lookup.get(id);
 			if (selectedItem === undefined) {
 				continue;
 			}
 
+			for (let ancestor = selectedItem.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+				if (ancestor.node.selected) {
+					// If an item is copied, its children are also copied along with it.
+					continue outer;
+				}
+			}
+
 			const copy = copyNode(selectedItem.node);
 			if (ownerChildrenNames.has(copy.name)) {
 				const result = onNameConflict({
+					operation: "insert",
 					target: copy,
-					operation: "copy-paste",
 				});
 				const conflictResolution = result instanceof Promise ? await result : result;
 				switch (conflictResolution) {
@@ -575,17 +505,6 @@ export const createTreeState = (props: TreeStateProps) => {
 					}
 					case "cancel": {
 						return false;
-					}
-					case "default": {
-						let i = 1;
-						let name: string;
-						do {
-							name = `${copy.name} (${i})`;
-							i++;
-						} while (ownerChildrenNames.has(name));
-
-						copy.name = name;
-						break;
 					}
 				}
 			}
@@ -598,33 +517,27 @@ export const createTreeState = (props: TreeStateProps) => {
 			return false;
 		}
 
-		const reorders: Array<Reorder> = [];
-		let start: number;
+		let index: number;
 		switch (position) {
-			case "before":
+			case "before": {
+				index = item.index;
+				break;
+			}
 			case "after": {
-				start = position === "before" ? item.index : item.index + 1;
-				owner.children.splice(start, 0, ...copies);
-
-				for (let i = start + copies.length, children = owner.children; i < children.length; i++) {
-					reorders.push({
-						target: children[i],
-						parentNode,
-						index: i,
-					});
-				}
+				index = item.index + 1;
 				break;
 			}
 			case "inside": {
-				start = parentNode!.children.length;
-				parentNode!.children.push(...copies);
-				parentNode!.expand();
+				index = owner.children.length;
 				break;
 			}
 		}
 
-		onCopyPasteItems({ copies, parentNode, start, reorders });
-		return true;
+		return onInsertItems({
+			target: owner,
+			inserted: copies,
+			index,
+		});
 	};
 
 	const pasteSelected = async (item: TreeItemPosition): Promise<boolean> => {
@@ -651,29 +564,28 @@ export const createTreeState = (props: TreeStateProps) => {
 				break;
 			}
 			case "cut": {
-				didPaste = await reorderSelected(position, item);
+				didPaste = await moveSelected(position, item);
 				break;
 			}
-			default: {
+			case undefined: {
 				return false;
 			}
 		}
 
-		if (!didPaste) {
-			return false;
+		if (didPaste) {
+			setPasteOperation(undefined);
 		}
 
-		setPasteOperation(undefined);
-		return true;
+		return didPaste;
 	};
 
-	const deleteSelected = (item: TreeItemPosition): void => {
+	const deleteSelected = async (item: TreeItemPosition): Promise<boolean> => {
 		if (DEV) {
 			validateItem(item);
 		}
 
 		const deleted: Array<FileTreeNode> = [];
-		const deletedParents = new Set<TreeItemPosition<FolderNode> | undefined>();
+		const deletedOwners = new Set<FolderNode | FileTree>();
 		outer: for (const id of tree().selected) {
 			const selectedItem = lookup.get(id);
 			if (selectedItem === undefined) {
@@ -688,11 +600,11 @@ export const createTreeState = (props: TreeStateProps) => {
 			}
 
 			deleted.push(selectedItem.node);
-			deletedParents.add(selectedItem.parent);
+			deletedOwners.add(selectedItem.parent?.node ?? tree());
 		}
 
 		if (deleted.length === 0) {
-			return;
+			return false;
 		}
 
 		let focusTarget: TreeItemPosition | undefined = item;
@@ -731,35 +643,25 @@ export const createTreeState = (props: TreeStateProps) => {
 			focusTarget = nearestUnselected;
 		} while (focusTarget !== undefined);
 
-		const reorders: Array<Reorder> = [];
-		for (const deletedParent of deletedParents) {
-			const deletedParentNode = deletedParent?.node;
-			const deletedOwner = deletedParentNode ?? tree();
-			const remainingChildren: Array<FileTreeNode> = [];
-			for (let i = 0, children = deletedOwner.children; i < children.length; i++) {
-				const child = children[i];
-				if (child.selected) {
-					continue;
-				}
-
-				const newIndex = remainingChildren.push(child) - 1;
-				if (i !== newIndex) {
-					reorders.push({
-						target: child,
-						parentNode: deletedParentNode,
-						index: newIndex,
-					});
-				}
-			}
-
-			deletedOwner.children = remainingChildren;
+		const updates: DeleteItemsArgs["updates"] = [];
+		for (const deletedOwner of deletedOwners) {
+			updates.push({
+				target: deletedOwner,
+				children: deletedOwner.children.filter((child) => !child.selected),
+			});
 		}
 
-		if (focusTarget !== undefined) {
+		const result = onDeleteItems({
+			updates,
+			deleted,
+		});
+		const didDelete = result instanceof Promise ? await result : result;
+
+		if (didDelete && focusTarget !== undefined) {
 			getItemElement(focusTarget.node.id)?.focus();
 		}
 
-		onDeleteItems({ deleted, reorders });
+		return didDelete;
 	};
 
 	return {
@@ -782,7 +684,7 @@ export const createTreeState = (props: TreeStateProps) => {
 			selectAll(tree().children);
 		},
 		renameItem,
-		reorderSelected,
+		moveSelected,
 		pasteSelected,
 		deleteSelected,
 	};

@@ -12,13 +12,29 @@
 		id = crypto.randomUUID(),
 		element = $bindable(null),
 		generateCopyId = () => crypto.randomUUID(),
-		onRenameItem,
+		onRenameItem = ({ target, name }) => {
+			target.name = name;
+			return true;
+		},
 		onRenameError,
-		onReorderItems,
-		onReorderError,
-		onCopyPasteItems,
-		onNameConflict = () => "default",
-		onDeleteItems,
+		onMoveItems = ({ updates }) => {
+			for (const { target, children } of updates) {
+				target.children = children;
+			}
+			return true;
+		},
+		onMoveError,
+		onInsertItems = ({ target, inserted, index }) => {
+			target.children.splice(index, 0, ...inserted);
+			return true;
+		},
+		onNameConflict = () => "cancel",
+		onDeleteItems = ({ updates }) => {
+			for (const { target, children } of updates) {
+				target.children = children;
+			}
+			return true;
+		},
 		...attributes
 	}: TreeProps = $props();
 
@@ -30,20 +46,20 @@
 		},
 		treeId: () => id,
 		generateCopyId: () => generateCopyId(),
-		onRenameItem: (event) => onRenameItem?.(event),
+		onRenameItem: (event) => onRenameItem(event),
 		onRenameError: (event) => onRenameError?.(event),
-		onReorderItems: (event) => onReorderItems?.(event),
-		onReorderError: (event) => onReorderError?.(event),
-		onCopyPasteItems: (event) => onCopyPasteItems?.(event),
+		onMoveItems: (event) => onMoveItems(event),
+		onMoveError: (event) => onMoveError?.(event),
+		onInsertItems: (event) => onInsertItems(event),
 		onNameConflict: (event) => onNameConflict(event),
-		onDeleteItems: (event) => onDeleteItems?.(event),
+		onDeleteItems: (event) => onDeleteItems(event),
 	});
 
 	TreeContext.set({ treeState });
 </script>
 
 {#snippet items(
-	nodes: ReadonlyArray<FileTreeNode> = tree.children,
+	nodes: Array<FileTreeNode> = tree.children,
 	depth: number = 0,
 	parent?: TreeItemSnippetProps<FolderNode>,
 )}

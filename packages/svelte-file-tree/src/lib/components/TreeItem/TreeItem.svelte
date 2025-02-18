@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { composeEventHandlers } from "$lib/internal/helpers.svelte.js";
 	import { TreeContext, TreeItemProviderContext } from "../Tree/context.js";
 	import { TreeItemContext } from "./context.js";
 	import { createTreeItemState } from "./state.svelte.js";
@@ -12,6 +11,7 @@
 		children,
 		editable = false,
 		editing = $bindable(false),
+		disabled = false,
 		element = $bindable(null),
 		class: className,
 		style,
@@ -56,6 +56,31 @@
 		parent,
 		editable: () => editable,
 		setEditing,
+		disabled: () => disabled,
+		onfocusin: (event) => {
+			onfocusin?.(event);
+		},
+		onkeydown: (event) => {
+			onkeydown?.(event);
+		},
+		onpointerdown: (event) => {
+			onpointerdown?.(event);
+		},
+		ondragstart: (event) => {
+			ondragstart?.(event);
+		},
+		ondragover: (event) => {
+			ondragover?.(event);
+		},
+		ondragleave: (event) => {
+			ondragleave?.(event);
+		},
+		ondrop: (event) => {
+			ondrop?.(event);
+		},
+		ondragend: (event) => {
+			ondragend?.(event);
+		},
 	});
 
 	TreeItemContext.set({ setEditing });
@@ -80,14 +105,14 @@
 	tabindex={tabIndex()}
 	class={typeof className === "function" ? className(childrenProps) : className}
 	style={typeof style === "function" ? style(childrenProps) : style}
-	onfocusin={composeEventHandlers(onfocusin, handleFocusIn)}
-	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
-	onpointerdown={composeEventHandlers(onpointerdown, handlePointerDown)}
-	ondragstart={composeEventHandlers(ondragstart, handleDragStart)}
-	ondragover={composeEventHandlers(ondragover, handleDragOver)}
-	ondragleave={composeEventHandlers(ondragleave, handleDragLeave)}
-	ondrop={composeEventHandlers(ondrop, handleDrop)}
-	ondragend={composeEventHandlers(ondragend, handleDragEnd)}
+	onfocusin={handleFocusIn}
+	onkeydown={handleKeyDown}
+	onpointerdown={handlePointerDown}
+	ondragstart={handleDragStart}
+	ondragover={handleDragOver}
+	ondragleave={handleDragLeave}
+	ondrop={handleDrop}
+	ondragend={handleDragEnd}
 >
 	{@render children(childrenProps)}
 </div>

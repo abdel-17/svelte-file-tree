@@ -3,6 +3,8 @@ import type { Snippet } from "svelte";
 import type { ClassValue } from "svelte/elements";
 import type { DropPosition } from "../Tree/state.svelte.js";
 
+export type { DropPosition };
+
 export type TreeItemChildrenSnippetProps = {
 	editing: boolean;
 	dragged: boolean;

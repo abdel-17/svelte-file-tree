@@ -4,18 +4,14 @@
 	import FolderIcon from "lucide-svelte/icons/folder";
 	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
 	import {
-		type CopyPasteItemsEvent,
-		type DeleteItemsEvent,
 		FileNode,
 		FileTree,
 		type FileTreeNode,
 		FolderNode,
-		type NameConflictEvent,
+		type MoveErrorArgs,
+		type NameConflictArgs,
 		type NameConflictResolution,
-		type RenameErrorEvent,
-		type RenameItemEvent,
-		type ReorderErrorEvent,
-		type ReorderItemsEvent,
+		type RenameErrorArgs,
 		Tree,
 		TreeItem,
 		TreeItemInput,
@@ -45,130 +41,68 @@
 			}),
 	});
 
-	type DialogButton = {
-		result: NameConflictResolution;
-		type: "neutral" | "error";
-		label: string;
-	};
-
 	const { dialogData, openDialog, closeDialog, dialogOpen, onDialogOpenChange } = createDialogState<
 		{
 			title: string;
 			description: string;
-			buttons: ReadonlyArray<DialogButton>;
 		},
 		NameConflictResolution
 	>({
-		closeResult: "cancel",
+		defaultResult: "cancel",
 	});
 
-	const dialogButtonClasses = {
-		neutral:
-			"rounded-md border-1 border-current bg-neutral-100 px-3 py-1.5 text-sm leading-5 font-semibold text-neutral-800 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-neutral-300",
-		error:
-			"rounded-md border-1 border-current bg-red-100 px-3 py-1.5 text-sm leading-5 font-semibold text-red-800 hover:bg-red-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-red-300",
-	};
-
-	const dialogGenerateNameButton: DialogButton = {
-		result: "default",
-		type: "neutral",
-		label: "Generate Name",
-	};
-
-	const dialogSkipButton: DialogButton = {
-		result: "skip",
-		type: "neutral",
-		label: "Skip",
-	};
-
-	const dialogCancelButton: DialogButton = {
-		result: "cancel",
-		type: "error",
-		label: "Cancel",
-	};
-
-	const onRenameItem = (event: RenameItemEvent): void => {
-		console.info("onRenameItem", $state.snapshot(event));
-	};
-
-	const onRenameError = (event: RenameErrorEvent): void => {
-		console.error("onRenameError", $state.snapshot(event));
-
-		switch (event.error) {
+	const onRenameError = ({ error, name }: RenameErrorArgs): void => {
+		switch (error) {
 			case "empty": {
 				toast.error("Name cannot be empty");
 				break;
 			}
 			case "already-exists": {
-				toast.error(`An item with the name "${event.name}" already exists`);
+				toast.error(`An item with the name "${name}" already exists`);
 				break;
 			}
 		}
 	};
 
-	const onReorderItems = (event: ReorderItemsEvent): void => {
-		console.info("onReorderItems", $state.snapshot(event));
+	const onMoveError = ({ target }: MoveErrorArgs): void => {
+		toast.error(`Cannot move "${target.name}" into or next to itself`);
 	};
 
-	const onReorderError = (event: ReorderErrorEvent): void => {
-		console.error("onReorderError", $state.snapshot(event));
-
-		toast.error(`Cannot move "${event.target.name}" into or next to itself`);
-	};
-
-	const onCopyPasteItems = (event: CopyPasteItemsEvent): void => {
-		console.info("onCopyPasteItems", $state.snapshot(event));
-	};
-
-	const onNameConflict = async (event: NameConflictEvent): Promise<NameConflictResolution> => {
-		console.info("onNameConflict", $state.snapshot(event));
-
-		const description = `An item with the name "${event.target.name}" already exists`;
-		switch (event.operation) {
-			case "reorder": {
+	const onNameConflict = ({
+		operation,
+		target,
+	}: NameConflictArgs): Promise<NameConflictResolution> => {
+		const description = `An item with the name "${target.name}" already exists`;
+		switch (operation) {
+			case "move": {
 				return openDialog({
 					title: "Failed to move items",
 					description,
-					buttons: [dialogSkipButton, dialogCancelButton],
 				});
 			}
-			case "copy-paste": {
+			case "insert": {
 				return openDialog({
 					title: "Failed to paste items",
 					description,
-					buttons: [dialogGenerateNameButton, dialogSkipButton, dialogCancelButton],
 				});
 			}
 		}
 	};
-
-	const onDeleteItems = (event: DeleteItemsEvent): void => {
-		console.info("onDeleteItems", $state.snapshot(event));
-	};
 </script>
 
 <main class="p-8">
-	<Tree
-		{tree}
-		{onRenameItem}
-		{onRenameError}
-		{onReorderItems}
-		{onReorderError}
-		{onCopyPasteItems}
-		{onNameConflict}
-		{onDeleteItems}
-		class="space-y-4"
-	>
+	<Tree {tree} {onRenameError} {onMoveError} {onNameConflict} class="space-y-4">
 		{#snippet item({ node, depth })}
 			<TreeItem
 				editable
 				draggable
 				class={({ dropPosition }) => [
-					"relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 before:pointer-events-none before:absolute before:-inset-[2px] before:rounded-[inherit] hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
-					dropPosition !== undefined && "before:border-2",
+					"relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
+					dropPosition !== undefined &&
+						"before:pointer-events-none before:absolute before:-inset-[2px] before:rounded-[inherit] before:border-2",
 					dropPosition === "before" && "before:border-transparent before:border-t-red-500",
-					dropPosition === "inside" && "before:border-red-500",
 					dropPosition === "after" && "before:border-transparent before:border-b-red-500",
+					dropPosition === "inside" && "before:border-red-500",
 				]}
 				style="margin-inline-start: {depth * 16}px;"
 			>
@@ -196,6 +130,8 @@
 	</Tree>
 </main>
 
+<Toaster richColors />
+
 <Dialog.Root bind:open={dialogOpen, onDialogOpenChange}>
 	<Dialog.Portal>
 		<Dialog.Overlay forceMount class="fixed inset-0 z-50 bg-black/50">
@@ -212,7 +148,7 @@
 		>
 			{#snippet child({ props, open })}
 				{#if open}
-					{@const { title, description, buttons } = dialogData()!}
+					{@const { title, description } = dialogData()!}
 					<div {...props} transition:fly={{ y: "-100%" }}>
 						<Dialog.Title class="text-center text-lg font-semibold tracking-tight">
 							{title}
@@ -223,14 +159,19 @@
 						</Dialog.Description>
 
 						<div class="mt-5 flex justify-end gap-3">
-							{#each buttons as button}
-								<button
-									class={dialogButtonClasses[button.type]}
-									onclick={() => closeDialog(button.result)}
-								>
-									{button.label}
-								</button>
-							{/each}
+							<button
+								class="rounded-md border-1 border-current bg-neutral-100 px-3 py-1.5 text-sm leading-5 font-semibold text-neutral-800 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-neutral-300"
+								onclick={() => closeDialog("skip")}
+							>
+								Skip
+							</button>
+
+							<button
+								class="rounded-md border-1 border-current bg-red-100 px-3 py-1.5 text-sm leading-5 font-semibold text-red-800 hover:bg-red-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-red-300"
+								onclick={() => closeDialog("cancel")}
+							>
+								Cancel
+							</button>
 						</div>
 					</div>
 				{/if}
@@ -238,5 +179,3 @@
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>
-
-<Toaster richColors />

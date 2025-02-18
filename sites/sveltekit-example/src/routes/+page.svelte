@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { invalidate } from "$app/navigation";
-	import type { UpdateFilePosition } from "$lib/server/database.js";
 	import FileIcon from "lucide-svelte/icons/file";
 	import FolderIcon from "lucide-svelte/icons/folder";
 	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
@@ -11,22 +10,21 @@
 		Tree,
 		TreeItem,
 		TreeItemInput,
-		type CopyPasteItemsEvent,
-		type DeleteItemsEvent,
+		type DeleteItemsArgs,
 		type FileTreeNode,
-		type NameConflictEvent,
+		type InsertItemsArgs,
+		type MoveErrorArgs,
+		type MoveItemsArgs,
+		type NameConflictArgs,
 		type NameConflictResolution,
-		type RenameErrorEvent,
-		type RenameItemEvent,
-		type Reorder,
-		type ReorderErrorEvent,
-		type ReorderItemsEvent,
+		type RenameErrorArgs,
+		type RenameItemArgs,
 	} from "svelte-file-tree";
-	import { Toaster, toast } from "svelte-sonner";
+	import { toast, Toaster } from "svelte-sonner";
 	import type { DeleteFilesBody } from "./api/files/delete/+server.js";
 	import type { InsertFilesBody } from "./api/files/insert/+server.js";
-	import type { UpdateFileNamesBody } from "./api/files/update/name/+server.js";
-	import type { UpdateFilePositionsBody } from "./api/files/update/position/+server.js";
+	import type { MoveFilesBody } from "./api/files/move/+server.js";
+	import type { RenameFileBody } from "./api/files/rename/+server.js";
 	import { FILES_DEPENDENCY } from "./shared.js";
 
 	const { data } = $props();
@@ -34,165 +32,240 @@
 	const tree = new FileTree({
 		children: (tree) =>
 			data.files.map(function transform(file): FileTreeNode {
-				if (file.type === "file") {
-					return new FileNode({
-						tree,
-						id: file.id,
-						name: file.name,
-					});
+				switch (file.type) {
+					case "file": {
+						return new FileNode({
+							tree,
+							id: file.id.toString(),
+							name: file.name,
+						});
+					}
+					case "folder": {
+						return new FolderNode({
+							tree,
+							id: file.id.toString(),
+							name: file.name,
+							children: file.children.map(transform),
+						});
+					}
 				}
-
-				return new FolderNode({
-					tree,
-					id: file.id,
-					name: file.name,
-					children: file.children.map(transform),
-				});
 			}),
 	});
 
-	const renameItem = async (event: RenameItemEvent): Promise<void> => {
-		try {
-			const body: UpdateFileNamesBody = [
-				{
-					id: Number(event.target.id),
-					name: event.name,
-				},
-			];
-			const response = await fetch("/api/files/update/name", {
-				method: "POST",
-				body: JSON.stringify(body),
-			});
+	let mutationPending = $state(false);
 
-			if (!response.ok) {
-				throw response;
+	const createMutation = <TArgs extends unknown[]>(fn: (...args: TArgs) => Promise<void>) => {
+		return async function (this: unknown, ...args: TArgs): Promise<void> {
+			if (mutationPending) {
+				throw new Error("Another mutation is already in progress");
 			}
-		} catch (error) {
-			await invalidate(FILES_DEPENDENCY);
-			throw error;
-		}
+
+			mutationPending = true;
+			try {
+				await fn.apply(this, args);
+			} finally {
+				try {
+					await invalidate(FILES_DEPENDENCY);
+				} finally {
+					mutationPending = false;
+				}
+			}
+		};
 	};
 
-	const onRenameItem = (event: RenameItemEvent): void => {
-		toast.promise(renameItem(event), {
-			loading: "Updating database",
-			success: "Renamed item",
-			error: "Failed to rename item",
+	const renameFile = createMutation(async (body: RenameFileBody): Promise<void> => {
+		const response = await fetch("/api/files/rename", {
+			method: "POST",
+			body: JSON.stringify(body),
 		});
+
+		if (!response.ok) {
+			throw response;
+		}
+	});
+
+	const onRenameItem = ({ target, name }: RenameItemArgs): boolean => {
+		target.name = name;
+		toast.promise(
+			renameFile({
+				id: Number(target.id),
+				name,
+			}),
+			{
+				loading: "Updating database",
+				success: "Renamed item successfully",
+				error: "Failed to rename item",
+			},
+		);
+		return true;
 	};
 
-	const onRenameError = (event: RenameErrorEvent): void => {
-		switch (event.error) {
+	const onRenameError = ({ error, name }: RenameErrorArgs): void => {
+		switch (error) {
 			case "empty": {
 				toast.error("Name cannot be empty");
 				break;
 			}
 			case "already-exists": {
-				toast.error(`An item with the name "${event.name}" already exists`);
+				toast.error(`An item with the name "${name}" already exists`);
 				break;
 			}
 		}
 	};
 
-	const serializeReorder = (reorder: Reorder): UpdateFilePosition => ({
-		id: Number(reorder.target.id),
-		parent_id: reorder.parentNode !== undefined ? Number(reorder.parentNode.id) : null,
-		index_in_parent: reorder.index,
+	const updatePositions = (updates: MoveItemsArgs["updates"]): MoveFilesBody["new_positions"] => {
+		const newPositions: MoveFilesBody["new_positions"] = [];
+		for (const { target, children } of updates) {
+			const targetId = target instanceof FolderNode ? Number(target.id) : null;
+			for (let i = 0; i < children.length; i++) {
+				const child = children[i];
+				if (child !== target.children[i]) {
+					newPositions.push({
+						id: Number(child.id),
+						parent_id: targetId,
+						index_in_parent: i,
+					});
+				}
+			}
+			target.children = children;
+		}
+		return newPositions;
+	};
+
+	const moveFiles = createMutation(async (body: MoveFilesBody): Promise<void> => {
+		const response = await fetch("/api/files/move", {
+			method: "POST",
+			body: JSON.stringify(body),
+		});
+
+		if (!response.ok) {
+			throw response;
+		}
 	});
 
-	const reorderItems = async (event: ReorderItemsEvent): Promise<void> => {
-		try {
-			const body: UpdateFilePositionsBody = event.reorders.map(serializeReorder);
-			const response = await fetch("/api/files/update/position", {
-				method: "POST",
-				body: JSON.stringify(body),
-			});
+	const onMoveItems = ({ updates }: MoveItemsArgs): boolean => {
+		const newPositions = updatePositions(updates);
+		toast.promise(
+			moveFiles({
+				new_positions: newPositions,
+			}),
+			{
+				loading: "Updating database",
+				success: "Moved items successfully",
+				error: "Failed to move items",
+			},
+		);
+		return true;
+	};
 
-			if (!response.ok) {
-				throw response;
+	const onMoveError = ({ target }: MoveErrorArgs): void => {
+		toast.error(`Cannot move "${target.name}" into or next to itself`);
+	};
+
+	const forEachChild = (
+		parent: FolderNode,
+		callback: (child: FileTreeNode, index: number, parent: FolderNode) => void,
+	): void => {
+		for (let i = 0; i < parent.children.length; i++) {
+			const child = parent.children[i];
+			callback(child, i, parent);
+
+			if (child.type === "folder") {
+				forEachChild(child, callback);
 			}
-		} catch (error) {
-			await invalidate(FILES_DEPENDENCY);
-			throw error;
 		}
 	};
 
-	const onReorderItems = (event: ReorderItemsEvent): void => {
-		toast.promise(reorderItems(event), {
-			loading: "Updating database",
-			success: "Reordered items",
-			error: "Failed to reorder items",
+	const insertFiles = createMutation(async (body: InsertFilesBody): Promise<void> => {
+		const response = await fetch("/api/files/insert", {
+			method: "POST",
+			body: JSON.stringify(body),
 		});
-	};
 
-	const onReorderError = (event: ReorderErrorEvent): void => {
-		toast.error(`Cannot move "${event.target.name}" into or next to itself`);
-	};
+		if (!response.ok) {
+			throw response;
+		}
+	});
 
-	const copyPasteItems = async (event: CopyPasteItemsEvent): Promise<void> => {
-		try {
-			const body: InsertFilesBody = {
-				inserted: event.copies.map((copy, i) => ({
-					type: copy.type,
-					name: copy.name,
-					parent_id: event.parentNode !== undefined ? Number(event.parentNode.id) : null,
-					index_in_parent: event.start + i,
-				})),
-				reorders: event.reorders.map(serializeReorder),
-			};
-			const response = await fetch("/api/files/insert", {
-				method: "POST",
-				body: JSON.stringify(body),
+	const onInsertItems = ({ target, inserted, index }: InsertItemsArgs): boolean => {
+		const targetId = target instanceof FolderNode ? Number(target.id) : null;
+		const allInserted: InsertFilesBody["inserted"] = [];
+		for (let i = 0; i < inserted.length; i++) {
+			const node = inserted[i];
+			allInserted.push({
+				name: node.name,
+				type: node.type,
+				parent_id: targetId,
+				index_in_parent: index + i,
 			});
 
-			if (!response.ok) {
-				throw response;
+			if (node.type === "folder") {
+				forEachChild(node, (child, j, parent) => {
+					allInserted.push({
+						name: child.name,
+						type: child.type,
+						parent_id: Number(parent.id),
+						index_in_parent: j,
+					});
+				});
 			}
-		} catch (error) {
-			await invalidate(FILES_DEPENDENCY);
-			throw error;
 		}
+
+		const newPositions: MoveFilesBody["new_positions"] = [];
+		for (let i = index; i < target.children.length; i++) {
+			const child = target.children[i];
+			newPositions.push({
+				id: Number(child.id),
+				parent_id: targetId,
+				index_in_parent: inserted.length + i,
+			});
+		}
+
+		target.children.splice(index, 0, ...inserted);
+		toast.promise(
+			insertFiles({
+				inserted: allInserted,
+				new_positions: newPositions,
+			}),
+			{
+				loading: "Updating database",
+				success: "Inserted items successfully",
+				error: "Failed to insert items",
+			},
+		);
+		return true;
 	};
 
-	const onCopyPasteItems = (event: CopyPasteItemsEvent): void => {
-		toast.promise(copyPasteItems(event), {
-			loading: "Updating database",
-			success: "Copied paste items",
-			error: "Failed to copy paste items",
-		});
-	};
-
-	const onNameConflict = (event: NameConflictEvent): NameConflictResolution => {
-		toast.error(`An item with the name ${event.target.name} already exists`);
+	const onNameConflict = ({ target }: NameConflictArgs): NameConflictResolution => {
+		toast.error(`An item with the name ${target.name} already exists`);
 		return "cancel";
 	};
 
-	const deleteItems = async (event: DeleteItemsEvent): Promise<void> => {
-		try {
-			const body: DeleteFilesBody = {
-				deleted: event.deleted.map((node) => Number(node.id)),
-				reorders: event.reorders.map(serializeReorder),
-			};
-			const response = await fetch("/api/files/delete", {
-				method: "POST",
-				body: JSON.stringify(body),
-			});
-
-			if (!response.ok) {
-				throw response;
-			}
-		} catch (error) {
-			await invalidate(FILES_DEPENDENCY);
-			throw error;
-		}
-	};
-
-	const onDeleteItems = (event: DeleteItemsEvent): void => {
-		toast.promise(deleteItems(event), {
-			loading: "Updating database",
-			success: "Deleted items",
-			error: "Failed to delete items",
+	const deleteFiles = createMutation(async (body: DeleteFilesBody): Promise<void> => {
+		const response = await fetch("/api/files/delete", {
+			method: "POST",
+			body: JSON.stringify(body),
 		});
+
+		if (!response.ok) {
+			throw response;
+		}
+	});
+
+	const onDeleteItems = ({ updates, deleted }: DeleteItemsArgs): boolean => {
+		const newPositions = updatePositions(updates);
+		toast.promise(
+			deleteFiles({
+				deleted: deleted.map((node) => Number(node.id)),
+				new_positions: newPositions,
+			}),
+			{
+				loading: "Updating database",
+				success: "Deleted items successfully",
+				error: "Failed to delete items",
+			},
+		);
+		return true;
 	};
 </script>
 
@@ -201,9 +274,9 @@
 		{tree}
 		{onRenameItem}
 		{onRenameError}
-		{onReorderItems}
-		{onReorderError}
-		{onCopyPasteItems}
+		{onMoveItems}
+		{onMoveError}
+		{onInsertItems}
 		{onNameConflict}
 		{onDeleteItems}
 		class="space-y-4"
@@ -212,12 +285,15 @@
 			<TreeItem
 				editable
 				draggable
+				disabled={mutationPending}
 				class={({ dropPosition }) => [
-					"relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 before:pointer-events-none before:absolute before:-inset-[2px] before:rounded-[inherit] hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
-					dropPosition !== undefined && "before:border-2",
+					"relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
+					dropPosition !== undefined &&
+						"before:pointer-events-none before:absolute before:-inset-[2px] before:rounded-[inherit] before:border-2",
 					dropPosition === "before" && "before:border-transparent before:border-t-red-500",
-					dropPosition === "inside" && "before:border-red-500",
 					dropPosition === "after" && "before:border-transparent before:border-b-red-500",
+					dropPosition === "inside" && "before:border-red-500",
+					mutationPending && "pointer-events-none opacity-50",
 				]}
 				style="margin-inline-start: {depth * 16}px;"
 			>

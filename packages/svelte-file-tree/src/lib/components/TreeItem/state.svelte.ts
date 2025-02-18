@@ -27,9 +27,7 @@ type DropPositionStateProps = {
 	node: () => FileTreeNode;
 };
 
-const createDropPositionState = (props: DropPositionStateProps) => {
-	const { node } = props;
-
+const createDropPositionState = ({ node }: DropPositionStateProps) => {
 	let dropPosition: DropPosition | undefined = $state.raw();
 	let updateRequestId: number | undefined;
 
@@ -68,37 +66,55 @@ export type TreeItemStateProps = {
 	parent: () => TreeItemPosition<FolderNode> | undefined;
 	editable: () => boolean;
 	setEditing: (value: boolean) => void;
+	disabled: () => boolean;
+	onfocusin: EventHandler<FocusEvent, HTMLDivElement>;
+	onkeydown: EventHandler<KeyboardEvent, HTMLDivElement>;
+	onpointerdown: EventHandler<PointerEvent, HTMLDivElement>;
+	ondragstart: EventHandler<DragEvent, HTMLDivElement>;
+	ondragover: EventHandler<DragEvent, HTMLDivElement>;
+	ondragleave: EventHandler<DragEvent, HTMLDivElement>;
+	ondrop: EventHandler<DragEvent, HTMLDivElement>;
+	ondragend: EventHandler<DragEvent, HTMLDivElement>;
 };
 
-export const createTreeItemState = (props: TreeItemStateProps) => {
+export const createTreeItemState = ({
+	treeState,
+	node,
+	index,
+	depth,
+	parent,
+	editable,
+	setEditing,
+	disabled,
+	onfocusin,
+	onkeydown,
+	onpointerdown,
+	ondragstart,
+	ondragover,
+	ondragleave,
+	ondrop,
+	ondragend,
+}: TreeItemStateProps) => {
 	const {
-		treeState: {
-			tree,
-			setPasteOperation,
-			treeId,
-			tabbableId,
-			setTabbableId,
-			draggedId,
-			setDraggedId,
-			onSetItem,
-			onDestroyItem,
-			getNextItem,
-			getPreviousItem,
-			getItemElementId,
-			getItemElement,
-			selectUntil,
-			selectAll,
-			reorderSelected,
-			pasteSelected,
-			deleteSelected,
-		},
-		node,
-		index,
-		depth,
-		parent,
-		editable,
-		setEditing,
-	} = props;
+		tree,
+		setPasteOperation,
+		treeId,
+		tabbableId,
+		setTabbableId,
+		draggedId,
+		setDraggedId,
+		onSetItem,
+		onDestroyItem,
+		getNextItem,
+		getPreviousItem,
+		getItemElementId,
+		getItemElement,
+		selectUntil,
+		selectAll,
+		moveSelected,
+		pasteSelected,
+		deleteSelected,
+	} = treeState;
 
 	const { dropPosition, updateDropPosition, clearDropPosition } = createDropPositionState({ node });
 
@@ -143,11 +159,18 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 		};
 	});
 
-	const handleFocusIn: EventHandler<FocusEvent, HTMLElement> = () => {
+	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
+		onfocusin(event);
 		setTabbableId(node().id);
 	};
 
-	const handleKeyDown: EventHandler<KeyboardEvent, HTMLElement> = (event) => {
+	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
+		onkeydown(event);
+
+		if (event.defaultPrevented || disabled()) {
+			return;
+		}
+
 		if (event.target !== event.currentTarget) {
 			// Don't handle keydown events that bubble up from child elements.
 			// This can cause unexpected behavior with child inputs.
@@ -211,7 +234,7 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 				const itemRect = event.currentTarget.getBoundingClientRect();
 
 				let current = item;
-				let currentElement = event.currentTarget;
+				let currentElement: HTMLElement = event.currentTarget;
 				while (true) {
 					const next = navigate(current);
 					if (next === undefined) {
@@ -333,7 +356,7 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 				break;
 			}
 			case "Delete": {
-				deleteSelected(item);
+				void deleteSelected(item);
 				break;
 			}
 			case "a": {
@@ -368,7 +391,13 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 		event.preventDefault();
 	};
 
-	const handlePointerDown: EventHandler<PointerEvent, HTMLElement> = (event) => {
+	const handlePointerDown: EventHandler<PointerEvent, HTMLDivElement> = (event) => {
+		onpointerdown(event);
+
+		if (event.defaultPrevented || disabled()) {
+			return;
+		}
+
 		if (isControlOrMeta(event)) {
 			node().toggleSelected();
 		} else if (event.shiftKey) {
@@ -379,7 +408,13 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 		}
 	};
 
-	const handleDragStart: EventHandler<DragEvent, HTMLElement> = (event) => {
+	const handleDragStart: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		ondragstart(event);
+
+		if (event.defaultPrevented || disabled()) {
+			return;
+		}
+
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.effectAllowed = "move";
 		}
@@ -388,7 +423,14 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 		node().select();
 	};
 
-	const handleDragOver: EventHandler<DragEvent, HTMLElement> = (event) => {
+	const handleDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		ondragover(event);
+
+		if (event.defaultPrevented || disabled()) {
+			clearDropPosition();
+			return;
+		}
+
 		if (draggedId() === undefined) {
 			return;
 		}
@@ -407,7 +449,9 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 		updateDropPosition(event.currentTarget, event.clientY);
 	};
 
-	const handleDragLeave: EventHandler<DragEvent, HTMLElement> = (event) => {
+	const handleDragLeave: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		ondragleave(event);
+
 		if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
 			// Skip if the pointer moves to a child element.
 			return;
@@ -416,7 +460,14 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 		clearDropPosition();
 	};
 
-	const handleDrop: EventHandler<DragEvent, HTMLElement> = async (event) => {
+	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		ondrop(event);
+
+		if (event.defaultPrevented || disabled()) {
+			clearDropPosition();
+			return;
+		}
+
 		const currentDraggedId = draggedId();
 		if (currentDraggedId === undefined) {
 			return;
@@ -432,18 +483,19 @@ export const createTreeItemState = (props: TreeItemStateProps) => {
 		clearDropPosition();
 
 		tree().selected.add(currentDraggedId);
-		const didReorder = await reorderSelected(position, {
+		void moveSelected(position, {
 			node: node(),
 			index: index(),
 			parent: parent(),
+		}).then((didMove) => {
+			if (didMove) {
+				getItemElement(currentDraggedId)?.focus();
+			}
 		});
-
-		if (didReorder) {
-			getItemElement(currentDraggedId)?.focus();
-		}
 	};
 
-	const handleDragEnd: EventHandler<DragEvent, HTMLElement> = () => {
+	const handleDragEnd: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		ondragend(event);
 		setDraggedId(undefined);
 	};
 

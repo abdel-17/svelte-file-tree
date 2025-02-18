@@ -9,28 +9,41 @@ export type TreeItemInputStateProps = {
 	parent: () => TreeItemPosition<FolderNode> | undefined;
 	setEditing: (value: boolean) => void;
 	name: () => string;
+	onfocus: EventHandler<FocusEvent, HTMLInputElement>;
+	onkeydown: EventHandler<KeyboardEvent, HTMLInputElement>;
+	onblur: EventHandler<FocusEvent, HTMLInputElement>;
 };
 
-export const createTreeItemInputState = (props: TreeItemInputStateProps) => {
-	const {
-		treeState: { getItemElement, renameItem },
-		node,
-		index,
-		parent,
-		setEditing,
-		name,
-	} = props;
+export const createTreeItemInputState = ({
+	treeState,
+	node,
+	index,
+	parent,
+	setEditing,
+	name,
+	onfocus,
+	onkeydown,
+	onblur,
+}: TreeItemInputStateProps) => {
+	const { renameItem, getItemElement } = treeState;
 
 	const onInit = (input: HTMLInputElement): void => {
 		input.focus();
 		input.select();
 	};
 
-	const handleFocus: EventHandler<FocusEvent, HTMLInputElement> = () => {
+	const handleFocus: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
+		onfocus(event);
 		setEditing(true);
 	};
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => {
+		onkeydown(event);
+
+		if (event.defaultPrevented) {
+			return;
+		}
+
 		switch (event.key) {
 			case "Enter": {
 				if (name() === node().name) {
@@ -38,15 +51,15 @@ export const createTreeItemInputState = (props: TreeItemInputStateProps) => {
 					break;
 				}
 
-				const didRename = renameItem(name(), {
+				void renameItem(name(), {
 					node: node(),
 					index: index(),
 					parent: parent(),
+				}).then((didRename) => {
+					if (didRename) {
+						getItemElement(node().id)?.focus();
+					}
 				});
-
-				if (didRename) {
-					getItemElement(node().id)?.focus();
-				}
 				break;
 			}
 			case "Escape": {
@@ -61,7 +74,8 @@ export const createTreeItemInputState = (props: TreeItemInputStateProps) => {
 		event.preventDefault();
 	};
 
-	const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = () => {
+	const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = (event) => {
+		onblur(event);
 		setEditing(false);
 	};
 
