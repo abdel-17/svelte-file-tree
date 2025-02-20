@@ -1,2 +1,2 @@
 DELETE FROM files
-WHERE id = ?;
+WHERE id = :id;

@@ -24,8 +24,8 @@
 			return true;
 		},
 		onMoveError,
-		onInsertItems = ({ target, inserted, index }) => {
-			target.children.splice(index, 0, ...inserted);
+		onInsertItems = ({ target, start, inserted }) => {
+			target.children.splice(start, 0, ...inserted);
 			return true;
 		},
 		onNameConflict = () => "cancel",

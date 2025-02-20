@@ -21,10 +21,8 @@
 		type RenameItemArgs,
 	} from "svelte-file-tree";
 	import { toast, Toaster } from "svelte-sonner";
-	import type { DeleteFilesBody } from "./api/files/delete/+server.js";
-	import type { InsertFilesBody } from "./api/files/insert/+server.js";
-	import type { MoveFilesBody } from "./api/files/move/+server.js";
-	import type { RenameFileBody } from "./api/files/rename/+server.js";
+	import * as api from "./api.js";
+	import type { MoveFilesBody } from "./api.js";
 	import { FILES_DEPENDENCY } from "./shared.js";
 
 	const { data } = $props();
@@ -54,7 +52,7 @@
 
 	let mutationPending = $state(false);
 
-	const createMutation = <TArgs extends unknown[]>(fn: (...args: TArgs) => Promise<void>) => {
+	const createMutation = <TArgs extends Array<unknown>>(fn: (...args: TArgs) => Promise<void>) => {
 		return async function (this: unknown, ...args: TArgs): Promise<void> {
 			if (mutationPending) {
 				throw new Error("Another mutation is already in progress");
@@ -73,30 +71,23 @@
 		};
 	};
 
-	const renameFile = createMutation(async (body: RenameFileBody): Promise<void> => {
-		const response = await fetch("/api/files/rename", {
-			method: "POST",
-			body: JSON.stringify(body),
-		});
+	const optimisticRenameItem = createMutation(
+		async ({ target, name }: RenameItemArgs): Promise<void> => {
+			target.name = name;
 
-		if (!response.ok) {
-			throw response;
-		}
-	});
-
-	const onRenameItem = ({ target, name }: RenameItemArgs): boolean => {
-		target.name = name;
-		toast.promise(
-			renameFile({
+			await api.renameFile({
 				id: Number(target.id),
 				name,
-			}),
-			{
-				loading: "Updating database",
-				success: "Renamed item successfully",
-				error: "Failed to rename item",
-			},
-		);
+			});
+		},
+	);
+
+	const onRenameItem = (args: RenameItemArgs): boolean => {
+		toast.promise(optimisticRenameItem(args), {
+			loading: "Updating database",
+			success: "Renamed item successfully",
+			error: "Failed to rename item",
+		});
 		return true;
 	};
 
@@ -113,48 +104,33 @@
 		}
 	};
 
-	const updatePositions = (updates: MoveItemsArgs["updates"]): MoveFilesBody["new_positions"] => {
-		const newPositions: MoveFilesBody["new_positions"] = [];
+	const optimisticMoveItems = createMutation(async ({ updates }: MoveItemsArgs): Promise<void> => {
+		const body: MoveFilesBody = [];
 		for (const { target, children } of updates) {
 			const targetId = target instanceof FolderNode ? Number(target.id) : null;
 			for (let i = 0; i < children.length; i++) {
 				const child = children[i];
 				if (child !== target.children[i]) {
-					newPositions.push({
+					body.push({
 						id: Number(child.id),
-						parent_id: targetId,
-						index_in_parent: i,
+						parentId: targetId,
+						index: i,
 					});
 				}
 			}
+
 			target.children = children;
 		}
-		return newPositions;
-	};
 
-	const moveFiles = createMutation(async (body: MoveFilesBody): Promise<void> => {
-		const response = await fetch("/api/files/move", {
-			method: "POST",
-			body: JSON.stringify(body),
-		});
-
-		if (!response.ok) {
-			throw response;
-		}
+		await api.moveFiles(body);
 	});
 
-	const onMoveItems = ({ updates }: MoveItemsArgs): boolean => {
-		const newPositions = updatePositions(updates);
-		toast.promise(
-			moveFiles({
-				new_positions: newPositions,
-			}),
-			{
-				loading: "Updating database",
-				success: "Moved items successfully",
-				error: "Failed to move items",
-			},
-		);
+	const onMoveItems = (args: MoveItemsArgs): boolean => {
+		toast.promise(optimisticMoveItems(args), {
+			loading: "Updating database",
+			success: "Moved items successfully",
+			error: "Failed to move items",
+		});
 		return true;
 	};
 
@@ -162,109 +138,49 @@
 		toast.error(`Cannot move "${target.name}" into or next to itself`);
 	};
 
-	const forEachChild = (
-		parent: FolderNode,
-		callback: (child: FileTreeNode, index: number, parent: FolderNode) => void,
-	): void => {
-		for (let i = 0; i < parent.children.length; i++) {
-			const child = parent.children[i];
-			callback(child, i, parent);
+	const optimisticInsertItems = createMutation(
+		async ({ target, start, inserted }: InsertItemsArgs): Promise<void> => {
+			target.children.splice(start, 0, ...inserted);
 
-			if (child.type === "folder") {
-				forEachChild(child, callback);
-			}
-		}
-	};
+			await api.insertFiles({
+				parentId: target instanceof FolderNode ? Number(target.id) : null,
+				start,
+				inserted: inserted.map((node) => node.toJSON()),
+			});
+		},
+	);
 
-	const insertFiles = createMutation(async (body: InsertFilesBody): Promise<void> => {
-		const response = await fetch("/api/files/insert", {
-			method: "POST",
-			body: JSON.stringify(body),
+	const onInsertItems = (args: InsertItemsArgs): boolean => {
+		toast.promise(optimisticInsertItems(args), {
+			loading: "Updating database",
+			success: "Inserted items successfully",
+			error: "Failed to insert items",
 		});
-
-		if (!response.ok) {
-			throw response;
-		}
-	});
-
-	const onInsertItems = ({ target, inserted, index }: InsertItemsArgs): boolean => {
-		const targetId = target instanceof FolderNode ? Number(target.id) : null;
-		const allInserted: InsertFilesBody["inserted"] = [];
-		for (let i = 0; i < inserted.length; i++) {
-			const node = inserted[i];
-			allInserted.push({
-				name: node.name,
-				type: node.type,
-				parent_id: targetId,
-				index_in_parent: index + i,
-			});
-
-			if (node.type === "folder") {
-				forEachChild(node, (child, j, parent) => {
-					allInserted.push({
-						name: child.name,
-						type: child.type,
-						parent_id: Number(parent.id),
-						index_in_parent: j,
-					});
-				});
-			}
-		}
-
-		const newPositions: MoveFilesBody["new_positions"] = [];
-		for (let i = index; i < target.children.length; i++) {
-			const child = target.children[i];
-			newPositions.push({
-				id: Number(child.id),
-				parent_id: targetId,
-				index_in_parent: inserted.length + i,
-			});
-		}
-
-		target.children.splice(index, 0, ...inserted);
-		toast.promise(
-			insertFiles({
-				inserted: allInserted,
-				new_positions: newPositions,
-			}),
-			{
-				loading: "Updating database",
-				success: "Inserted items successfully",
-				error: "Failed to insert items",
-			},
-		);
 		return true;
 	};
 
 	const onNameConflict = ({ target }: NameConflictArgs): NameConflictResolution => {
-		toast.error(`An item with the name ${target.name} already exists`);
+		toast.error(`An item with the name "${target.name}" already exists`);
 		return "cancel";
 	};
 
-	const deleteFiles = createMutation(async (body: DeleteFilesBody): Promise<void> => {
-		const response = await fetch("/api/files/delete", {
-			method: "POST",
-			body: JSON.stringify(body),
+	const optimisticDeleteItems = createMutation(
+		async ({ updates, deleted }: DeleteItemsArgs): Promise<void> => {
+			for (const { target, children } of updates) {
+				target.children = children;
+			}
+
+			const deletedIds = deleted.map((node) => Number(node.id));
+			await api.deleteFiles(deletedIds);
+		},
+	);
+
+	const onDeleteItems = (args: DeleteItemsArgs): boolean => {
+		toast.promise(optimisticDeleteItems(args), {
+			loading: "Updating database",
+			success: "Deleted items successfully",
+			error: "Failed to delete items",
 		});
-
-		if (!response.ok) {
-			throw response;
-		}
-	});
-
-	const onDeleteItems = ({ updates, deleted }: DeleteItemsArgs): boolean => {
-		const newPositions = updatePositions(updates);
-		toast.promise(
-			deleteFiles({
-				deleted: deleted.map((node) => Number(node.id)),
-				new_positions: newPositions,
-			}),
-			{
-				loading: "Updating database",
-				success: "Deleted items successfully",
-				error: "Failed to delete items",
-			},
-		);
 		return true;
 	};
 </script>

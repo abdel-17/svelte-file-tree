@@ -37,8 +37,8 @@ export type MoveErrorArgs = {
 
 export type InsertItemsArgs = {
 	target: FolderNode | FileTree;
+	start: number;
 	inserted: Array<FileTreeNode>;
-	index: number;
 };
 
 export type NameConflictArgs = {

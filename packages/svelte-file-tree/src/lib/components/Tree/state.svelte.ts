@@ -478,7 +478,7 @@ export const createTreeState = ({
 			ownerChildrenNames.add(child.name);
 		}
 
-		const copies: FileTreeNode[] = [];
+		const copies: Array<FileTreeNode> = [];
 		outer: for (const id of tree().selected) {
 			const selectedItem = lookup.get(id);
 			if (selectedItem === undefined) {
@@ -517,26 +517,26 @@ export const createTreeState = ({
 			return false;
 		}
 
-		let index: number;
+		let start: number;
 		switch (position) {
 			case "before": {
-				index = item.index;
+				start = item.index;
 				break;
 			}
 			case "after": {
-				index = item.index + 1;
+				start = item.index + 1;
 				break;
 			}
 			case "inside": {
-				index = owner.children.length;
+				start = owner.children.length;
 				break;
 			}
 		}
 
 		return onInsertItems({
 			target: owner,
+			start,
 			inserted: copies,
-			index,
 		});
 	};
 
