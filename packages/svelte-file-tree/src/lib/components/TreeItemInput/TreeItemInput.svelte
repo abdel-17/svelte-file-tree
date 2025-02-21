@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { composeEventHandlers } from "$lib/internal/helpers.js";
 	import { TreeContext, TreeItemProviderContext } from "../Tree/context.js";
 	import { TreeItemContext } from "../TreeItem/context.js";
 	import { createTreeItemInputState } from "./state.js";
@@ -12,8 +11,8 @@
 	let {
 		name = $bindable(node().name),
 		element = $bindable(null),
-		onkeydown,
 		onfocus,
+		onkeydown,
 		onblur,
 		...attributes
 	}: TreeItemInputProps = $props();
@@ -25,6 +24,15 @@
 		parent,
 		setEditing,
 		name: () => name,
+		onfocus: (event) => {
+			onfocus?.(event);
+		},
+		onkeydown: (event) => {
+			onkeydown?.(event);
+		},
+		onblur: (event) => {
+			onblur?.(event);
+		},
 	});
 </script>
 
@@ -32,8 +40,8 @@
 	bind:this={element}
 	{...attributes}
 	bind:value={name}
-	onfocus={composeEventHandlers(onfocus, handleFocus)}
-	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
-	onblur={composeEventHandlers(onblur, handleBlur)}
+	onfocus={handleFocus}
+	onkeydown={handleKeyDown}
+	onblur={handleBlur}
 	use:onInit
 />

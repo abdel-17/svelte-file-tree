@@ -7,6 +7,7 @@
 		"package": "svelte-kit sync && svelte-package",
 		"package:watch": "svelte-kit sync && svelte-package --watch",
 		"prepublishOnly": "pnpm run build",
+		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
@@ -30,7 +31,7 @@
 	],
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/abdel-17/svelte-file-tree",
+		"url": "git+https://github.com/abdel-17/svelte-file-tree.git",
 		"directory": "packages/svelte-file-tree"
 	},
 	"peerDependencies": {

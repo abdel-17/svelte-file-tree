@@ -38,6 +38,7 @@ export default tseslint.config(
 					allowNumber: true,
 				},
 			],
+			"@typescript-eslint/switch-exhaustiveness-check": "error",
 		},
 	},
 	{

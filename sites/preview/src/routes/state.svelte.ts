@@ -1,10 +1,8 @@
 export type DialogStateProps<TResult> = {
-	closeResult: TResult;
+	defaultResult: TResult;
 };
 
-export const createDialogState = <TData, TResult>(props: DialogStateProps<TResult>) => {
-	const { closeResult } = props;
-
+export const createDialogState = <TData, TResult>({ defaultResult }: DialogStateProps<TResult>) => {
 	let dialogData: TData | undefined = $state.raw();
 	let resolveOpenDialog: (result: TResult) => void;
 
@@ -15,7 +13,7 @@ export const createDialogState = <TData, TResult>(props: DialogStateProps<TResul
 		});
 	};
 
-	const closeDialog = (result: TResult): void => {
+	const closeDialog = (result: TResult = defaultResult): void => {
 		dialogData = undefined;
 		resolveOpenDialog?.(result);
 	};
@@ -24,8 +22,7 @@ export const createDialogState = <TData, TResult>(props: DialogStateProps<TResul
 
 	const onDialogOpenChange = (value: boolean): void => {
 		if (!value) {
-			dialogData = undefined;
-			resolveOpenDialog?.(closeResult);
+			closeDialog();
 		}
 	};
 

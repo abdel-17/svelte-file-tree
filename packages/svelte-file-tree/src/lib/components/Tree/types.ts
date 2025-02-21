@@ -11,49 +11,49 @@ export type TreeItemSnippetProps<TNode extends FileTreeNode = FileTreeNode> = {
 
 export type PasteOperation = "copy" | "cut";
 
-export type RenameItemEvent = {
+export type RenameItemArgs = {
 	target: FileTreeNode;
 	name: string;
 };
 
-export type RenameErrorEvent = {
+export type RenameErrorArgs = {
 	error: "empty" | "already-exists";
 	target: FileTreeNode;
 	name: string;
 };
 
-export type Reorder = {
-	target: FileTreeNode;
-	parentNode: FolderNode | undefined;
-	index: number;
+export type MoveItemsArgs = {
+	updates: Array<{
+		target: FolderNode | FileTree;
+		children: Array<FileTreeNode>;
+	}>;
+	moved: Array<FileTreeNode>;
 };
 
-export type ReorderItemsEvent = {
-	reorders: ReadonlyArray<Reorder>;
-};
-
-export type ReorderErrorEvent = {
+export type MoveErrorArgs = {
 	error: "circular-reference";
 	target: FileTreeNode;
 };
 
-export type CopyPasteItemsEvent = {
-	copies: ReadonlyArray<FileTreeNode>;
-	parentNode: FolderNode | undefined;
+export type InsertItemsArgs = {
+	target: FolderNode | FileTree;
 	start: number;
-	reorders: ReadonlyArray<Reorder>;
+	inserted: Array<FileTreeNode>;
 };
 
-export type NameConflictEvent = {
+export type NameConflictArgs = {
+	operation: "move" | "insert";
 	target: FileTreeNode;
-	operation: "reorder" | "copy-paste";
 };
 
-export type NameConflictResolution = "skip" | "cancel" | "default";
+export type NameConflictResolution = "skip" | "cancel";
 
-export type DeleteItemsEvent = {
-	deleted: ReadonlyArray<FileTreeNode>;
-	reorders: ReadonlyArray<Reorder>;
+export type DeleteItemsArgs = {
+	updates: Array<{
+		target: FolderNode | FileTree;
+		children: Array<FileTreeNode>;
+	}>;
+	deleted: Array<FileTreeNode>;
 };
 
 export interface TreeProps
@@ -64,11 +64,11 @@ export interface TreeProps
 	id?: string;
 	element?: HTMLElement | null;
 	generateCopyId?: () => string;
-	onRenameItem?: (event: RenameItemEvent) => void;
-	onRenameError?: (event: RenameErrorEvent) => void;
-	onReorderItems?: (event: ReorderItemsEvent) => void;
-	onReorderError?: (event: ReorderErrorEvent) => void;
-	onCopyPasteItems?: (event: CopyPasteItemsEvent) => void;
-	onNameConflict?: (event: NameConflictEvent) => MaybePromise<NameConflictResolution>;
-	onDeleteItems?: (event: DeleteItemsEvent) => void;
+	onRenameItem?: (args: RenameItemArgs) => MaybePromise<boolean>;
+	onRenameError?: (args: RenameErrorArgs) => void;
+	onMoveItems?: (args: MoveItemsArgs) => MaybePromise<boolean>;
+	onMoveError?: (args: MoveErrorArgs) => void;
+	onInsertItems?: (args: InsertItemsArgs) => MaybePromise<boolean>;
+	onNameConflict?: (args: NameConflictArgs) => MaybePromise<NameConflictResolution>;
+	onDeleteItems?: (args: DeleteItemsArgs) => MaybePromise<boolean>;
 }

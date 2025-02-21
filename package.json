@@ -1,10 +1,12 @@
 {
 	"name": "svelte-file-tree-monorepo",
-	"version": "0.0.0",
 	"private": true,
+	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
 		"build": "pnpm -r build",
+		"build:packages": "pnpm -F \"./packages/**\" --parallel build",
+		"build:preview": "pnpm build:packages && pnpm -F preview build",
 		"check": "pnpm -r check",
 		"format": "pnpm -r format",
 		"lint": "pnpm -r lint",
@@ -16,8 +18,10 @@
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
-			"esbuild"
+			"esbuild",
+			"better-sqlite3"
 		]
 	},
 	"packageManager": "pnpm@9.12.0+sha512.4abf725084d7bcbafbd728bfc7bee61f2f791f977fd87542b3579dcb23504d170d46337945e4c66485cd12d588a0c0e570ed9c477e7ccdd8507cf05f3f92eaca"
 }
+
