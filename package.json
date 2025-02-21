@@ -5,6 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"build": "pnpm -r build",
+		"build:packages": "pnpm -F \"./packages/**\" --parallel build",
+		"build:preview": "pnpm build:packages && pnpm -F preview build",
 		"check": "pnpm -r check",
 		"format": "pnpm -r format",
 		"lint": "pnpm -r lint",
