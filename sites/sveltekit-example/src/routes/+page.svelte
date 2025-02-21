@@ -3,6 +3,7 @@
 	import FileIcon from "lucide-svelte/icons/file";
 	import FolderIcon from "lucide-svelte/icons/folder";
 	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
+	import { SvelteSet } from "svelte/reactivity";
 	import {
 		FileNode,
 		FileTree,
@@ -50,37 +51,57 @@
 			}),
 	});
 
-	let mutationPending = $state(false);
+	let disabledIds = new SvelteSet<string>();
 
-	const createMutation = <TArgs extends Array<unknown>>(fn: (...args: TArgs) => Promise<void>) => {
-		return async function (this: unknown, ...args: TArgs): Promise<void> {
-			if (mutationPending) {
-				throw new Error("Another mutation is already in progress");
-			}
-
-			mutationPending = true;
-			try {
-				await fn.apply(this, args);
-			} finally {
-				try {
-					await invalidate(FILES_DEPENDENCY);
-				} finally {
-					mutationPending = false;
-				}
-			}
-		};
+	const disableNode = (node: FileTreeNode): void => {
+		disabledIds.add(node.id);
 	};
 
-	const optimisticRenameItem = createMutation(
-		async ({ target, name }: RenameItemArgs): Promise<void> => {
-			target.name = name;
+	const enableNode = (node: FileTreeNode): void => {
+		disabledIds.delete(node.id);
+	};
 
-			await api.renameFile({
-				id: Number(target.id),
-				name,
-			});
-		},
-	);
+	const forEachNode = (nodes: Array<FileTreeNode>, callback: (node: FileTreeNode) => void) => {
+		for (const node of nodes) {
+			callback(node);
+
+			if (node.type === "folder") {
+				forEachNode(node.children, callback);
+			}
+		}
+	};
+
+	const mutate = async ({
+		affected,
+		mutation,
+	}: {
+		affected: Array<FileTreeNode>;
+		mutation: () => Promise<unknown>;
+	}): Promise<void> => {
+		forEachNode(affected, disableNode);
+		try {
+			await mutation();
+		} finally {
+			try {
+				await invalidate(FILES_DEPENDENCY);
+			} finally {
+				forEachNode(affected, enableNode);
+			}
+		}
+	};
+
+	const optimisticRenameItem = ({ target, name }: RenameItemArgs): Promise<void> => {
+		target.name = name;
+
+		return mutate({
+			affected: [target],
+			mutation: () =>
+				api.renameFile({
+					id: Number(target.id),
+					name,
+				}),
+		});
+	};
 
 	const onRenameItem = (args: RenameItemArgs): boolean => {
 		toast.promise(optimisticRenameItem(args), {
@@ -104,7 +125,7 @@
 		}
 	};
 
-	const optimisticMoveItems = createMutation(async ({ updates }: MoveItemsArgs): Promise<void> => {
+	const optimisticMoveItems = ({ updates }: MoveItemsArgs): Promise<void> => {
 		const body: MoveFilesBody = [];
 		for (const { target, children } of updates) {
 			const targetId = target instanceof FolderNode ? Number(target.id) : null;
@@ -122,8 +143,21 @@
 			target.children = children;
 		}
 
-		await api.moveFiles(body);
-	});
+		let affected: Array<FileTreeNode> = [];
+		for (const { target } of updates) {
+			if (target instanceof FileTree) {
+				affected = target.children;
+				break;
+			}
+
+			affected.push(target);
+		}
+
+		return mutate({
+			affected,
+			mutation: () => api.moveFiles(body),
+		});
+	};
 
 	const onMoveItems = (args: MoveItemsArgs): boolean => {
 		toast.promise(optimisticMoveItems(args), {
@@ -138,17 +172,19 @@
 		toast.error(`Cannot move "${target.name}" into or next to itself`);
 	};
 
-	const optimisticInsertItems = createMutation(
-		async ({ target, start, inserted }: InsertItemsArgs): Promise<void> => {
-			target.children.splice(start, 0, ...inserted);
+	const optimisticInsertItems = ({ target, start, inserted }: InsertItemsArgs): Promise<void> => {
+		target.children.splice(start, 0, ...inserted);
 
-			await api.insertFiles({
-				parentId: target instanceof FolderNode ? Number(target.id) : null,
-				start,
-				inserted: inserted.map((node) => node.toJSON()),
-			});
-		},
-	);
+		return mutate({
+			affected: target instanceof FileTree ? target.children : [target],
+			mutation: () =>
+				api.insertFiles({
+					parentId: target instanceof FolderNode ? Number(target.id) : null,
+					start,
+					inserted: inserted.map((node) => node.toJSON()),
+				}),
+		});
+	};
 
 	const onInsertItems = (args: InsertItemsArgs): boolean => {
 		toast.promise(optimisticInsertItems(args), {
@@ -164,16 +200,27 @@
 		return "cancel";
 	};
 
-	const optimisticDeleteItems = createMutation(
-		async ({ updates, deleted }: DeleteItemsArgs): Promise<void> => {
-			for (const { target, children } of updates) {
-				target.children = children;
+	const optimisticDeleteItems = ({ updates, deleted }: DeleteItemsArgs): Promise<void> => {
+		for (const { target, children } of updates) {
+			target.children = children;
+		}
+
+		let affected: Array<FileTreeNode> = [];
+		for (const { target } of updates) {
+			if (target instanceof FileTree) {
+				affected = target.children;
+				break;
 			}
 
-			const deletedIds = deleted.map((node) => Number(node.id));
-			await api.deleteFiles(deletedIds);
-		},
-	);
+			affected.push(target);
+		}
+
+		const deletedIds = deleted.map((node) => Number(node.id));
+		return mutate({
+			affected,
+			mutation: () => api.deleteFiles(deletedIds),
+		});
+	};
 
 	const onDeleteItems = (args: DeleteItemsArgs): boolean => {
 		toast.promise(optimisticDeleteItems(args), {
@@ -198,10 +245,11 @@
 		class="space-y-4"
 	>
 		{#snippet item({ node, depth })}
+			{@const disabled = disabledIds.has(node.id)}
 			<TreeItem
 				editable
 				draggable
-				disabled={mutationPending}
+				{disabled}
 				class={({ dropPosition }) => [
 					"relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
 					dropPosition !== undefined &&
@@ -209,7 +257,7 @@
 					dropPosition === "before" && "before:border-transparent before:border-t-red-500",
 					dropPosition === "after" && "before:border-transparent before:border-b-red-500",
 					dropPosition === "inside" && "before:border-red-500",
-					mutationPending && "pointer-events-none opacity-50",
+					disabled && "pointer-events-none opacity-50",
 				]}
 				style="margin-inline-start: {depth * 16}px;"
 			>
