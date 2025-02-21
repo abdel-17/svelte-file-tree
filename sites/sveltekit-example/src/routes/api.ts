@@ -5,7 +5,7 @@ import type { RenameFileBody } from "./api/files/rename/+server.js";
 
 const throwNonOk = (response: Response): Response => {
 	if (!response.ok) {
-		throw response;
+		throw new Error(response.statusText);
 	}
 	return response;
 };

@@ -9,12 +9,18 @@
 		"build:preview": "pnpm build:packages && pnpm -F preview build",
 		"check": "pnpm -r check",
 		"format": "pnpm -r format",
-		"lint": "pnpm -r lint",
+		"format:check": "pnpm -r format:check",
 		"test": "pnpm -r test"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.27.11",
-		"playwright": "^1.49.0"
+		"@eslint/js": "^9.20.0",
+		"eslint": "^9.20.0",
+		"eslint-plugin-svelte": "^2.46.1",
+		"globals": "^15.14.0",
+		"playwright": "^1.49.0",
+		"typescript": "^5.7.3",
+		"typescript-eslint": "^8.24.0"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -24,4 +30,3 @@
 	},
 	"packageManager": "pnpm@9.12.0+sha512.4abf725084d7bcbafbd728bfc7bee61f2f791f977fd87542b3579dcb23504d170d46337945e4c66485cd12d588a0c0e570ed9c477e7ccdd8507cf05f3f92eaca"
 }
-

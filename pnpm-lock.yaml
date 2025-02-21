@@ -11,9 +11,27 @@ importers:
       '@changesets/cli':
         specifier: ^2.27.11
         version: 2.27.12
+      '@eslint/js':
+        specifier: ^9.20.0
+        version: 9.20.0
+      eslint:
+        specifier: ^9.20.0
+        version: 9.20.0(jiti@2.4.2)
+      eslint-plugin-svelte:
+        specifier: ^2.46.1
+        version: 2.46.1(eslint@9.20.0(jiti@2.4.2))(svelte@5.19.9)
+      globals:
+        specifier: ^15.14.0
+        version: 15.14.0
       playwright:
         specifier: ^1.49.0
         version: 1.50.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.7.3
+      typescript-eslint:
+        specifier: ^8.24.0
+        version: 8.24.0(eslint@9.20.0(jiti@2.4.2))(typescript@5.7.3)
 
   packages/svelte-file-tree:
     dependencies:
@@ -24,12 +42,6 @@ importers:
         specifier: ^0.23.2
         version: 0.23.2(svelte@5.19.9)
     devDependencies:
-      '@eslint/compat':
-        specifier: ^1.2.6
-        version: 1.2.6(eslint@9.20.0(jiti@2.4.2))
-      '@eslint/js':
-        specifier: ^9.20.0
-        version: 9.20.0
       '@sveltejs/kit':
         specifier: ^2.17.1
         version: 2.17.1(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.19.9)(vite@6.1.0(@types/node@22.13.1)(jiti@2.4.2)(lightningcss@1.29.1)))(svelte@5.19.9)(vite@6.1.0(@types/node@22.13.1)(jiti@2.4.2)(lightningcss@1.29.1))
@@ -45,15 +57,6 @@ importers:
       '@vitest/browser':
         specifier: ^3.0.5
         version: 3.0.5(@types/node@22.13.1)(playwright@1.50.1)(typescript@5.7.3)(vite@6.1.0(@types/node@22.13.1)(jiti@2.4.2)(lightningcss@1.29.1))(vitest@3.0.5)
-      eslint:
-        specifier: ^9.20.0
-        version: 9.20.0(jiti@2.4.2)
-      eslint-plugin-svelte:
-        specifier: ^2.46.1
-        version: 2.46.1(eslint@9.20.0(jiti@2.4.2))(svelte@5.19.9)
-      globals:
-        specifier: ^15.14.0
-        version: 15.14.0
       jsdom:
         specifier: ^26.0.0
         version: 26.0.0
@@ -72,12 +75,6 @@ importers:
       svelte-check:
         specifier: ^4.1.4
         version: 4.1.4(svelte@5.19.9)(typescript@5.7.3)
-      typescript:
-        specifier: ^5.7.3
-        version: 5.7.3
-      typescript-eslint:
-        specifier: ^8.24.0
-        version: 8.24.0(eslint@9.20.0(jiti@2.4.2))(typescript@5.7.3)
       vite:
         specifier: ^6.1.0
         version: 6.1.0(@types/node@22.13.1)(jiti@2.4.2)(lightningcss@1.29.1)
@@ -132,9 +129,6 @@ importers:
       tailwindcss:
         specifier: 4.0.5
         version: 4.0.5
-      typescript:
-        specifier: ^5.7.2
-        version: 5.7.3
       vite:
         specifier: ^6.1.0
         version: 6.1.0(@types/node@22.13.1)(jiti@2.4.2)(lightningcss@1.29.1)
@@ -186,9 +180,6 @@ importers:
       tailwindcss:
         specifier: ^4.0.0
         version: 4.0.5
-      typescript:
-        specifier: ^5.0.0
-        version: 5.7.3
       valibot:
         specifier: 1.0.0-rc.0
         version: 1.0.0-rc.0(typescript@5.7.3)
@@ -472,15 +463,6 @@ packages:
   '@eslint-community/regexpp@4.12.1':
     resolution: {integrity: sha512-CCZCDJuduB9OUkFkY2IgppNZMi2lBQgD2qzwXkEia16cge2pijY/aXi96CJMquDMn3nJdlPV1A5KrJEXwfLNzQ==}
     engines: {node: ^12.0.0 || ^14.0.0 || >=16.0.0}
-
-  '@eslint/compat@1.2.6':
-    resolution: {integrity: sha512-k7HNCqApoDHM6XzT30zGoETj+D+uUcZUb+IVAJmar3u6bvHf7hhHJcWx09QHj4/a2qrKZMWU0E16tvkiAdv06Q==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      eslint: ^9.10.0
-    peerDependenciesMeta:
-      eslint:
-        optional: true
 
   '@eslint/config-array@0.19.2':
     resolution: {integrity: sha512-GNKqxfHG2ySmJOBSHg7LxeUx4xpuCoFjacmlCoYWEbaPXLwvfIjixRI12xCQZeULksQb23uiA8F40w5TojpV7w==}
@@ -2856,10 +2838,6 @@ snapshots:
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.1': {}
-
-  '@eslint/compat@1.2.6(eslint@9.20.0(jiti@2.4.2))':
-    optionalDependencies:
-      eslint: 9.20.0(jiti@2.4.2)
 
   '@eslint/config-array@0.19.2':
     dependencies:

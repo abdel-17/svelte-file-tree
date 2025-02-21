@@ -1,0 +1,10 @@
+{
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext"
+	}
+}

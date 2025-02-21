@@ -11,7 +11,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
-		"lint": "prettier --check ."
+		"format:check": "prettier --check ."
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-static": "^3.0.6",
@@ -28,7 +28,6 @@
 		"svelte-file-tree": "workspace:^",
 		"svelte-sonner": "^0.3.28",
 		"tailwindcss": "4.0.5",
-		"typescript": "^5.7.2",
 		"vite": "^6.1.0"
 	}
 }
