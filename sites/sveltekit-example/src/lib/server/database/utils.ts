@@ -1,11 +1,4 @@
 import Database from "better-sqlite3";
-import fs from "node:fs";
-import path from "node:path";
-
-const readSQL = (filename: string): string => {
-	const filepath = path.join(import.meta.dirname, "sql", filename);
-	return fs.readFileSync(filepath, "utf-8");
-};
 
 type DatabaseFile = {
 	id: number;
@@ -15,27 +8,6 @@ type DatabaseFile = {
 	index_in_parent: number;
 	created_at: string;
 	updated_at: string;
-};
-
-type DatabaseStatements = {
-	deleteFile: Database.Statement<[Pick<DatabaseFile, "id">]>;
-	getFiles: Database.Statement<[], DatabaseFile>;
-	getFile: Database.Statement<[Pick<DatabaseFile, "id">], DatabaseFile>;
-	getParentChildren: Database.Statement<[Pick<DatabaseFile, "parent_id">], DatabaseFile>;
-	insertFile: Database.Statement<
-		[Pick<DatabaseFile, "type" | "name" | "parent_id" | "index_in_parent">]
-	>;
-	moveFile: Database.Statement<[Pick<DatabaseFile, "id" | "parent_id" | "index_in_parent">]>;
-	renameFile: Database.Statement<[Pick<DatabaseFile, "id" | "name">]>;
-	shiftParentChildren: Database.Statement<
-		[
-			{
-				by: number;
-				parent_id: DatabaseFile["parent_id"];
-				start: number;
-			},
-		]
-	>;
 };
 
 export type FileInsert =
@@ -63,17 +35,67 @@ export type FileSelect = {
 export const createDatabase = (filename: string) => {
 	const db = new Database(filename);
 	db.pragma("foreign_keys = ON");
-	db.exec(readSQL("schema.sql"));
+	db.exec(`
+		CREATE TABLE IF NOT EXISTS files (
+			id INTEGER NOT NULL PRIMARY KEY,
+			type TEXT NOT NULL,
+			name TEXT NOT NULL,
+			parent_id INTEGER,
+			index_in_parent INTEGER NOT NULL,
+			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (parent_id) REFERENCES files (id) ON DELETE CASCADE,
+			UNIQUE (parent_id, name)
+		);
+	`);
 
-	const statements: DatabaseStatements = {
-		deleteFile: db.prepare(readSQL("delete-file.sql")),
-		getFiles: db.prepare(readSQL("get-files.sql")),
-		getFile: db.prepare(readSQL("get-file.sql")),
-		getParentChildren: db.prepare(readSQL("get-parent-children.sql")),
-		insertFile: db.prepare(readSQL("insert-file.sql")),
-		moveFile: db.prepare(readSQL("move-file.sql")),
-		renameFile: db.prepare(readSQL("rename-file.sql")),
-		shiftParentChildren: db.prepare(readSQL("shift-parent-children.sql")),
+	const statements = {
+		deleteFile: db.prepare<[params: Pick<DatabaseFile, "id">]>(`
+			DELETE FROM files
+			WHERE id = :id;
+		`),
+		getFiles: db.prepare<[], DatabaseFile>(`
+			SELECT * FROM files
+			ORDER BY index_in_parent;
+		`),
+		getFile: db.prepare<[params: Pick<DatabaseFile, "id">], DatabaseFile>(`
+			SELECT * FROM files
+			WHERE id = :id;
+		`),
+		getParentChildren: db.prepare<[params: Pick<DatabaseFile, "parent_id">], DatabaseFile>(`
+			SELECT * FROM files
+			WHERE parent_id IS NOT DISTINCT FROM :parent_id
+			ORDER BY index_in_parent;
+		`),
+		insertFile: db.prepare<
+			[params: Pick<DatabaseFile, "type" | "name" | "parent_id" | "index_in_parent">]
+		>(`
+			INSERT INTO files (type, name, parent_id, index_in_parent)
+			VALUES (:type, :name, :parent_id, :index_in_parent);
+		`),
+		moveFile: db.prepare<[params: Pick<DatabaseFile, "id" | "parent_id" | "index_in_parent">]>(`
+			UPDATE files
+			SET parent_id = :parent_id, index_in_parent = :index_in_parent, updated_at = CURRENT_TIMESTAMP
+			WHERE id = :id;
+		`),
+		renameFile: db.prepare<[params: Pick<DatabaseFile, "id" | "name">]>(`
+			UPDATE files
+			SET name = :name, updated_at = CURRENT_TIMESTAMP
+			WHERE id = :id;
+		`),
+		shiftParentChildren: db.prepare<
+			[
+				params: {
+					by: number;
+					parent_id: DatabaseFile["parent_id"];
+					start: number;
+				},
+			]
+		>(`
+			UPDATE files
+			SET index_in_parent = index_in_parent + :by, updated_at = CURRENT_TIMESTAMP
+			WHERE parent_id IS NOT DISTINCT FROM :parent_id and index_in_parent >= :start;
+		`),
 	};
 
 	const getFiles = (): Array<FileSelect> => {
