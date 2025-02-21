@@ -1,15 +1,5 @@
 import Database from "better-sqlite3";
 
-type DatabaseFile = {
-	id: number;
-	type: "file" | "folder";
-	name: string;
-	parent_id: number | null;
-	index_in_parent: number;
-	created_at: string;
-	updated_at: string;
-};
-
 export type FileInsert =
 	| {
 			type: "file";
@@ -48,6 +38,16 @@ export const createDatabase = (filename: string) => {
 			UNIQUE (parent_id, name)
 		);
 	`);
+
+	type DatabaseFile = {
+		id: number;
+		type: "file" | "folder";
+		name: string;
+		parent_id: number | null;
+		index_in_parent: number;
+		created_at: string;
+		updated_at: string;
+	};
 
 	const statements = {
 		deleteFile: db.prepare<[params: Pick<DatabaseFile, "id">]>(`
