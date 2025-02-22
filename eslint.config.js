@@ -17,7 +17,6 @@ export default tseslint.config(
 			},
 			parserOptions: {
 				projectService: true,
-				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions,
 			},
 		},
@@ -51,15 +50,21 @@ export default tseslint.config(
 			parserOptions: {
 				parser: tseslint.parser,
 				projectService: true,
-				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions,
 			},
 		},
 		rules: {
+			// Typed linting is not fully supported in Svelte files,
+			// which causes a lot of false positives.
 			"@typescript-eslint/no-confusing-void-expression": "off",
+			"@typescript-eslint/no-unsafe-argument": "off",
+			"@typescript-eslint/no-unsafe-assignment": "off",
+			"@typescript-eslint/no-unsafe-call": "off",
+			"@typescript-eslint/no-unsafe-member-access": "off",
+			"@typescript-eslint/no-unsafe-return": "off",
 		},
 	},
 	{
 		ignores: ["**/.svelte-kit", "**/dist", "**/build"],
-	},
+	}
 );

@@ -10,6 +10,7 @@
 		"check": "pnpm -r check",
 		"format": "pnpm -r format",
 		"format:check": "pnpm -r format:check",
+		"lint": "pnpm format:check && eslint .",
 		"test": "pnpm -r test"
 	},
 	"devDependencies": {
