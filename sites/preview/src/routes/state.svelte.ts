@@ -4,7 +4,7 @@ export type DialogStateProps<TResult> = {
 
 export const createDialogState = <TData, TResult>({ defaultResult }: DialogStateProps<TResult>) => {
 	let dialogData: TData | undefined = $state.raw();
-	let resolveOpenDialog: (result: TResult) => void;
+	let resolveOpenDialog: ((result: TResult) => void) | undefined;
 
 	const openDialog = (data: TData): Promise<TResult> => {
 		dialogData = data;

@@ -1,17 +1,14 @@
-import { includeIgnoreFile } from "@eslint/compat";
 import eslint from "@eslint/js";
 import svelte from "eslint-plugin-svelte";
 import globals from "globals";
-import { fileURLToPath } from "node:url";
 import tseslint from "typescript-eslint";
 
-const gitignorePath = fileURLToPath(new URL(".gitignore", import.meta.url));
+const extraFileExtensions = [".svelte"];
 
 export default tseslint.config(
-	includeIgnoreFile(gitignorePath),
 	eslint.configs.recommended,
 	tseslint.configs.strictTypeChecked,
-	tseslint.configs.stylisticTypeCheckedOnly,
+	tseslint.configs.stylisticTypeChecked,
 	svelte.configs["flat/recommended"],
 	{
 		languageOptions: {
@@ -20,8 +17,7 @@ export default tseslint.config(
 			},
 			parserOptions: {
 				projectService: true,
-				tsconfigRootDir: import.meta.dirname,
-				extraFileExtensions: [".svelte"],
+				extraFileExtensions,
 			},
 		},
 		rules: {
@@ -39,6 +35,13 @@ export default tseslint.config(
 				},
 			],
 			"@typescript-eslint/switch-exhaustiveness-check": "error",
+			"@typescript-eslint/array-type": [
+				"error",
+				{
+					default: "generic",
+				},
+			],
+			"@typescript-eslint/consistent-type-definitions": "off",
 		},
 	},
 	{
@@ -46,10 +49,22 @@ export default tseslint.config(
 		languageOptions: {
 			parserOptions: {
 				parser: tseslint.parser,
+				projectService: true,
+				extraFileExtensions,
 			},
 		},
 		rules: {
+			// Typed linting is not fully supported in Svelte files,
+			// which causes a lot of false positives.
 			"@typescript-eslint/no-confusing-void-expression": "off",
+			"@typescript-eslint/no-unsafe-argument": "off",
+			"@typescript-eslint/no-unsafe-assignment": "off",
+			"@typescript-eslint/no-unsafe-call": "off",
+			"@typescript-eslint/no-unsafe-member-access": "off",
+			"@typescript-eslint/no-unsafe-return": "off",
 		},
 	},
+	{
+		ignores: ["**/.svelte-kit", "**/dist", "**/build"],
+	}
 );
