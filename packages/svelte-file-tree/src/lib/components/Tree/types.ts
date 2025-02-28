@@ -1,13 +1,9 @@
 import type { HTMLDivAttributes, MaybePromise } from "$lib/internal/types.js";
 import type { FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
+import type { TreeItemProviderContext } from "./state.svelte.js";
 
-export type TreeItemSnippetProps<TNode extends FileTreeNode = FileTreeNode> = {
-	node: TNode;
-	index: number;
-	depth: number;
-	parent: TreeItemSnippetProps<FolderNode> | undefined;
-};
+export type { TreeItemProviderContext };
 
 export type PasteOperation = "copy" | "cut";
 
@@ -59,7 +55,7 @@ export type DeleteItemsArgs = {
 export interface TreeProps
 	extends Omit<HTMLDivAttributes, "children" | "role" | "aria-multiselectable"> {
 	tree: FileTree;
-	item: Snippet<[props: TreeItemSnippetProps]>;
+	item: Snippet<[context: TreeItemProviderContext]>;
 	pasteOperation?: PasteOperation;
 	id?: string;
 	element?: HTMLElement | null;

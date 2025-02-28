@@ -1,173 +1,170 @@
 import { isControlOrMeta } from "$lib/internal/helpers.svelte.js";
-import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+import type { FileTreeItemPosition } from "$lib/tree.svelte.js";
 import { flushSync } from "svelte";
 import type { EventHandler } from "svelte/elements";
-import type { DropPosition, TreeItemPosition, TreeState } from "../Tree/state.svelte.js";
+import type { DropPosition, TreeContext, TreeItemProviderContext } from "../Tree/state.svelte.js";
 
-const getDropPosition = (node: FileTreeNode, rect: DOMRect, clientY: number): DropPosition => {
-	switch (node.type) {
-		case "file": {
-			const midY = rect.top + rect.height / 2;
-			return clientY < midY ? "before" : "after";
-		}
-		case "folder": {
-			const { top, bottom, height } = rect;
-			if (clientY < top + height / 3) {
-				return "before";
+export type DropPositionStateProps = {
+	itemProviderContext: TreeItemProviderContext;
+};
+
+export class DropPositionState {
+	readonly #itemProviderContext: TreeItemProviderContext;
+
+	constructor(props: DropPositionStateProps) {
+		this.#itemProviderContext = props.itemProviderContext;
+	}
+
+	#current?: DropPosition = $state.raw();
+	#updateRequestId?: number;
+
+	get current(): DropPosition | undefined {
+		return this.#current;
+	}
+
+	get(rect: DOMRect, clientY: number): DropPosition {
+		switch (this.#itemProviderContext.node.type) {
+			case "file": {
+				const midY = rect.top + rect.height / 2;
+				return clientY < midY ? "before" : "after";
 			}
-			if (clientY < bottom - height / 3) {
-				return "inside";
+			case "folder": {
+				const { top, bottom, height } = rect;
+				if (clientY < top + height / 3) {
+					return "before";
+				}
+				if (clientY < bottom - height / 3) {
+					return "inside";
+				}
+				return "after";
 			}
-			return "after";
 		}
 	}
-};
 
-type DropPositionStateProps = {
-	node: () => FileTreeNode;
-};
-
-const createDropPositionState = ({ node }: DropPositionStateProps) => {
-	let dropPosition: DropPosition | undefined = $state.raw();
-	let updateRequestId: number | undefined;
-
-	const updateDropPosition = (element: HTMLElement, clientY: number): void => {
-		if (updateRequestId !== undefined) {
+	update(element: HTMLElement, clientY: number): void {
+		if (this.#updateRequestId !== undefined) {
 			return;
 		}
 
-		updateRequestId = window.requestAnimationFrame(() => {
-			dropPosition = getDropPosition(node(), element.getBoundingClientRect(), clientY);
-			updateRequestId = undefined;
+		this.#updateRequestId = window.requestAnimationFrame(() => {
+			this.#current = this.get(element.getBoundingClientRect(), clientY);
+			this.#updateRequestId = undefined;
 		});
-	};
+	}
 
-	const clearDropPosition = (): void => {
-		dropPosition = undefined;
+	clear(): void {
+		this.#current = undefined;
 
-		if (updateRequestId !== undefined) {
-			window.cancelAnimationFrame(updateRequestId);
-			updateRequestId = undefined;
+		if (this.#updateRequestId !== undefined) {
+			window.cancelAnimationFrame(this.#updateRequestId);
+			this.#updateRequestId = undefined;
 		}
-	};
+	}
+}
 
-	return {
-		dropPosition: () => dropPosition,
-		updateDropPosition,
-		clearDropPosition,
-	};
-};
-
-export type TreeItemStateProps = {
-	treeState: TreeState;
-	node: () => FileTreeNode;
-	index: () => number;
-	depth: () => number;
-	parent: () => TreeItemPosition<FolderNode> | undefined;
+export type TreeItemContextProps = {
 	editable: () => boolean;
+	editing: () => boolean;
 	setEditing: (value: boolean) => void;
 	disabled: () => boolean;
-	onfocusin: EventHandler<FocusEvent, HTMLDivElement>;
-	onkeydown: EventHandler<KeyboardEvent, HTMLDivElement>;
-	onpointerdown: EventHandler<PointerEvent, HTMLDivElement>;
-	ondragstart: EventHandler<DragEvent, HTMLDivElement>;
-	ondragover: EventHandler<DragEvent, HTMLDivElement>;
-	ondragleave: EventHandler<DragEvent, HTMLDivElement>;
-	ondrop: EventHandler<DragEvent, HTMLDivElement>;
-	ondragend: EventHandler<DragEvent, HTMLDivElement>;
+	dropPositionState: DropPositionState;
 };
 
-export const createTreeItemState = ({
-	treeState,
-	node,
-	index,
-	depth,
-	parent,
-	editable,
-	setEditing,
-	disabled,
-	onfocusin,
-	onkeydown,
-	onpointerdown,
-	ondragstart,
-	ondragover,
-	ondragleave,
-	ondrop,
-	ondragend,
-}: TreeItemStateProps) => {
-	const {
-		tree,
-		setPasteOperation,
-		treeId,
-		tabbableId,
-		setTabbableId,
-		draggedId,
-		setDraggedId,
-		onSetItem,
-		onDestroyItem,
-		getNextItem,
-		getPreviousItem,
-		getItemElementId,
-		getItemElement,
-		selectUntil,
-		selectAll,
-		moveSelected,
-		pasteSelected,
-		deleteSelected,
-	} = treeState;
+export class TreeItemContext {
+	readonly #editable: () => boolean;
+	readonly #editing: () => boolean;
+	readonly #setEditing: (value: boolean) => void;
+	readonly #disabled: () => boolean;
+	readonly #dropPositionState: DropPositionState;
 
-	const { dropPosition, updateDropPosition, clearDropPosition } = createDropPositionState({ node });
+	constructor(props: TreeItemContextProps) {
+		this.#editable = props.editable;
+		this.#editing = props.editing;
+		this.#setEditing = props.setEditing;
+		this.#disabled = props.disabled;
+		this.#dropPositionState = props.dropPositionState;
+	}
 
-	const treeItemId = (): string => getItemElementId(node().id);
+	get editable(): boolean {
+		return this.#editable();
+	}
 
-	const ariaSelected = (): boolean => node().selected;
+	get editing(): boolean {
+		return this.#editing();
+	}
 
-	const ariaExpanded = (): boolean | undefined => {
-		const currentNode = node();
-		if (currentNode.type === "folder") {
-			return currentNode.expanded;
+	set editing(value: boolean) {
+		this.#setEditing(value);
+	}
+
+	get disabled(): boolean {
+		return this.#disabled();
+	}
+
+	get dropPosition(): DropPosition | undefined {
+		return this.#dropPositionState.current;
+	}
+}
+
+export type TreeItemAttributesProps = {
+	treeContext: TreeContext;
+	itemProviderContext: TreeItemProviderContext;
+	itemContext: TreeItemContext;
+	dropPositionState: DropPositionState;
+};
+
+export class TreeItemAttributes {
+	readonly #treeContext: TreeContext;
+	readonly #itemProviderContext: TreeItemProviderContext;
+	readonly #itemContext: TreeItemContext;
+	readonly #dropPositionState: DropPositionState;
+
+	constructor(props: TreeItemAttributesProps) {
+		this.#treeContext = props.treeContext;
+		this.#itemProviderContext = props.itemProviderContext;
+		this.#itemContext = props.itemContext;
+		this.#dropPositionState = props.dropPositionState;
+	}
+
+	get id(): string {
+		return this.#treeContext.getItemElementId(this.#itemProviderContext.node.id);
+	}
+
+	get ariaSelected(): boolean {
+		return this.#itemProviderContext.node.selected;
+	}
+
+	get ariaExpanded(): boolean | undefined {
+		const { node } = this.#itemProviderContext;
+		if (node.type === "folder") {
+			return node.expanded;
 		}
-	};
+	}
 
-	const ariaLevel = (): number => depth() + 1;
+	get ariaLevel(): number {
+		return this.#itemProviderContext.depth + 1;
+	}
 
-	const ariaPosInSet = (): number => index() + 1;
+	get ariaPosInSet(): number {
+		return this.#itemProviderContext.index + 1;
+	}
 
-	const ariaSetSize = (): number => {
-		const owner = parent()?.node ?? tree();
+	get ariaSetSize(): number {
+		const owner = this.#itemProviderContext.parent?.node ?? this.#treeContext.tree;
 		return owner.children.length;
+	}
+
+	get tabIndex(): 0 | -1 {
+		const tabbableId = this.#treeContext.tabbableId ?? this.#treeContext.tree.children[0].id;
+		return tabbableId === this.#itemProviderContext.node.id ? 0 : -1;
+	}
+
+	readonly onfocusin: EventHandler<FocusEvent, HTMLElement> = () => {
+		this.#treeContext.tabbableId = this.#itemProviderContext.node.id;
 	};
 
-	const tabIndex = (): 0 | -1 => {
-		const id = tabbableId() ?? tree().children[0].id;
-		return id === node().id ? 0 : -1;
-	};
-
-	const dragged = (): boolean => draggedId() === node().id;
-
-	$effect(() => {
-		onSetItem({
-			node: node(),
-			index: index(),
-			parent: parent(),
-		});
-	});
-
-	$effect(() => {
-		return () => {
-			onDestroyItem(node().id);
-		};
-	});
-
-	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
-		onfocusin(event);
-		setTabbableId(node().id);
-	};
-
-	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
-		onkeydown(event);
-
-		if (event.defaultPrevented || disabled()) {
+	readonly onkeydown: EventHandler<KeyboardEvent, HTMLElement> = (event) => {
+		if (this.#itemContext.disabled) {
 			return;
 		}
 
@@ -177,47 +174,47 @@ export const createTreeItemState = ({
 			return;
 		}
 
-		const item = {
-			node: node(),
-			index: index(),
-			parent: parent(),
-		};
-
 		switch (event.key) {
 			case "ArrowRight": {
-				if (item.node.type === "file") {
+				if (this.#itemProviderContext.node.type === "file") {
 					break;
 				}
 
-				if (!item.node.expanded) {
-					item.node.expand();
-				} else if (item.node.children.length !== 0) {
-					getItemElement(item.node.children[0].id)?.focus();
+				if (!this.#itemProviderContext.node.expanded) {
+					this.#itemProviderContext.node.expand();
+				} else if (this.#itemProviderContext.node.children.length !== 0) {
+					this.#treeContext.getItemElement(this.#itemProviderContext.node.children[0].id)?.focus();
 				}
 				break;
 			}
 			case "ArrowLeft": {
-				if (item.node.type === "folder" && item.node.expanded) {
-					item.node.collapse();
-				} else if (item.parent !== undefined) {
-					getItemElement(item.parent.node.id)?.focus();
+				if (
+					this.#itemProviderContext.node.type === "folder" &&
+					this.#itemProviderContext.node.expanded
+				) {
+					this.#itemProviderContext.node.collapse();
+				} else if (this.#itemProviderContext.parent !== undefined) {
+					this.#treeContext.getItemElement(this.#itemProviderContext.parent.node.id)?.focus();
 				}
 				break;
 			}
 			case "ArrowDown":
 			case "ArrowUp": {
-				const next = event.key === "ArrowDown" ? getNextItem(item) : getPreviousItem(item);
+				const down = event.key === "ArrowDown";
+				const next = down
+					? this.#treeContext.tree.getNextItem(this.#itemProviderContext)
+					: this.#treeContext.tree.getPreviousItem(this.#itemProviderContext);
 				if (next === undefined) {
 					break;
 				}
 
-				const nextElement = getItemElement(next.node.id);
+				const nextElement = this.#treeContext.getItemElement(next.node.id);
 				if (nextElement === null) {
 					break;
 				}
 
 				if (event.shiftKey) {
-					item.node.select();
+					this.#itemProviderContext.node.select();
 					next.node.select();
 				}
 
@@ -226,22 +223,24 @@ export const createTreeItemState = ({
 			}
 			case "PageDown":
 			case "PageUp": {
-				const navigate = event.key === "PageDown" ? getNextItem : getPreviousItem;
+				const down = event.key === "PageDown";
 				const maxScrollDistance = Math.min(
-					document.getElementById(treeId())!.clientHeight,
+					document.getElementById(this.#treeContext.id)!.clientHeight,
 					document.documentElement.clientHeight,
 				);
 				const itemRect = event.currentTarget.getBoundingClientRect();
 
-				let current = item;
+				let current: FileTreeItemPosition = this.#itemProviderContext;
 				let currentElement: HTMLElement = event.currentTarget;
 				while (true) {
-					const next = navigate(current);
+					const next = down
+						? this.#treeContext.tree.getNextItem(current)
+						: this.#treeContext.tree.getPreviousItem(current);
 					if (next === undefined) {
 						break;
 					}
 
-					const nextElement = getItemElement(next.node.id);
+					const nextElement = this.#treeContext.getItemElement(next.node.id);
 					if (nextElement === null) {
 						break;
 					}
@@ -260,7 +259,7 @@ export const createTreeItemState = ({
 					currentElement = nextElement;
 				}
 
-				if (current === item) {
+				if (current === this.#itemProviderContext) {
 					break;
 				}
 
@@ -272,21 +271,21 @@ export const createTreeItemState = ({
 				break;
 			}
 			case "Home": {
-				const first = tree().children[0];
-				if (first === item.node) {
+				const first = this.#treeContext.tree.children[0];
+				if (first === this.#itemProviderContext.node) {
 					break;
 				}
 
-				const firstElement = getItemElement(first.id);
+				const firstElement = this.#treeContext.getItemElement(first.id);
 				if (firstElement === null) {
 					break;
 				}
 
 				if (event.shiftKey && isControlOrMeta(event)) {
-					let current: TreeItemPosition | undefined = item;
+					let current: FileTreeItemPosition | undefined = this.#itemProviderContext;
 					do {
 						current.node.select();
-						current = getPreviousItem(current);
+						current = this.#treeContext.tree.getPreviousItem(current);
 					} while (current !== undefined);
 				}
 
@@ -294,25 +293,25 @@ export const createTreeItemState = ({
 				break;
 			}
 			case "End": {
-				let last = tree().children.at(-1)!;
+				let last = this.#treeContext.tree.children.at(-1)!;
 				while (last.type === "folder" && last.expanded && last.children.length !== 0) {
 					last = last.children.at(-1)!;
 				}
 
-				if (last === item.node) {
+				if (last === this.#itemProviderContext.node) {
 					break;
 				}
 
-				const lastElement = getItemElement(last.id);
+				const lastElement = this.#treeContext.getItemElement(last.id);
 				if (lastElement === null) {
 					break;
 				}
 
 				if (event.shiftKey && isControlOrMeta(event)) {
-					let current: TreeItemPosition | undefined = item;
+					let current: FileTreeItemPosition | undefined = this.#itemProviderContext;
 					do {
 						current.node.select();
-						current = getNextItem(current);
+						current = this.#treeContext.tree.getNextItem(current);
 					} while (current !== undefined);
 				}
 
@@ -321,19 +320,19 @@ export const createTreeItemState = ({
 			}
 			case " ": {
 				if (event.shiftKey) {
-					selectUntil(item.node, event.currentTarget);
+					this.#treeContext.selectUntil(this.#itemProviderContext, event.currentTarget);
 				} else {
-					item.node.toggleSelected();
+					this.#itemProviderContext.node.toggleSelected();
 				}
 				break;
 			}
 			case "Escape": {
-				tree().selected.clear();
-				setPasteOperation(undefined);
+				this.#treeContext.tree.selectedIds.clear();
+				this.#treeContext.pasteOperation = undefined;
 				break;
 			}
 			case "*": {
-				const owner = item.parent?.node ?? tree();
+				const owner = this.#itemProviderContext.parent?.node ?? this.#treeContext.tree;
 				for (const child of owner.children) {
 					if (child.type === "folder") {
 						child.expand();
@@ -350,36 +349,48 @@ export const createTreeItemState = ({
 				break;
 			}
 			case "F2": {
-				if (editable()) {
-					setEditing(true);
+				if (this.#itemContext.editable) {
+					this.#itemContext.editing = true;
 				}
 				break;
 			}
 			case "Delete": {
-				void deleteSelected(item);
+				void this.#treeContext.deleteSelected(this.#itemProviderContext);
 				break;
 			}
 			case "a": {
 				if (isControlOrMeta(event)) {
-					selectAll();
+					this.#treeContext.tree.selectVisible();
 				}
 				break;
 			}
 			case "c": {
 				if (isControlOrMeta(event)) {
-					setPasteOperation("copy");
+					this.#treeContext.pasteOperation = "copy";
 				}
 				break;
 			}
 			case "x": {
 				if (isControlOrMeta(event)) {
-					setPasteOperation("cut");
+					this.#treeContext.pasteOperation = "cut";
 				}
 				break;
 			}
 			case "v": {
 				if (isControlOrMeta(event)) {
-					void pasteSelected(item);
+					let position: DropPosition;
+					switch (this.#itemProviderContext.node.type) {
+						case "file": {
+							position = "after";
+							break;
+						}
+						case "folder": {
+							position = this.#itemProviderContext.node.expanded ? "inside" : "after";
+							break;
+						}
+					}
+
+					void this.#treeContext.pasteSelected(position, this.#itemProviderContext);
 				}
 				break;
 			}
@@ -391,27 +402,23 @@ export const createTreeItemState = ({
 		event.preventDefault();
 	};
 
-	const handlePointerDown: EventHandler<PointerEvent, HTMLDivElement> = (event) => {
-		onpointerdown(event);
-
-		if (event.defaultPrevented || disabled()) {
+	readonly onclick: EventHandler<MouseEvent, HTMLElement> = (event) => {
+		if (this.#itemContext.disabled) {
 			return;
 		}
 
 		if (isControlOrMeta(event)) {
-			node().toggleSelected();
+			this.#itemProviderContext.node.toggleSelected();
 		} else if (event.shiftKey) {
-			selectUntil(node(), event.currentTarget);
+			this.#treeContext.selectUntil(this.#itemProviderContext, event.currentTarget);
 		} else {
-			tree().selected.clear();
-			node().select();
+			this.#treeContext.tree.selectedIds.clear();
+			this.#itemProviderContext.node.select();
 		}
 	};
 
-	const handleDragStart: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		ondragstart(event);
-
-		if (event.defaultPrevented || disabled()) {
+	readonly ondragstart: EventHandler<DragEvent, HTMLElement> = (event) => {
+		if (this.#itemContext.disabled) {
 			return;
 		}
 
@@ -419,105 +426,71 @@ export const createTreeItemState = ({
 			event.dataTransfer.effectAllowed = "move";
 		}
 
-		setDraggedId(node().id);
-		node().select();
+		this.#treeContext.draggedId = this.#itemProviderContext.node.id;
+
+		if (event.shiftKey) {
+			this.#treeContext.selectUntil(this.#itemProviderContext, event.currentTarget);
+		} else {
+			this.#itemProviderContext.node.select();
+		}
 	};
 
-	const handleDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		ondragover(event);
-
-		if (event.defaultPrevented || disabled()) {
-			clearDropPosition();
+	readonly ondragover: EventHandler<DragEvent, HTMLElement> = (event) => {
+		if (
+			this.#itemContext.disabled ||
+			this.#treeContext.draggedId === undefined ||
+			this.#itemProviderContext.node.selected ||
+			this.#itemProviderContext.nearestSelectedAncestor !== undefined
+		) {
+			// If the dragged item is dropped next to or inside a selected item,
+			// it would cause a circular reference because the selected item
+			// would be moved inside itself.
+			this.#dropPositionState.clear();
 			return;
 		}
 
-		if (draggedId() === undefined) {
-			return;
-		}
-
-		if (dragged()) {
-			// Don't drop the dragged item on itself.
-			return;
-		}
-
-		event.preventDefault();
+		this.#dropPositionState.update(event.currentTarget, event.clientY);
 
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.dropEffect = "move";
 		}
 
-		updateDropPosition(event.currentTarget, event.clientY);
+		event.preventDefault();
 	};
 
-	const handleDragLeave: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		ondragleave(event);
-
+	readonly ondragleave: EventHandler<DragEvent, HTMLElement> = (event) => {
 		if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
 			// Skip if the pointer moves to a child element.
 			return;
 		}
 
-		clearDropPosition();
+		this.#dropPositionState.clear();
 	};
 
-	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		ondrop(event);
+	readonly ondrop: EventHandler<DragEvent, HTMLElement> = (event) => {
+		this.#dropPositionState.clear();
 
-		if (event.defaultPrevented || disabled()) {
-			clearDropPosition();
+		const draggedId = this.#treeContext.draggedId;
+		if (this.#itemContext.disabled || draggedId === undefined) {
 			return;
 		}
 
-		const currentDraggedId = draggedId();
-		if (currentDraggedId === undefined) {
-			return;
-		}
-
-		event.preventDefault();
-
-		const position = getDropPosition(
-			node(),
+		const position = this.#dropPositionState.get(
 			event.currentTarget.getBoundingClientRect(),
 			event.clientY,
 		);
-		clearDropPosition();
 
-		tree().selected.add(currentDraggedId);
-		void moveSelected(position, {
-			node: node(),
-			index: index(),
-			parent: parent(),
-		}).then((didMove) => {
+		this.#treeContext.tree.selectedIds.add(draggedId);
+		void this.#treeContext.moveSelected(position, this.#itemProviderContext).then((didMove) => {
 			if (didMove) {
-				getItemElement(currentDraggedId)?.focus();
+				this.#treeContext.getItemElement(draggedId)?.focus();
 			}
 		});
+
+		event.preventDefault();
 	};
 
-	const handleDragEnd: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		ondragend(event);
-		setDraggedId(undefined);
+	readonly ondragend: EventHandler<DragEvent, HTMLElement> = () => {
+		this.#treeContext.draggedId = undefined;
 	};
-
-	return {
-		treeItemId,
-		ariaSelected,
-		ariaExpanded,
-		ariaLevel,
-		ariaPosInSet,
-		ariaSetSize,
-		tabIndex,
-		dragged,
-		dropPosition,
-		handleFocusIn,
-		handleKeyDown,
-		handlePointerDown,
-		handleDragStart,
-		handleDragOver,
-		handleDragLeave,
-		handleDrop,
-		handleDragEnd,
-	};
-};
-
-export type TreeItemState = ReturnType<typeof createTreeItemState>;
+}
