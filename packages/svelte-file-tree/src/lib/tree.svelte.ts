@@ -34,59 +34,6 @@ export class FileTree {
 		this.#children.current = value;
 	}
 
-	getNextNonChildItem(current: FileTreeItemPosition): FileTreeItemPosition | undefined {
-		let { index, parent } = current;
-		while (true) {
-			const siblings = parent?.node.children ?? this.children;
-			const nextIndex = index + 1;
-			if (nextIndex !== siblings.length) {
-				return {
-					node: siblings[nextIndex],
-					index: nextIndex,
-					parent,
-				};
-			}
-
-			if (parent === undefined) {
-				return;
-			}
-
-			index = parent.index;
-			parent = parent.parent;
-		}
-	}
-
-	getNextItem(current: FileTreeItemPosition): FileTreeItemPosition | undefined {
-		const { node } = current;
-		if (node.type === "folder" && node.expanded && node.children.length !== 0) {
-			return {
-				node: node.children[0],
-				index: 0,
-				parent: current as FileTreeItemPosition<FolderNode>,
-			};
-		}
-
-		return this.getNextNonChildItem(current);
-	}
-
-	getPreviousItem(current: FileTreeItemPosition): FileTreeItemPosition | undefined {
-		if (current.index === 0) {
-			return current.parent;
-		}
-
-		let parent = current.parent;
-		let index = current.index - 1;
-		let node = parent?.node.children[index] ?? this.children[index];
-
-		while (node.type === "folder" && node.expanded && node.children.length !== 0) {
-			parent = { node, index, parent };
-			index = node.children.length - 1;
-			node = node.children[index];
-		}
-
-		return { node, index, parent };
-	}
-
 	#selectVisible(nodes: Array<FileTreeNode>): void {
 		for (const node of nodes) {
 			this.selectedIds.add(node.id);
@@ -226,5 +173,5 @@ export type FileTreeNodeJSON = FileNodeJSON | FolderNodeJSON;
 export type FileTreeItemPosition<TNode extends FileTreeNode = FileTreeNode> = {
 	node: TNode;
 	index: number;
-	parent: FileTreeItemPosition<FolderNode> | undefined;
+	parent?: FileTreeItemPosition<FolderNode>;
 };

@@ -2,169 +2,67 @@ import { isControlOrMeta } from "$lib/internal/helpers.svelte.js";
 import type { FileTreeItemPosition } from "$lib/tree.svelte.js";
 import { flushSync } from "svelte";
 import type { EventHandler } from "svelte/elements";
-import type { DropPosition, TreeContext, TreeItemProviderContext } from "../Tree/state.svelte.js";
-
-export type DropPositionStateProps = {
-	itemProviderContext: TreeItemProviderContext;
-};
-
-export class DropPositionState {
-	readonly #itemProviderContext: TreeItemProviderContext;
-
-	constructor(props: DropPositionStateProps) {
-		this.#itemProviderContext = props.itemProviderContext;
-	}
-
-	#current?: DropPosition = $state.raw();
-	#updateRequestId?: number;
-
-	get current(): DropPosition | undefined {
-		return this.#current;
-	}
-
-	get(rect: DOMRect, clientY: number): DropPosition {
-		switch (this.#itemProviderContext.node.type) {
-			case "file": {
-				const midY = rect.top + rect.height / 2;
-				return clientY < midY ? "before" : "after";
-			}
-			case "folder": {
-				const { top, bottom, height } = rect;
-				if (clientY < top + height / 3) {
-					return "before";
-				}
-				if (clientY < bottom - height / 3) {
-					return "inside";
-				}
-				return "after";
-			}
-		}
-	}
-
-	update(element: HTMLElement, clientY: number): void {
-		if (this.#updateRequestId !== undefined) {
-			return;
-		}
-
-		this.#updateRequestId = window.requestAnimationFrame(() => {
-			this.#current = this.get(element.getBoundingClientRect(), clientY);
-			this.#updateRequestId = undefined;
-		});
-	}
-
-	clear(): void {
-		this.#current = undefined;
-
-		if (this.#updateRequestId !== undefined) {
-			window.cancelAnimationFrame(this.#updateRequestId);
-			this.#updateRequestId = undefined;
-		}
-	}
-}
-
-export type TreeItemContextProps = {
-	editable: () => boolean;
-	editing: () => boolean;
-	setEditing: (value: boolean) => void;
-	disabled: () => boolean;
-	dropPositionState: DropPositionState;
-};
-
-export class TreeItemContext {
-	readonly #editable: () => boolean;
-	readonly #editing: () => boolean;
-	readonly #setEditing: (value: boolean) => void;
-	readonly #disabled: () => boolean;
-	readonly #dropPositionState: DropPositionState;
-
-	constructor(props: TreeItemContextProps) {
-		this.#editable = props.editable;
-		this.#editing = props.editing;
-		this.#setEditing = props.setEditing;
-		this.#disabled = props.disabled;
-		this.#dropPositionState = props.dropPositionState;
-	}
-
-	get editable(): boolean {
-		return this.#editable();
-	}
-
-	get editing(): boolean {
-		return this.#editing();
-	}
-
-	set editing(value: boolean) {
-		this.#setEditing(value);
-	}
-
-	get disabled(): boolean {
-		return this.#disabled();
-	}
-
-	get dropPosition(): DropPosition | undefined {
-		return this.#dropPositionState.current;
-	}
-}
+import type { DropPosition, TreeContext, TreeItemContext } from "../Tree/state.svelte.js";
 
 export type TreeItemAttributesProps = {
 	treeContext: TreeContext;
-	itemProviderContext: TreeItemProviderContext;
 	itemContext: TreeItemContext;
-	dropPositionState: DropPositionState;
+	editable: () => boolean;
+	disabled: () => boolean;
 };
 
 export class TreeItemAttributes {
 	readonly #treeContext: TreeContext;
-	readonly #itemProviderContext: TreeItemProviderContext;
 	readonly #itemContext: TreeItemContext;
-	readonly #dropPositionState: DropPositionState;
+	readonly #editable: () => boolean;
+	readonly #disabled: () => boolean;
 
 	constructor(props: TreeItemAttributesProps) {
 		this.#treeContext = props.treeContext;
-		this.#itemProviderContext = props.itemProviderContext;
 		this.#itemContext = props.itemContext;
-		this.#dropPositionState = props.dropPositionState;
+		this.#editable = props.editable;
+		this.#disabled = props.disabled;
 	}
 
 	get id(): string {
-		return this.#treeContext.getItemElementId(this.#itemProviderContext.node.id);
+		return this.#treeContext.getItemElementId(this.#itemContext.node.id);
 	}
 
 	get ariaSelected(): boolean {
-		return this.#itemProviderContext.node.selected;
+		return this.#itemContext.node.selected;
 	}
 
 	get ariaExpanded(): boolean | undefined {
-		const { node } = this.#itemProviderContext;
+		const { node } = this.#itemContext;
 		if (node.type === "folder") {
 			return node.expanded;
 		}
 	}
 
 	get ariaLevel(): number {
-		return this.#itemProviderContext.depth + 1;
+		return this.#itemContext.depth + 1;
 	}
 
 	get ariaPosInSet(): number {
-		return this.#itemProviderContext.index + 1;
+		return this.#itemContext.index + 1;
 	}
 
 	get ariaSetSize(): number {
-		const owner = this.#itemProviderContext.parent?.node ?? this.#treeContext.tree;
+		const owner = this.#itemContext.parent?.node ?? this.#treeContext.tree;
 		return owner.children.length;
 	}
 
 	get tabIndex(): 0 | -1 {
 		const tabbableId = this.#treeContext.tabbableId ?? this.#treeContext.tree.children[0].id;
-		return tabbableId === this.#itemProviderContext.node.id ? 0 : -1;
+		return tabbableId === this.#itemContext.node.id ? 0 : -1;
 	}
 
 	readonly onfocusin: EventHandler<FocusEvent, HTMLElement> = () => {
-		this.#treeContext.tabbableId = this.#itemProviderContext.node.id;
+		this.#treeContext.tabbableId = this.#itemContext.node.id;
 	};
 
 	readonly onkeydown: EventHandler<KeyboardEvent, HTMLElement> = (event) => {
-		if (this.#itemContext.disabled) {
+		if (this.#disabled()) {
 			return;
 		}
 
@@ -176,25 +74,22 @@ export class TreeItemAttributes {
 
 		switch (event.key) {
 			case "ArrowRight": {
-				if (this.#itemProviderContext.node.type === "file") {
+				if (this.#itemContext.node.type === "file") {
 					break;
 				}
 
-				if (!this.#itemProviderContext.node.expanded) {
-					this.#itemProviderContext.node.expand();
-				} else if (this.#itemProviderContext.node.children.length !== 0) {
-					this.#treeContext.getItemElement(this.#itemProviderContext.node.children[0].id)?.focus();
+				if (!this.#itemContext.node.expanded) {
+					this.#itemContext.node.expand();
+				} else if (this.#itemContext.node.children.length !== 0) {
+					this.#treeContext.getItemElement(this.#itemContext.node.children[0].id)?.focus();
 				}
 				break;
 			}
 			case "ArrowLeft": {
-				if (
-					this.#itemProviderContext.node.type === "folder" &&
-					this.#itemProviderContext.node.expanded
-				) {
-					this.#itemProviderContext.node.collapse();
-				} else if (this.#itemProviderContext.parent !== undefined) {
-					this.#treeContext.getItemElement(this.#itemProviderContext.parent.node.id)?.focus();
+				if (this.#itemContext.node.type === "folder" && this.#itemContext.node.expanded) {
+					this.#itemContext.node.collapse();
+				} else if (this.#itemContext.parent !== undefined) {
+					this.#treeContext.getItemElement(this.#itemContext.parent.node.id)?.focus();
 				}
 				break;
 			}
@@ -202,8 +97,8 @@ export class TreeItemAttributes {
 			case "ArrowUp": {
 				const down = event.key === "ArrowDown";
 				const next = down
-					? this.#treeContext.tree.getNextItem(this.#itemProviderContext)
-					: this.#treeContext.tree.getPreviousItem(this.#itemProviderContext);
+					? this.#treeContext.getNextItem(this.#itemContext)
+					: this.#treeContext.getPreviousItem(this.#itemContext);
 				if (next === undefined) {
 					break;
 				}
@@ -214,7 +109,7 @@ export class TreeItemAttributes {
 				}
 
 				if (event.shiftKey) {
-					this.#itemProviderContext.node.select();
+					this.#itemContext.node.select();
 					next.node.select();
 				}
 
@@ -230,12 +125,12 @@ export class TreeItemAttributes {
 				);
 				const itemRect = event.currentTarget.getBoundingClientRect();
 
-				let current: FileTreeItemPosition = this.#itemProviderContext;
+				let current: FileTreeItemPosition = this.#itemContext;
 				let currentElement: HTMLElement = event.currentTarget;
 				while (true) {
 					const next = down
-						? this.#treeContext.tree.getNextItem(current)
-						: this.#treeContext.tree.getPreviousItem(current);
+						? this.#treeContext.getNextItem(current)
+						: this.#treeContext.getPreviousItem(current);
 					if (next === undefined) {
 						break;
 					}
@@ -259,7 +154,7 @@ export class TreeItemAttributes {
 					currentElement = nextElement;
 				}
 
-				if (current === this.#itemProviderContext) {
+				if (current === this.#itemContext) {
 					break;
 				}
 
@@ -272,7 +167,7 @@ export class TreeItemAttributes {
 			}
 			case "Home": {
 				const first = this.#treeContext.tree.children[0];
-				if (first === this.#itemProviderContext.node) {
+				if (first === this.#itemContext.node) {
 					break;
 				}
 
@@ -282,10 +177,10 @@ export class TreeItemAttributes {
 				}
 
 				if (event.shiftKey && isControlOrMeta(event)) {
-					let current: FileTreeItemPosition | undefined = this.#itemProviderContext;
+					let current: FileTreeItemPosition | undefined = this.#itemContext;
 					do {
 						current.node.select();
-						current = this.#treeContext.tree.getPreviousItem(current);
+						current = this.#treeContext.getPreviousItem(current);
 					} while (current !== undefined);
 				}
 
@@ -298,7 +193,7 @@ export class TreeItemAttributes {
 					last = last.children.at(-1)!;
 				}
 
-				if (last === this.#itemProviderContext.node) {
+				if (last === this.#itemContext.node) {
 					break;
 				}
 
@@ -308,10 +203,10 @@ export class TreeItemAttributes {
 				}
 
 				if (event.shiftKey && isControlOrMeta(event)) {
-					let current: FileTreeItemPosition | undefined = this.#itemProviderContext;
+					let current: FileTreeItemPosition | undefined = this.#itemContext;
 					do {
 						current.node.select();
-						current = this.#treeContext.tree.getNextItem(current);
+						current = this.#treeContext.getNextItem(current);
 					} while (current !== undefined);
 				}
 
@@ -320,9 +215,9 @@ export class TreeItemAttributes {
 			}
 			case " ": {
 				if (event.shiftKey) {
-					this.#treeContext.selectUntil(this.#itemProviderContext, event.currentTarget);
+					this.#treeContext.selectUntil(this.#itemContext, event.currentTarget);
 				} else {
-					this.#itemProviderContext.node.toggleSelected();
+					this.#itemContext.node.toggleSelected();
 				}
 				break;
 			}
@@ -332,7 +227,7 @@ export class TreeItemAttributes {
 				break;
 			}
 			case "*": {
-				const owner = this.#itemProviderContext.parent?.node ?? this.#treeContext.tree;
+				const owner = this.#itemContext.parent?.node ?? this.#treeContext.tree;
 				for (const child of owner.children) {
 					if (child.type === "folder") {
 						child.expand();
@@ -349,13 +244,13 @@ export class TreeItemAttributes {
 				break;
 			}
 			case "F2": {
-				if (this.#itemContext.editable) {
+				if (this.#editable()) {
 					this.#itemContext.editing = true;
 				}
 				break;
 			}
 			case "Delete": {
-				void this.#treeContext.deleteSelected(this.#itemProviderContext);
+				void this.#treeContext.deleteSelected(this.#itemContext);
 				break;
 			}
 			case "a": {
@@ -379,18 +274,18 @@ export class TreeItemAttributes {
 			case "v": {
 				if (isControlOrMeta(event)) {
 					let position: DropPosition;
-					switch (this.#itemProviderContext.node.type) {
+					switch (this.#itemContext.node.type) {
 						case "file": {
 							position = "after";
 							break;
 						}
 						case "folder": {
-							position = this.#itemProviderContext.node.expanded ? "inside" : "after";
+							position = this.#itemContext.node.expanded ? "inside" : "after";
 							break;
 						}
 					}
 
-					void this.#treeContext.pasteSelected(position, this.#itemProviderContext);
+					void this.#treeContext.pasteSelected(position, this.#itemContext);
 				}
 				break;
 			}
@@ -403,22 +298,22 @@ export class TreeItemAttributes {
 	};
 
 	readonly onclick: EventHandler<MouseEvent, HTMLElement> = (event) => {
-		if (this.#itemContext.disabled) {
+		if (this.#disabled()) {
 			return;
 		}
 
 		if (isControlOrMeta(event)) {
-			this.#itemProviderContext.node.toggleSelected();
+			this.#itemContext.node.toggleSelected();
 		} else if (event.shiftKey) {
-			this.#treeContext.selectUntil(this.#itemProviderContext, event.currentTarget);
+			this.#treeContext.selectUntil(this.#itemContext, event.currentTarget);
 		} else {
 			this.#treeContext.tree.selectedIds.clear();
-			this.#itemProviderContext.node.select();
+			this.#itemContext.node.select();
 		}
 	};
 
 	readonly ondragstart: EventHandler<DragEvent, HTMLElement> = (event) => {
-		if (this.#itemContext.disabled) {
+		if (this.#disabled()) {
 			return;
 		}
 
@@ -426,30 +321,30 @@ export class TreeItemAttributes {
 			event.dataTransfer.effectAllowed = "move";
 		}
 
-		this.#treeContext.draggedId = this.#itemProviderContext.node.id;
+		this.#treeContext.draggedId = this.#itemContext.node.id;
 
 		if (event.shiftKey) {
-			this.#treeContext.selectUntil(this.#itemProviderContext, event.currentTarget);
+			this.#treeContext.selectUntil(this.#itemContext, event.currentTarget);
 		} else {
-			this.#itemProviderContext.node.select();
+			this.#itemContext.node.select();
 		}
 	};
 
 	readonly ondragover: EventHandler<DragEvent, HTMLElement> = (event) => {
 		if (
-			this.#itemContext.disabled ||
+			this.#disabled() ||
 			this.#treeContext.draggedId === undefined ||
-			this.#itemProviderContext.node.selected ||
-			this.#itemProviderContext.nearestSelectedAncestor !== undefined
+			this.#itemContext.node.selected ||
+			this.#itemContext.nearestSelectedAncestor !== undefined
 		) {
 			// If the dragged item is dropped next to or inside a selected item,
 			// it would cause a circular reference because the selected item
 			// would be moved inside itself.
-			this.#dropPositionState.clear();
+			this.#itemContext.dropPosition.clear();
 			return;
 		}
 
-		this.#dropPositionState.update(event.currentTarget, event.clientY);
+		this.#itemContext.dropPosition.update(event.currentTarget, event.clientY);
 
 		if (event.dataTransfer !== null) {
 			event.dataTransfer.dropEffect = "move";
@@ -464,24 +359,24 @@ export class TreeItemAttributes {
 			return;
 		}
 
-		this.#dropPositionState.clear();
+		this.#itemContext.dropPosition.clear();
 	};
 
 	readonly ondrop: EventHandler<DragEvent, HTMLElement> = (event) => {
-		this.#dropPositionState.clear();
+		this.#itemContext.dropPosition.clear();
 
 		const draggedId = this.#treeContext.draggedId;
-		if (this.#itemContext.disabled || draggedId === undefined) {
+		if (this.#disabled() || draggedId === undefined) {
 			return;
 		}
 
-		const position = this.#dropPositionState.get(
+		const position = this.#itemContext.dropPosition.get(
 			event.currentTarget.getBoundingClientRect(),
 			event.clientY,
 		);
 
 		this.#treeContext.tree.selectedIds.add(draggedId);
-		void this.#treeContext.moveSelected(position, this.#itemProviderContext).then((didMove) => {
+		void this.#treeContext.moveSelected(position, this.#itemContext).then((didMove) => {
 			if (didMove) {
 				this.#treeContext.getItemElement(draggedId)?.focus();
 			}

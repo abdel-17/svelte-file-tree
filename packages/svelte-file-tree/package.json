@@ -3,9 +3,8 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"build": "pnpm run package && publint",
-		"package": "svelte-kit sync && svelte-package",
-		"package:watch": "svelte-kit sync && svelte-package --watch",
+		"dev": "svelte-kit sync && svelte-package --watch",
+		"build": "svelte-kit sync && svelte-package && publint",
 		"prepublishOnly": "pnpm run build",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

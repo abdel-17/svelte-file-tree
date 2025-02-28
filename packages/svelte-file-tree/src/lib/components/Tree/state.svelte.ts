@@ -48,6 +48,9 @@ export class TreeContext {
 	readonly #onInsertItems: (args: InsertItemsArgs) => MaybePromise<boolean>;
 	readonly #onNameConflict: (args: NameConflictArgs) => MaybePromise<NameConflictResolution>;
 	readonly #onDeleteItems: (args: DeleteItemsArgs) => MaybePromise<boolean>;
+	readonly #lookup = new Map<string, TreeItemContext>();
+	tabbableId?: string = $state.raw();
+	draggedId?: string = $state.raw();
 
 	constructor(props: TreeContextProps) {
 		this.#tree = props.tree;
@@ -63,10 +66,6 @@ export class TreeContext {
 		this.#onNameConflict = props.onNameConflict;
 		this.#onDeleteItems = props.onDeleteItems;
 	}
-
-	readonly #lookup = new Map<string, TreeItemProviderContext>();
-	tabbableId?: string = $state.raw();
-	draggedId?: string = $state.raw();
 
 	get tree(): FileTree {
 		return this.#tree();
@@ -84,12 +83,12 @@ export class TreeContext {
 		return this.#id();
 	}
 
-	getItem(id: string): TreeItemProviderContext | undefined {
+	getItem(id: string): TreeItemContext | undefined {
 		return this.#lookup.get(id);
 	}
 
-	onSetItem(item: TreeItemProviderContext): void {
-		this.#lookup.set(item.node.id, item);
+	onSetItem(itemContext: TreeItemContext): void {
+		this.#lookup.set(itemContext.node.id, itemContext);
 	}
 
 	onDestroyItem(id: string): void {
@@ -115,8 +114,61 @@ export class TreeContext {
 		return document.getElementById(elementId);
 	}
 
-	selectUntil(item: TreeItemProviderContext, element: HTMLElement): void {
-		let lastSelected: TreeItemProviderContext | undefined;
+	getNextNonChildItem(current: FileTreeItemPosition): FileTreeItemPosition | undefined {
+		let { index, parent } = current;
+		while (true) {
+			const siblings = parent?.node.children ?? this.tree.children;
+			const nextIndex = index + 1;
+			if (nextIndex !== siblings.length) {
+				return {
+					node: siblings[nextIndex],
+					index: nextIndex,
+					parent,
+				};
+			}
+
+			if (parent === undefined) {
+				return;
+			}
+
+			index = parent.index;
+			parent = parent.parent;
+		}
+	}
+
+	getNextItem(current: FileTreeItemPosition): FileTreeItemPosition | undefined {
+		const { node } = current;
+		if (node.type === "folder" && node.expanded && node.children.length !== 0) {
+			return {
+				node: node.children[0],
+				index: 0,
+				parent: current as FileTreeItemPosition<FolderNode>,
+			};
+		}
+
+		return this.getNextNonChildItem(current);
+	}
+
+	getPreviousItem(current: FileTreeItemPosition): FileTreeItemPosition | undefined {
+		if (current.index === 0) {
+			return current.parent;
+		}
+
+		let parent = current.parent;
+		let index = current.index - 1;
+		let node = parent?.node.children[index] ?? this.tree.children[index];
+
+		while (node.type === "folder" && node.expanded && node.children.length !== 0) {
+			parent = { node, index, parent };
+			index = node.children.length - 1;
+			node = node.children[index];
+		}
+
+		return { node, index, parent };
+	}
+
+	selectUntil(target: TreeItemContext, element: HTMLElement): void {
+		let lastSelected: TreeItemContext | undefined;
 		for (const id of this.tree.selectedIds) {
 			const selectedItem = this.getItem(id);
 			if (selectedItem !== undefined) {
@@ -132,10 +184,10 @@ export class TreeContext {
 			};
 			do {
 				current.node.select();
-				if (current.node === item.node) {
+				if (current.node === target.node) {
 					break;
 				}
-				current = this.tree.getNextItem(current);
+				current = this.getNextItem(current);
 			} while (current !== undefined);
 			return;
 		}
@@ -149,8 +201,8 @@ export class TreeContext {
 		const following = positionBitmask & Node.DOCUMENT_POSITION_FOLLOWING;
 
 		let current: FileTreeItemPosition | undefined = lastSelected;
-		while (current.node !== item.node) {
-			current = following ? this.tree.getNextItem(current) : this.tree.getPreviousItem(current);
+		while (current.node !== target.node) {
+			current = following ? this.getNextItem(current) : this.getPreviousItem(current);
 			if (current === undefined) {
 				break;
 			}
@@ -158,7 +210,7 @@ export class TreeContext {
 		}
 	}
 
-	async renameItem(name: string, target: TreeItemProviderContext): Promise<boolean> {
+	async renameItem(name: string, target: TreeItemContext): Promise<boolean> {
 		if (name.length === 0) {
 			this.#onRenameError({
 				error: "empty",
@@ -190,7 +242,7 @@ export class TreeContext {
 		});
 	}
 
-	async moveSelected(position: DropPosition, target: TreeItemProviderContext): Promise<boolean> {
+	async moveSelected(position: DropPosition, target: TreeItemContext): Promise<boolean> {
 		if (target.node.selected) {
 			// Don't move an item next to or inside itself.
 			this.#onMoveError({
@@ -350,10 +402,7 @@ export class TreeContext {
 		}
 	}
 
-	async #copyPasteSelected(
-		position: DropPosition,
-		target: TreeItemProviderContext,
-	): Promise<boolean> {
+	async #copyPasteSelected(position: DropPosition, target: TreeItemContext): Promise<boolean> {
 		let owner: FolderNode | FileTree;
 		switch (position) {
 			case "before":
@@ -430,7 +479,7 @@ export class TreeContext {
 		});
 	}
 
-	async pasteSelected(position: DropPosition, target: TreeItemProviderContext): Promise<boolean> {
+	async pasteSelected(position: DropPosition, target: TreeItemContext): Promise<boolean> {
 		let didPaste: boolean;
 		switch (this.pasteOperation) {
 			case "copy": {
@@ -453,7 +502,7 @@ export class TreeContext {
 		return didPaste;
 	}
 
-	async deleteSelected(target: TreeItemProviderContext): Promise<boolean> {
+	async deleteSelected(target: TreeItemContext): Promise<boolean> {
 		const deleted: Array<FileTreeNode> = [];
 		const deletedOwners = new Set<FolderNode | FileTree>();
 		for (const id of this.tree.selectedIds) {
@@ -487,14 +536,14 @@ export class TreeContext {
 			let nearestUnselected: FileTreeItemPosition | undefined = focusTarget;
 			while (nearestUnselected?.node.selected) {
 				// The current item will be deleted, so we shouldn't traverse its children.
-				nearestUnselected = this.tree.getNextNonChildItem(nearestUnselected);
+				nearestUnselected = this.getNextNonChildItem(nearestUnselected);
 			}
 
 			if (nearestUnselected === undefined) {
 				// Focus the nearest remaining item before this item.
 				nearestUnselected = focusTarget;
 				while (nearestUnselected?.node.selected) {
-					nearestUnselected = this.tree.getPreviousItem(nearestUnselected);
+					nearestUnselected = this.getPreviousItem(nearestUnselected);
 				}
 			}
 
@@ -528,24 +577,88 @@ export class TreeContext {
 	}
 }
 
-export type TreeItemProviderContextProps<TNode extends FileTreeNode = FileTreeNode> = {
-	treeContext: TreeContext;
-	node: () => TNode;
-	index: () => number;
-	parent: () => TreeItemProviderContext<FolderNode> | undefined;
+export type DropPositionStateProps = {
+	node: () => FileTreeNode;
 };
 
-export class TreeItemProviderContext<TNode extends FileTreeNode = FileTreeNode> {
+export class DropPositionState {
+	readonly #node: () => FileTreeNode;
+
+	constructor(props: DropPositionStateProps) {
+		this.#node = props.node;
+	}
+
+	#current?: DropPosition = $state.raw();
+	#updateRequestId?: number;
+
+	get current(): DropPosition | undefined {
+		return this.#current;
+	}
+
+	get(rect: DOMRect, clientY: number): DropPosition {
+		const node = this.#node();
+		switch (node.type) {
+			case "file": {
+				const midY = rect.top + rect.height / 2;
+				return clientY < midY ? "before" : "after";
+			}
+			case "folder": {
+				const { top, bottom, height } = rect;
+				if (clientY < top + height / 3) {
+					return "before";
+				}
+				if (clientY < bottom - height / 3) {
+					return "inside";
+				}
+				return "after";
+			}
+		}
+	}
+
+	update(element: HTMLElement, clientY: number): void {
+		if (this.#updateRequestId !== undefined) {
+			return;
+		}
+
+		this.#updateRequestId = window.requestAnimationFrame(() => {
+			this.#current = this.get(element.getBoundingClientRect(), clientY);
+			this.#updateRequestId = undefined;
+		});
+	}
+
+	clear(): void {
+		this.#current = undefined;
+
+		if (this.#updateRequestId !== undefined) {
+			window.cancelAnimationFrame(this.#updateRequestId);
+			this.#updateRequestId = undefined;
+		}
+	}
+}
+
+export type TreeItemContextProps<TNode extends FileTreeNode = FileTreeNode> = {
+	treeContext: TreeContext;
+	parent: TreeItemContext<FolderNode> | undefined;
+	node: () => TNode;
+	index: () => number;
+};
+
+export class TreeItemContext<TNode extends FileTreeNode = FileTreeNode> {
 	readonly #treeContext: TreeContext;
+	readonly parent?: TreeItemContext<FolderNode>;
 	readonly #node: () => TNode;
 	readonly #index: () => number;
-	readonly #parent: () => TreeItemProviderContext<FolderNode> | undefined;
+	readonly depth: number;
+	readonly dropPosition: DropPositionState;
+	editing: boolean = $state.raw(false);
 
-	constructor(props: TreeItemProviderContextProps<TNode>) {
+	constructor(props: TreeItemContextProps<TNode>) {
 		this.#treeContext = props.treeContext;
+		this.parent = props.parent;
 		this.#node = props.node;
 		this.#index = props.index;
-		this.#parent = props.parent;
+		this.depth = props.parent !== undefined ? props.parent.depth + 1 : 0;
+		this.dropPosition = new DropPositionState(props);
 	}
 
 	get node(): TNode {
@@ -556,28 +669,15 @@ export class TreeItemProviderContext<TNode extends FileTreeNode = FileTreeNode> 
 		return this.#index();
 	}
 
-	get parent(): TreeItemProviderContext<FolderNode> | undefined {
-		return this.#parent();
-	}
-
-	readonly depth: number = $derived.by(() => {
+	readonly nearestSelectedAncestor: TreeItemContext<FolderNode> | undefined = $derived.by(() => {
 		if (this.parent === undefined) {
-			return 0;
+			return;
 		}
-		return this.parent.depth + 1;
+		if (this.parent.node.selected) {
+			return this.parent;
+		}
+		return this.parent.nearestSelectedAncestor;
 	});
-
-	readonly nearestSelectedAncestor: TreeItemProviderContext<FolderNode> | undefined = $derived.by(
-		() => {
-			if (this.parent === undefined) {
-				return;
-			}
-			if (this.parent.node.selected) {
-				return this.parent;
-			}
-			return this.parent.nearestSelectedAncestor;
-		},
-	);
 
 	readonly dragged: boolean = $derived.by(() => {
 		if (this.#treeContext.draggedId === undefined) {
@@ -588,4 +688,45 @@ export class TreeItemProviderContext<TNode extends FileTreeNode = FileTreeNode> 
 		}
 		return this.node.selected && this.nearestSelectedAncestor === undefined;
 	});
+
+	onDestroy(): void {
+		this.dropPosition.clear();
+		this.editing = false;
+	}
+}
+
+export class TreeItemSnippetArgs {
+	readonly #context: TreeItemContext;
+
+	constructor(context: TreeItemContext) {
+		this.#context = context;
+	}
+
+	get node(): FileTreeNode {
+		return this.#context.node;
+	}
+
+	get index(): number {
+		return this.#context.index;
+	}
+
+	get depth(): number {
+		return this.#context.depth;
+	}
+
+	get editing(): boolean {
+		return this.#context.editing;
+	}
+
+	set editing(value: boolean) {
+		this.#context.editing = value;
+	}
+
+	get dragged(): boolean {
+		return this.#context.dragged;
+	}
+
+	get dropPosition(): DropPosition | undefined {
+		return this.#context.dropPosition.current;
+	}
 }

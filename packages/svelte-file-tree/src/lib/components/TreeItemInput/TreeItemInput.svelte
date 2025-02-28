@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { composeEventHandlers } from "$lib/internal/helpers.svelte.js";
 	import { getTreeContext } from "../Tree/Tree.svelte";
-	import { getTreeItemProviderContext } from "../Tree/TreeItemProvider.svelte";
-	import { getTreeItemContext } from "../TreeItem/TreeItem.svelte";
+	import { getTreeItemContext } from "../Tree/TreeItemContextProvider.svelte";
 	import { TreeItemInputAttributes } from "./state.svelte.js";
 	import type { TreeItemInputProps } from "./types.js";
 
 	const itemContext = getTreeItemContext();
-	const itemProviderContext = getTreeItemProviderContext();
 	const treeContext = getTreeContext();
 
 	let {
-		name = $bindable(itemProviderContext.node.name),
+		name = $bindable(itemContext.node.name),
 		element = $bindable(null),
 		onfocus,
 		onkeydown,
@@ -21,7 +19,6 @@
 
 	const attributes = new TreeItemInputAttributes({
 		treeContext,
-		itemProviderContext,
 		itemContext,
 		name: () => name,
 	});
