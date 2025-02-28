@@ -92,11 +92,11 @@
 
 <main class="p-8">
 	<Tree {tree} {onRenameError} {onMoveError} {onNameConflict} class="space-y-4">
-		{#snippet item({ node, depth, dragged })}
+		{#snippet item({ node, depth, editing, dragged, dropPosition })}
 			<TreeItem
 				editable
 				draggable
-				class={({ dropPosition }) => [
+				class={[
 					"relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
 					dragged && "opacity-50",
 					dropPosition !== undefined &&
@@ -107,25 +107,23 @@
 				]}
 				style="margin-inline-start: {depth * 16}px;"
 			>
-				{#snippet children({ editing })}
-					{#if node.type === "file"}
-						<FileIcon role="presentation" />
-					{:else if node.expanded}
-						<FolderOpenIcon
-							role="presentation"
-							class="fill-blue-300"
-							onclick={() => node.collapse()}
-						/>
-					{:else}
-						<FolderIcon role="presentation" class="fill-blue-300" onclick={() => node.expand()} />
-					{/if}
+				{#if node.type === "file"}
+					<FileIcon role="presentation" />
+				{:else if node.expanded}
+					<FolderOpenIcon
+						role="presentation"
+						class="fill-blue-300"
+						onclick={() => node.collapse()}
+					/>
+				{:else}
+					<FolderIcon role="presentation" class="fill-blue-300" onclick={() => node.expand()} />
+				{/if}
 
-					{#if editing}
-						<TreeItemInput class="border bg-white focus:outline-none" />
-					{:else}
-						<span class="select-none">{node.name}</span>
-					{/if}
-				{/snippet}
+				{#if editing}
+					<TreeItemInput class="border bg-white focus:outline-none" />
+				{:else}
+					<span class="select-none">{node.name}</span>
+				{/if}
 			</TreeItem>
 		{/snippet}
 	</Tree>

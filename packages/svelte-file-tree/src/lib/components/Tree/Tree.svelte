@@ -1,10 +1,10 @@
 <script lang="ts" module>
-	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+	import type { FileTreeNode } from "$lib/tree.svelte.js";
 	import { DEV } from "esm-env";
 	import { getContext, hasContext, setContext } from "svelte";
-	import TreeItemProvider from "./TreeItemProvider.svelte";
+	import TreeItemContextProvider from "./TreeItemContextProvider.svelte";
 	import { TreeContext } from "./state.svelte.js";
-	import type { TreeItemProviderContext, TreeProps } from "./types.js";
+	import type { TreeProps } from "./types.js";
 
 	const CONTEXT_KEY = Symbol("Tree");
 
@@ -51,7 +51,7 @@
 		...rest
 	}: TreeProps = $props();
 
-	const treeContext = new TreeContext({
+	const context = new TreeContext({
 		tree: () => tree,
 		pasteOperation: () => pasteOperation,
 		setPasteOperation: (value) => {
@@ -67,26 +67,23 @@
 		onNameConflict: (args) => onNameConflict(args),
 		onDeleteItems: (args) => onDeleteItems(args),
 	});
-	setContext(CONTEXT_KEY, treeContext);
+	setContext(CONTEXT_KEY, context);
 </script>
 
-{#snippet items(
-	nodes: Array<FileTreeNode> = tree.children,
-	parent?: TreeItemProviderContext<FolderNode>,
-)}
+{#snippet items(nodes: Array<FileTreeNode>)}
 	{#each nodes as node, index (node.id)}
-		<TreeItemProvider {node} {index} {parent}>
-			{#snippet children(context)}
-				{@render item(context)}
+		<TreeItemContextProvider {node} {index}>
+			{#snippet children(args)}
+				{@render item(args)}
 
 				{#if node.type === "folder" && node.expanded}
-					{@render items(node.children, context as TreeItemProviderContext<FolderNode>)}
+					{@render items(node.children)}
 				{/if}
 			{/snippet}
-		</TreeItemProvider>
+		</TreeItemContextProvider>
 	{/each}
 {/snippet}
 
 <div bind:this={element} {...rest} {id} role="tree" aria-multiselectable="true">
-	{@render items()}
+	{@render items(tree.children)}
 </div>

@@ -1,23 +1,19 @@
 import type { EventHandler } from "svelte/elements";
-import type { TreeContext, TreeItemProviderContext } from "../Tree/state.svelte.js";
-import type { TreeItemContext } from "../TreeItem/state.svelte.js";
+import type { TreeContext, TreeItemContext } from "../Tree/state.svelte.js";
 
 export type TreeItemInputAttributesProps = {
 	treeContext: TreeContext;
-	itemProviderContext: TreeItemProviderContext;
 	itemContext: TreeItemContext;
 	name: () => string;
 };
 
 export class TreeItemInputAttributes {
 	readonly #treeContext: TreeContext;
-	readonly #itemProviderContext: TreeItemProviderContext;
 	readonly #itemContext: TreeItemContext;
 	readonly #name: () => string;
 
 	constructor(props: TreeItemInputAttributesProps) {
 		this.#treeContext = props.treeContext;
-		this.#itemProviderContext = props.itemProviderContext;
 		this.#itemContext = props.itemContext;
 		this.#name = props.name;
 	}
@@ -35,13 +31,13 @@ export class TreeItemInputAttributes {
 		switch (event.key) {
 			case "Enter": {
 				const name = this.#name();
-				const { node } = this.#itemProviderContext;
+				const { node } = this.#itemContext;
 				if (name === node.name) {
 					this.#treeContext.getItemElement(node.id)?.focus();
 					break;
 				}
 
-				void this.#treeContext.renameItem(name, this.#itemProviderContext).then((didRename) => {
+				void this.#treeContext.renameItem(name, this.#itemContext).then((didRename) => {
 					if (didRename) {
 						this.#treeContext.getItemElement(node.id)?.focus();
 					}
@@ -49,7 +45,7 @@ export class TreeItemInputAttributes {
 				break;
 			}
 			case "Escape": {
-				this.#treeContext.getItemElement(this.#itemProviderContext.node.id)?.focus();
+				this.#treeContext.getItemElement(this.#itemContext.node.id)?.focus();
 				break;
 			}
 			default: {
