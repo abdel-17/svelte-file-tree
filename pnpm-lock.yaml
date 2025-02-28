@@ -84,6 +84,9 @@ importers:
 
   sites/preview:
     devDependencies:
+      '@lucide/svelte':
+        specifier: 0.477.0-rc.0
+        version: 0.477.0-rc.0(svelte@5.20.5)
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
         version: 3.0.8(@sveltejs/kit@2.17.1(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.20.5)(vite@6.1.0(@types/node@22.13.1)(jiti@2.4.2)(lightningcss@1.29.1)))(svelte@5.20.5)(vite@6.1.0(@types/node@22.13.1)(jiti@2.4.2)(lightningcss@1.29.1)))
@@ -99,9 +102,6 @@ importers:
       bits-ui:
         specifier: 1.0.0-next.90
         version: 1.0.0-next.90(svelte@5.20.5)
-      lucide-svelte:
-        specifier: ^0.475.0
-        version: 0.475.0(svelte@5.20.5)
       prettier:
         specifier: ^3.5.0
         version: 3.5.0
@@ -132,6 +132,9 @@ importers:
 
   sites/sveltekit-example:
     devDependencies:
+      '@lucide/svelte':
+        specifier: 0.477.0-rc.0
+        version: 0.477.0-rc.0(svelte@5.20.5)
       '@sveltejs/adapter-auto':
         specifier: ^4.0.0
         version: 4.0.0(@sveltejs/kit@2.17.1(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.20.5)(vite@6.1.0(@types/node@22.13.1)(jiti@2.4.2)(lightningcss@1.29.1)))(svelte@5.20.5)(vite@6.1.0(@types/node@22.13.1)(jiti@2.4.2)(lightningcss@1.29.1)))
@@ -150,9 +153,6 @@ importers:
       better-sqlite3:
         specifier: ^11.8.1
         version: 11.8.1
-      lucide-svelte:
-        specifier: ^0.475.0
-        version: 0.475.0(svelte@5.20.5)
       prettier:
         specifier: ^3.4.2
         version: 3.5.0
@@ -569,6 +569,11 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
+
+  '@lucide/svelte@0.477.0-rc.0':
+    resolution: {integrity: sha512-nxfvKd6HQ3Cx6DZkhHPtl97EZP0Iqyq3PPUhYLdExwdYa7jTwuqJKTOcjsZWkfLKKKjMpX49I5HHinSr9cCfLQ==}
+    peerDependencies:
+      svelte: ^5
 
   '@manypkg/find-root@1.1.0':
     resolution: {integrity: sha512-mki5uBvhHzO8kYYix/WRy2WX8S3B5wdVSc9D6KcU5lQNglP2yt58/VfLuAK49glRXChosY8ap2oJ1qgma3GUVA==}
@@ -1692,11 +1697,6 @@ packages:
 
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
-
-  lucide-svelte@0.475.0:
-    resolution: {integrity: sha512-N5+hFTPHaZe9HhqJDxxxODfYuOmI6v+JIowzERcea/uxytN/JZlehVTcINBNp8wMo7l6ov1Jf5srrDbkI/WsJg==}
-    peerDependencies:
-      svelte: ^3 || ^4 || ^5.0.0-next.42
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -2946,6 +2946,10 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
+  '@lucide/svelte@0.477.0-rc.0(svelte@5.20.5)':
+    dependencies:
+      svelte: 5.20.5
+
   '@manypkg/find-root@1.1.0':
     dependencies:
       '@babel/runtime': 7.26.0
@@ -4065,10 +4069,6 @@ snapshots:
       tslib: 2.8.1
 
   lru-cache@10.4.3: {}
-
-  lucide-svelte@0.475.0(svelte@5.20.5):
-    dependencies:
-      svelte: 5.20.5
 
   lz-string@1.5.0: {}
 

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { invalidate } from "$app/navigation";
-	import FileIcon from "lucide-svelte/icons/file";
-	import FolderIcon from "lucide-svelte/icons/folder";
-	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
+	import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
+	import FileIcon from "@lucide/svelte/icons/file";
+	import FolderIcon from "@lucide/svelte/icons/folder";
+	import FolderOpenIcon from "@lucide/svelte/icons/folder-open";
 	import { SvelteSet } from "svelte/reactivity";
 	import {
 		FileNode,
@@ -251,7 +252,7 @@
 				draggable
 				{disabled}
 				class={[
-					"relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
+					"relative flex items-center rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
 					dragged && "opacity-50",
 					dropPosition !== undefined &&
 						"before:pointer-events-none before:absolute before:-inset-[2px] before:rounded-[inherit] before:border-2",
@@ -262,17 +263,32 @@
 				]}
 				style="margin-inline-start: {depth * 16}px;"
 			>
-				{#if node.type === "file"}
-					<FileIcon role="presentation" />
-				{:else if node.expanded}
-					<FolderOpenIcon
-						role="presentation"
-						class="fill-blue-300"
-						onclick={() => node.collapse()}
-					/>
-				{:else}
-					<FolderIcon role="presentation" class="fill-blue-300" onclick={() => node.expand()} />
-				{/if}
+				<ChevronDownIcon
+					role="presentation"
+					size={20}
+					class={[
+						"rounded-full p-0.25 transition-transform duration-200 hover:bg-current/8 active:bg-current/12",
+						node.type === "folder" && node.expanded && "-rotate-90",
+						node.type === "file" && "invisible",
+					]}
+					onclick={(event) => {
+						if (node.type === "folder") {
+							node.toggleExpanded();
+						}
+
+						event.stopPropagation();
+					}}
+				/>
+
+				<div class="ms-1 me-3">
+					{#if node.type === "file"}
+						<FileIcon role="presentation" />
+					{:else if node.expanded}
+						<FolderOpenIcon role="presentation" class="fill-blue-300" />
+					{:else}
+						<FolderIcon role="presentation" class="fill-blue-300" />
+					{/if}
+				</div>
 
 				{#if editing}
 					<TreeItemInput class="border bg-white focus:outline-none" />
