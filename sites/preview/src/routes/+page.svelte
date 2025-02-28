@@ -1,8 +1,9 @@
 <script lang="ts">
+	import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
+	import FileIcon from "@lucide/svelte/icons/file";
+	import FolderIcon from "@lucide/svelte/icons/folder";
+	import FolderOpenIcon from "@lucide/svelte/icons/folder-open";
 	import { Dialog } from "bits-ui";
-	import FileIcon from "lucide-svelte/icons/file";
-	import FolderIcon from "lucide-svelte/icons/folder";
-	import FolderOpenIcon from "lucide-svelte/icons/folder-open";
 	import {
 		FileNode,
 		FileTree,
@@ -19,7 +20,7 @@
 	import { Toaster, toast } from "svelte-sonner";
 	import { fade, fly } from "svelte/transition";
 	import data from "./data.json" with { type: "json" };
-	import { createDialogState } from "./state.svelte.js";
+	import { DialogState } from "./state.svelte.js";
 
 	const tree = new FileTree({
 		children: (tree) =>
@@ -41,7 +42,7 @@
 			}),
 	});
 
-	const { dialogData, openDialog, closeDialog, dialogOpen, onDialogOpenChange } = createDialogState<
+	const dialog = new DialogState<
 		{
 			title: string;
 			description: string;
@@ -75,13 +76,13 @@
 		const description = `An item with the name "${target.name}" already exists`;
 		switch (operation) {
 			case "move": {
-				return openDialog({
+				return dialog.open({
 					title: "Failed to move items",
 					description,
 				});
 			}
 			case "insert": {
-				return openDialog({
+				return dialog.open({
 					title: "Failed to paste items",
 					description,
 				});
@@ -97,7 +98,7 @@
 				editable
 				draggable
 				class={[
-					"relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
+					"relative flex items-center rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
 					dragged && "opacity-50",
 					dropPosition !== undefined &&
 						"before:pointer-events-none before:absolute before:-inset-[2px] before:rounded-[inherit] before:border-2",
@@ -107,17 +108,32 @@
 				]}
 				style="margin-inline-start: {depth * 16}px;"
 			>
-				{#if node.type === "file"}
-					<FileIcon role="presentation" />
-				{:else if node.expanded}
-					<FolderOpenIcon
-						role="presentation"
-						class="fill-blue-300"
-						onclick={() => node.collapse()}
-					/>
-				{:else}
-					<FolderIcon role="presentation" class="fill-blue-300" onclick={() => node.expand()} />
-				{/if}
+				<ChevronDownIcon
+					role="presentation"
+					size={20}
+					class={[
+						"rounded-full p-0.25 transition-transform duration-200 hover:bg-current/8 active:bg-current/12",
+						node.type === "folder" && node.expanded && "-rotate-90",
+						node.type === "file" && "invisible",
+					]}
+					onclick={(event) => {
+						if (node.type === "folder") {
+							node.toggleExpanded();
+						}
+
+						event.stopPropagation();
+					}}
+				/>
+
+				<div class="ms-1 me-3">
+					{#if node.type === "file"}
+						<FileIcon role="presentation" />
+					{:else if node.expanded}
+						<FolderOpenIcon role="presentation" class="fill-blue-300" />
+					{:else}
+						<FolderIcon role="presentation" class="fill-blue-300" />
+					{/if}
+				</div>
 
 				{#if editing}
 					<TreeItemInput class="border bg-white focus:outline-none" />
@@ -131,7 +147,14 @@
 
 <Toaster richColors />
 
-<Dialog.Root bind:open={dialogOpen, onDialogOpenChange}>
+<Dialog.Root
+	open={dialog.data !== undefined}
+	onOpenChange={(open) => {
+		if (!open) {
+			dialog.close();
+		}
+	}}
+>
 	<Dialog.Portal>
 		<Dialog.Overlay forceMount class="fixed inset-0 z-50 bg-black/50">
 			{#snippet child({ props, open })}
@@ -147,27 +170,26 @@
 		>
 			{#snippet child({ props, open })}
 				{#if open}
-					{@const { title, description } = dialogData()!}
 					<div {...props} transition:fly={{ y: "-100%" }}>
 						<Dialog.Title class="text-center text-lg font-semibold tracking-tight">
-							{title}
+							{dialog.data?.title}
 						</Dialog.Title>
 
 						<Dialog.Description class="mt-2 text-sm text-gray-700">
-							{description}
+							{dialog.data?.description}
 						</Dialog.Description>
 
 						<div class="mt-5 flex justify-end gap-3">
 							<button
 								class="rounded-md border-1 border-current bg-neutral-100 px-3 py-1.5 text-sm leading-5 font-semibold text-neutral-800 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-neutral-300"
-								onclick={() => closeDialog("skip")}
+								onclick={() => dialog.close("skip")}
 							>
 								Skip
 							</button>
 
 							<button
 								class="rounded-md border-1 border-current bg-red-100 px-3 py-1.5 text-sm leading-5 font-semibold text-red-800 hover:bg-red-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-red-300"
-								onclick={() => closeDialog("cancel")}
+								onclick={() => dialog.close("cancel")}
 							>
 								Cancel
 							</button>
