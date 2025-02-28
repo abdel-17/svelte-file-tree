@@ -1,15 +1,9 @@
-import type { HTMLDivAttributes, ResolvableTo } from "$lib/internal/types.js";
+import type { HTMLDivAttributes } from "$lib/internal/types.js";
 import type { Snippet } from "svelte";
 import type { ClassValue } from "svelte/elements";
-import type { DropPosition } from "../Tree/state.svelte.js";
+import type { TreeItemContext } from "./state.svelte.js";
 
-export type { DropPosition };
-
-export type TreeItemChildrenSnippetProps = {
-	editing: boolean;
-	dragged: boolean;
-	dropPosition: DropPosition | undefined;
-};
+export type { TreeItemContext };
 
 export interface TreeItemProps
 	extends Omit<
@@ -26,11 +20,11 @@ export interface TreeItemProps
 		| "class"
 		| "style"
 	> {
-	children: Snippet<[props: TreeItemChildrenSnippetProps]>;
+	children: Snippet<[context: TreeItemContext]>;
 	editable?: boolean;
 	editing?: boolean;
 	disabled?: boolean;
 	element?: HTMLElement | null;
-	class?: ResolvableTo<ClassValue | undefined, [props: TreeItemChildrenSnippetProps]>;
-	style?: ResolvableTo<string | undefined, [props: TreeItemChildrenSnippetProps]>;
+	class?: ClassValue | undefined | ((context: TreeItemContext) => ClassValue | undefined);
+	style?: string | undefined | ((context: TreeItemContext) => string | undefined);
 }

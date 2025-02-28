@@ -1,47 +1,38 @@
 <script lang="ts">
-	import { TreeContext, TreeItemProviderContext } from "../Tree/context.js";
-	import { TreeItemContext } from "../TreeItem/context.js";
-	import { createTreeItemInputState } from "./state.js";
+	import { composeEventHandlers } from "$lib/internal/helpers.svelte.js";
+	import { getTreeContext } from "../Tree/Tree.svelte";
+	import { getTreeItemProviderContext } from "../Tree/TreeItemProvider.svelte";
+	import { getTreeItemContext } from "../TreeItem/TreeItem.svelte";
+	import { TreeItemInputAttributes } from "./state.svelte.js";
 	import type { TreeItemInputProps } from "./types.js";
 
-	const { setEditing } = TreeItemContext.get();
-	const { node, index, parent } = TreeItemProviderContext.get();
-	const { treeState } = TreeContext.get();
+	const itemContext = getTreeItemContext();
+	const itemProviderContext = getTreeItemProviderContext();
+	const treeContext = getTreeContext();
 
 	let {
-		name = $bindable(node().name),
+		name = $bindable(itemProviderContext.node.name),
 		element = $bindable(null),
 		onfocus,
 		onkeydown,
 		onblur,
-		...attributes
+		...rest
 	}: TreeItemInputProps = $props();
 
-	const { onInit, handleFocus, handleKeyDown, handleBlur } = createTreeItemInputState({
-		treeState,
-		node,
-		index,
-		parent,
-		setEditing,
+	const attributes = new TreeItemInputAttributes({
+		treeContext,
+		itemProviderContext,
+		itemContext,
 		name: () => name,
-		onfocus: (event) => {
-			onfocus?.(event);
-		},
-		onkeydown: (event) => {
-			onkeydown?.(event);
-		},
-		onblur: (event) => {
-			onblur?.(event);
-		},
 	});
 </script>
 
 <input
 	bind:this={element}
-	{...attributes}
+	{...rest}
 	bind:value={name}
-	onfocus={handleFocus}
-	onkeydown={handleKeyDown}
-	onblur={handleBlur}
-	use:onInit
+	onfocus={composeEventHandlers(onfocus, attributes.onfocus)}
+	onkeydown={composeEventHandlers(onkeydown, attributes.onkeydown)}
+	onblur={composeEventHandlers(onblur, attributes.onblur)}
+	use:attributes.onMount
 />

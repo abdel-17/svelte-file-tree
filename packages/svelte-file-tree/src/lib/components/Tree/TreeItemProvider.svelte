@@ -1,29 +1,42 @@
-<script lang="ts">
+<script lang="ts" module>
 	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
-	import type { Snippet } from "svelte";
-	import { TreeItemProviderContext } from "./context.js";
-	import type { TreeItemPosition } from "./state.svelte.js";
+	import { DEV } from "esm-env";
+	import { getContext, hasContext, setContext, type Snippet } from "svelte";
+	import { getTreeContext } from "./Tree.svelte";
+	import { TreeItemProviderContext } from "./state.svelte.js";
+
+	const CONTEXT_KEY = Symbol("TreeItemProvider");
+
+	export function getTreeItemProviderContext(): TreeItemProviderContext {
+		if (DEV && !hasContext(CONTEXT_KEY)) {
+			throw new Error("No parent <Tree> found");
+		}
+		return getContext(CONTEXT_KEY);
+	}
+</script>
+
+<script lang="ts">
+	const treeContext = getTreeContext();
 
 	const {
 		node,
 		index,
-		depth,
 		parent,
 		children,
 	}: {
 		node: FileTreeNode;
 		index: number;
-		depth: number;
-		parent: TreeItemPosition<FolderNode> | undefined;
-		children: Snippet;
+		parent: TreeItemProviderContext<FolderNode> | undefined;
+		children: Snippet<[context: TreeItemProviderContext]>;
 	} = $props();
 
-	TreeItemProviderContext.set({
+	const itemProviderContext = new TreeItemProviderContext({
+		treeContext,
 		node: () => node,
 		index: () => index,
-		depth: () => depth,
 		parent: () => parent,
 	});
+	setContext(CONTEXT_KEY, itemProviderContext);
 </script>
 
-{@render children()}
+{@render children(itemProviderContext)}

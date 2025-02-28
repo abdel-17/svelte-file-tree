@@ -1,7 +1,7 @@
 import { defineWorkspace } from "vitest/config";
 import type { BrowserCommand } from "vitest/node";
 
-type PressCommand = BrowserCommand<[string]>;
+type PressCommand = BrowserCommand<[key: string]>;
 
 const press: PressCommand = async (context, key) => {
 	await context.page.keyboard.press(key);

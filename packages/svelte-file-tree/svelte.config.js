@@ -11,7 +11,6 @@ export default {
 					include: [
 						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 						...config.include,
-						"../eslint.config.js",
 						"../svelte.config.js",
 						"../vitest.workspace.ts",
 					],

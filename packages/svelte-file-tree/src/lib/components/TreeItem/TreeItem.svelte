@@ -1,11 +1,25 @@
-<script lang="ts">
-	import { TreeContext, TreeItemProviderContext } from "../Tree/context.js";
-	import { TreeItemContext } from "./context.js";
-	import { createTreeItemState } from "./state.svelte.js";
-	import type { TreeItemChildrenSnippetProps, TreeItemProps } from "./types.js";
+<script lang="ts" module>
+	import { composeEventHandlers } from "$lib/internal/helpers.svelte.js";
+	import { DEV } from "esm-env";
+	import { getContext, hasContext, setContext } from "svelte";
+	import { getTreeContext } from "../Tree/Tree.svelte";
+	import { getTreeItemProviderContext } from "../Tree/TreeItemProvider.svelte";
+	import { DropPositionState, TreeItemAttributes, TreeItemContext } from "./state.svelte.js";
+	import type { TreeItemProps } from "./types.js";
 
-	const { node, index, depth, parent } = TreeItemProviderContext.get();
-	const { treeState } = TreeContext.get();
+	const CONTEXT_KEY = Symbol("TreeItem");
+
+	export function getTreeItemContext(): TreeItemContext {
+		if (DEV && !hasContext(CONTEXT_KEY)) {
+			throw new Error("No parent <TreeItem> found");
+		}
+		return getContext(CONTEXT_KEY);
+	}
+</script>
+
+<script lang="ts">
+	const itemProviderContext = getTreeItemProviderContext();
+	const treeContext = getTreeContext();
 
 	let {
 		children,
@@ -17,102 +31,66 @@
 		style,
 		onfocusin,
 		onkeydown,
-		onpointerdown,
+		onclick,
 		ondragstart,
 		ondragover,
 		ondragleave,
 		ondrop,
 		ondragend,
-		...attributes
+		...rest
 	}: TreeItemProps = $props();
 
-	const setEditing = (value: boolean): void => {
-		editing = value;
-	};
-
-	const {
-		treeItemId,
-		ariaSelected,
-		ariaExpanded,
-		ariaLevel,
-		ariaPosInSet,
-		ariaSetSize,
-		tabIndex,
-		dragged,
-		dropPosition,
-		handleFocusIn,
-		handleKeyDown,
-		handlePointerDown,
-		handleDragStart,
-		handleDragOver,
-		handleDragLeave,
-		handleDrop,
-		handleDragEnd,
-	} = createTreeItemState({
-		treeState,
-		node,
-		index,
-		depth,
-		parent,
-		editable: () => editable,
-		setEditing,
-		disabled: () => disabled,
-		onfocusin: (event) => {
-			onfocusin?.(event);
-		},
-		onkeydown: (event) => {
-			onkeydown?.(event);
-		},
-		onpointerdown: (event) => {
-			onpointerdown?.(event);
-		},
-		ondragstart: (event) => {
-			ondragstart?.(event);
-		},
-		ondragover: (event) => {
-			ondragover?.(event);
-		},
-		ondragleave: (event) => {
-			ondragleave?.(event);
-		},
-		ondrop: (event) => {
-			ondrop?.(event);
-		},
-		ondragend: (event) => {
-			ondragend?.(event);
-		},
+	$effect(() => {
+		treeContext.onSetItem(itemProviderContext);
 	});
 
-	TreeItemContext.set({ setEditing });
+	$effect(() => {
+		return () => {
+			treeContext.onDestroyItem(itemProviderContext.node.id);
+		};
+	});
 
-	const childrenProps: TreeItemChildrenSnippetProps = $derived({
-		editing,
-		dragged: dragged(),
-		dropPosition: dropPosition(),
+	const dropPositionState = new DropPositionState({ itemProviderContext });
+	const itemContext = new TreeItemContext({
+		editable: () => editable,
+		editing: () => editing,
+		setEditing: (value) => {
+			editing = value;
+		},
+		disabled: () => disabled,
+		dropPositionState,
+	});
+	setContext(CONTEXT_KEY, itemContext);
+
+	const attributes = new TreeItemAttributes({
+		treeContext,
+		itemProviderContext,
+		itemContext,
+		dropPositionState,
 	});
 </script>
 
 <div
 	bind:this={element}
-	{...attributes}
-	id={treeItemId()}
+	{...rest}
+	id={attributes.id}
 	role="treeitem"
-	aria-selected={ariaSelected()}
-	aria-expanded={ariaExpanded()}
-	aria-level={ariaLevel()}
-	aria-posinset={ariaPosInSet()}
-	aria-setsize={ariaSetSize()}
-	tabindex={tabIndex()}
-	class={typeof className === "function" ? className(childrenProps) : className}
-	style={typeof style === "function" ? style(childrenProps) : style}
-	onfocusin={handleFocusIn}
-	onkeydown={handleKeyDown}
-	onpointerdown={handlePointerDown}
-	ondragstart={handleDragStart}
-	ondragover={handleDragOver}
-	ondragleave={handleDragLeave}
-	ondrop={handleDrop}
-	ondragend={handleDragEnd}
+	aria-selected={attributes.ariaSelected}
+	aria-expanded={attributes.ariaExpanded}
+	aria-level={attributes.ariaLevel}
+	aria-posinset={attributes.ariaPosInSet}
+	aria-setsize={attributes.ariaSetSize}
+	tabindex={attributes.tabIndex}
+	class={typeof className === "function" ? className(itemContext) : className}
+	style={typeof style === "function" ? style(itemContext) : style}
+	onfocusin={composeEventHandlers(onfocusin, attributes.onfocusin)}
+	onkeydown={composeEventHandlers(onkeydown, attributes.onkeydown)}
+	onclick={composeEventHandlers(onclick, attributes.onclick)}
+	ondragstart={composeEventHandlers(ondragstart, attributes.ondragstart)}
+	ondragover={composeEventHandlers(ondragover, attributes.ondragover)}
+	ondragleave={composeEventHandlers(ondragleave, attributes.ondragleave)}
+	ondrop={composeEventHandlers(ondrop, attributes.ondrop)}
+	ondragend={composeEventHandlers(ondragend, attributes.ondragend)}
 >
-	{@render children(childrenProps)}
+	{@render children(itemContext)}
 </div>
