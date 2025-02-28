@@ -402,7 +402,7 @@ export class TreeItemAttributes {
 		event.preventDefault();
 	};
 
-	readonly onpointerdown: EventHandler<PointerEvent, HTMLElement> = (event) => {
+	readonly onclick: EventHandler<MouseEvent, HTMLElement> = (event) => {
 		if (this.#itemContext.disabled) {
 			return;
 		}

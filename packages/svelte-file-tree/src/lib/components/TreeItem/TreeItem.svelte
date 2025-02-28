@@ -31,7 +31,7 @@
 		style,
 		onfocusin,
 		onkeydown,
-		onpointerdown,
+		onclick,
 		ondragstart,
 		ondragover,
 		ondragleave,
@@ -85,7 +85,7 @@
 	style={typeof style === "function" ? style(itemContext) : style}
 	onfocusin={composeEventHandlers(onfocusin, attributes.onfocusin)}
 	onkeydown={composeEventHandlers(onkeydown, attributes.onkeydown)}
-	onpointerdown={composeEventHandlers(onpointerdown, attributes.onpointerdown)}
+	onclick={composeEventHandlers(onclick, attributes.onclick)}
 	ondragstart={composeEventHandlers(ondragstart, attributes.ondragstart)}
 	ondragover={composeEventHandlers(ondragover, attributes.ondragover)}
 	ondragleave={composeEventHandlers(ondragleave, attributes.ondragleave)}
