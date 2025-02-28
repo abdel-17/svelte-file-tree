@@ -427,7 +427,12 @@ export class TreeItemAttributes {
 		}
 
 		this.#treeContext.draggedId = this.#itemProviderContext.node.id;
-		this.#itemProviderContext.node.select();
+
+		if (event.shiftKey) {
+			this.#treeContext.selectUntil(this.#itemProviderContext, event.currentTarget);
+		} else {
+			this.#itemProviderContext.node.select();
+		}
 	};
 
 	readonly ondragover: EventHandler<DragEvent, HTMLElement> = (event) => {
@@ -470,12 +475,12 @@ export class TreeItemAttributes {
 			return;
 		}
 
-		this.#treeContext.tree.selectedIds.add(draggedId);
-
 		const position = this.#dropPositionState.get(
 			event.currentTarget.getBoundingClientRect(),
 			event.clientY,
 		);
+
+		this.#treeContext.tree.selectedIds.add(draggedId);
 		void this.#treeContext.moveSelected(position, this.#itemProviderContext).then((didMove) => {
 			if (didMove) {
 				this.#treeContext.getItemElement(draggedId)?.focus();
