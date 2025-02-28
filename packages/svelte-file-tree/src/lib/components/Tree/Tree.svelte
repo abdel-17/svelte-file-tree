@@ -1,80 +1,92 @@
-<script lang="ts">
+<script lang="ts" module>
 	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+	import { DEV } from "esm-env";
+	import { getContext, hasContext, setContext } from "svelte";
 	import TreeItemProvider from "./TreeItemProvider.svelte";
-	import { TreeContext } from "./context.js";
-	import { createTreeState } from "./state.svelte.js";
-	import type { TreeItemSnippetProps, TreeProps } from "./types.js";
+	import { TreeContext } from "./state.svelte.js";
+	import type { TreeItemProviderContext, TreeProps } from "./types.js";
 
+	const CONTEXT_KEY = Symbol("Tree");
+
+	export function getTreeContext(): TreeContext {
+		if (DEV && !hasContext(CONTEXT_KEY)) {
+			throw new Error("No parent <Tree> found");
+		}
+		return getContext(CONTEXT_KEY);
+	}
+</script>
+
+<script lang="ts">
+	const defaultId = $props.id();
 	let {
 		tree,
 		item,
 		pasteOperation = $bindable(),
-		id = crypto.randomUUID(),
+		id = defaultId,
 		element = $bindable(null),
 		generateCopyId = () => crypto.randomUUID(),
-		onRenameItem = ({ target, name }) => {
-			target.name = name;
+		onRenameItem = (args) => {
+			args.target.name = args.name;
 			return true;
 		},
 		onRenameError,
-		onMoveItems = ({ updates }) => {
-			for (const { target, children } of updates) {
+		onMoveItems = (args) => {
+			for (const { target, children } of args.updates) {
 				target.children = children;
 			}
 			return true;
 		},
 		onMoveError,
-		onInsertItems = ({ target, start, inserted }) => {
-			target.children.splice(start, 0, ...inserted);
+		onInsertItems = (args) => {
+			args.target.children.splice(args.start, 0, ...args.inserted);
 			return true;
 		},
 		onNameConflict = () => "cancel",
-		onDeleteItems = ({ updates }) => {
-			for (const { target, children } of updates) {
+		onDeleteItems = (args) => {
+			for (const { target, children } of args.updates) {
 				target.children = children;
 			}
 			return true;
 		},
-		...attributes
+		...rest
 	}: TreeProps = $props();
 
-	const treeState = createTreeState({
+	const treeContext = new TreeContext({
 		tree: () => tree,
 		pasteOperation: () => pasteOperation,
 		setPasteOperation: (value) => {
 			pasteOperation = value;
 		},
-		treeId: () => id,
+		id: () => id,
 		generateCopyId: () => generateCopyId(),
-		onRenameItem: (event) => onRenameItem(event),
-		onRenameError: (event) => onRenameError?.(event),
-		onMoveItems: (event) => onMoveItems(event),
-		onMoveError: (event) => onMoveError?.(event),
-		onInsertItems: (event) => onInsertItems(event),
-		onNameConflict: (event) => onNameConflict(event),
-		onDeleteItems: (event) => onDeleteItems(event),
+		onRenameItem: (args) => onRenameItem(args),
+		onRenameError: (args) => onRenameError?.(args),
+		onMoveItems: (args) => onMoveItems(args),
+		onMoveError: (args) => onMoveError?.(args),
+		onInsertItems: (args) => onInsertItems(args),
+		onNameConflict: (args) => onNameConflict(args),
+		onDeleteItems: (args) => onDeleteItems(args),
 	});
-
-	TreeContext.set({ treeState });
+	setContext(CONTEXT_KEY, treeContext);
 </script>
 
 {#snippet items(
 	nodes: Array<FileTreeNode> = tree.children,
-	depth: number = 0,
-	parent?: TreeItemSnippetProps<FolderNode>,
+	parent?: TreeItemProviderContext<FolderNode>,
 )}
 	{#each nodes as node, index (node.id)}
-		{@const props = { node, index, depth, parent }}
-		<TreeItemProvider {node} {index} {depth} {parent}>
-			{@render item(props)}
-		</TreeItemProvider>
+		<TreeItemProvider {node} {index} {parent}>
+			{#snippet children(context)}
+				{@render item(context)}
 
-		{#if node.type === "folder" && node.expanded}
-			{@render items(node.children, depth + 1, props as TreeItemSnippetProps<FolderNode>)}
-		{/if}
+				{#if node.type === "folder" && node.expanded}
+					{@render items(node.children, context as TreeItemProviderContext<FolderNode>)}
+				{/if}
+			{/snippet}
+		</TreeItemProvider>
 	{/each}
 {/snippet}
 
-<div bind:this={element} {...attributes} {id} role="tree" aria-multiselectable="true">
+<div bind:this={element} {...rest} {id} role="tree" aria-multiselectable="true">
 	{@render items()}
 </div>

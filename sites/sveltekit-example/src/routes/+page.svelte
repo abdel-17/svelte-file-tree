@@ -244,7 +244,7 @@
 		{onDeleteItems}
 		class="space-y-4"
 	>
-		{#snippet item({ node, depth })}
+		{#snippet item({ node, depth, dragged })}
 			{@const disabled = disabledIds.has(node.id)}
 			<TreeItem
 				editable
@@ -252,6 +252,7 @@
 				{disabled}
 				class={({ dropPosition }) => [
 					"relative flex items-center gap-2 rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
+					dragged && "opacity-50",
 					dropPosition !== undefined &&
 						"before:pointer-events-none before:absolute before:-inset-[2px] before:rounded-[inherit] before:border-2",
 					dropPosition === "before" && "before:border-transparent before:border-t-red-500",
