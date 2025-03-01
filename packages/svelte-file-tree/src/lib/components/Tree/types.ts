@@ -58,6 +58,8 @@ export interface TreeProps
 	item: Snippet<[args: TreeItemSnippetArgs]>;
 	pasteOperation?: PasteOperation;
 	id?: string;
+	editable?: boolean | ((node: FileTreeNode) => boolean);
+	disabled?: boolean | ((node: FileTreeNode) => boolean);
 	element?: HTMLElement | null;
 	generateCopyId?: () => string;
 	onRenameItem?: (args: RenameItemArgs) => MaybePromise<boolean>;

@@ -641,22 +641,28 @@ export type TreeItemContextProps<TNode extends FileTreeNode = FileTreeNode> = {
 	parent: TreeItemContext<FolderNode> | undefined;
 	node: () => TNode;
 	index: () => number;
+	editable: () => boolean;
+	disabled: () => boolean;
 };
 
 export class TreeItemContext<TNode extends FileTreeNode = FileTreeNode> {
 	readonly #treeContext: TreeContext;
-	readonly parent?: TreeItemContext<FolderNode>;
 	readonly #node: () => TNode;
 	readonly #index: () => number;
+	readonly #editable: () => boolean;
+	readonly #disabled: () => boolean;
+	readonly parent?: TreeItemContext<FolderNode>;
 	readonly depth: number;
 	readonly dropPosition: DropPositionState;
 	editing: boolean = $state.raw(false);
 
 	constructor(props: TreeItemContextProps<TNode>) {
 		this.#treeContext = props.treeContext;
-		this.parent = props.parent;
 		this.#node = props.node;
 		this.#index = props.index;
+		this.#editable = props.editable;
+		this.#disabled = props.disabled;
+		this.parent = props.parent;
 		this.depth = props.parent !== undefined ? props.parent.depth + 1 : 0;
 		this.dropPosition = new DropPositionState(props);
 	}
@@ -668,6 +674,17 @@ export class TreeItemContext<TNode extends FileTreeNode = FileTreeNode> {
 	get index(): number {
 		return this.#index();
 	}
+
+	get editable(): boolean {
+		return this.#editable();
+	}
+
+	readonly disabled: boolean = $derived.by(() => {
+		if (this.parent?.disabled) {
+			return true;
+		}
+		return this.#disabled();
+	});
 
 	readonly nearestSelectedAncestor: TreeItemContext<FolderNode> | undefined = $derived.by(() => {
 		if (this.parent === undefined) {
@@ -714,12 +731,20 @@ export class TreeItemSnippetArgs {
 		return this.#context.depth;
 	}
 
+	get editable(): boolean {
+		return this.#context.editable;
+	}
+
 	get editing(): boolean {
 		return this.#context.editing;
 	}
 
 	set editing(value: boolean) {
 		this.#context.editing = value;
+	}
+
+	get disabled(): boolean {
+		return this.#context.disabled;
 	}
 
 	get dragged(): boolean {

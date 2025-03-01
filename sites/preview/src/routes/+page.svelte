@@ -92,10 +92,9 @@
 </script>
 
 <main class="p-8">
-	<Tree {tree} {onRenameError} {onMoveError} {onNameConflict} class="space-y-4">
+	<Tree {tree} editable {onRenameError} {onMoveError} {onNameConflict} class="space-y-4">
 		{#snippet item({ node, depth, editing, dragged, dropPosition })}
 			<TreeItem
-				editable
 				draggable
 				class={[
 					"relative flex items-center rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",

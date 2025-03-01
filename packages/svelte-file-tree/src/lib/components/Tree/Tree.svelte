@@ -24,6 +24,8 @@
 		pasteOperation = $bindable(),
 		id = defaultId,
 		element = $bindable(null),
+		editable = false,
+		disabled = false,
 		generateCopyId = () => crypto.randomUUID(),
 		onRenameItem = (args) => {
 			args.target.name = args.name;
@@ -72,7 +74,12 @@
 
 {#snippet items(nodes: Array<FileTreeNode>)}
 	{#each nodes as node, index (node.id)}
-		<TreeItemContextProvider {node} {index}>
+		<TreeItemContextProvider
+			{node}
+			{index}
+			editable={typeof editable === "function" ? editable(node) : editable}
+			disabled={typeof disabled === "function" ? disabled(node) : disabled}
+		>
 			{#snippet children(args)}
 				{@render item(args)}
 
