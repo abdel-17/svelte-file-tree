@@ -54,24 +54,6 @@
 
 	let disabledIds = new SvelteSet<string>();
 
-	const disableNode = (node: FileTreeNode): void => {
-		disabledIds.add(node.id);
-	};
-
-	const enableNode = (node: FileTreeNode): void => {
-		disabledIds.delete(node.id);
-	};
-
-	const forEachNode = (nodes: Array<FileTreeNode>, callback: (node: FileTreeNode) => void) => {
-		for (const node of nodes) {
-			callback(node);
-
-			if (node.type === "folder") {
-				forEachNode(node.children, callback);
-			}
-		}
-	};
-
 	const mutate = async ({
 		affected,
 		mutation,
@@ -79,14 +61,19 @@
 		affected: Array<FileTreeNode>;
 		mutation: () => Promise<unknown>;
 	}): Promise<void> => {
-		forEachNode(affected, disableNode);
+		for (const node of affected) {
+			disabledIds.add(node.id);
+		}
+
 		try {
 			await mutation();
 		} finally {
 			try {
 				await invalidate(FILES_DEPENDENCY);
 			} finally {
-				forEachNode(affected, enableNode);
+				for (const node of affected) {
+					disabledIds.delete(node.id);
+				}
 			}
 		}
 	};
@@ -236,6 +223,8 @@
 <main class="p-8">
 	<Tree
 		{tree}
+		editable
+		disabled={(node) => disabledIds.has(node.id)}
 		{onRenameItem}
 		{onRenameError}
 		{onMoveItems}
@@ -245,12 +234,9 @@
 		{onDeleteItems}
 		class="space-y-4"
 	>
-		{#snippet item({ node, depth, editing, dragged, dropPosition })}
-			{@const disabled = disabledIds.has(node.id)}
+		{#snippet item({ node, depth, editing, disabled, dragged, dropPosition })}
 			<TreeItem
-				editable
 				draggable
-				{disabled}
 				class={[
 					"relative flex items-center rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
 					dragged && "opacity-50",

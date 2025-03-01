@@ -22,10 +22,14 @@
 	const {
 		node,
 		index,
+		editable,
+		disabled,
 		children,
 	}: {
 		node: FileTreeNode;
 		index: number;
+		editable: boolean;
+		disabled: boolean;
 		children: Snippet<[args: TreeItemSnippetArgs]>;
 	} = $props();
 
@@ -34,6 +38,8 @@
 		parent,
 		node: () => node,
 		index: () => index,
+		editable: () => editable,
+		disabled: () => disabled,
 	});
 	setContext(CONTEXT_KEY, context);
 

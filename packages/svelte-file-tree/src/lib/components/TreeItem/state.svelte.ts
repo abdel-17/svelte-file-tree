@@ -7,21 +7,15 @@ import type { DropPosition, TreeContext, TreeItemContext } from "../Tree/state.s
 export type TreeItemAttributesProps = {
 	treeContext: TreeContext;
 	itemContext: TreeItemContext;
-	editable: () => boolean;
-	disabled: () => boolean;
 };
 
 export class TreeItemAttributes {
 	readonly #treeContext: TreeContext;
 	readonly #itemContext: TreeItemContext;
-	readonly #editable: () => boolean;
-	readonly #disabled: () => boolean;
 
 	constructor(props: TreeItemAttributesProps) {
 		this.#treeContext = props.treeContext;
 		this.#itemContext = props.itemContext;
-		this.#editable = props.editable;
-		this.#disabled = props.disabled;
 	}
 
 	get id(): string {
@@ -62,7 +56,7 @@ export class TreeItemAttributes {
 	};
 
 	readonly onkeydown: EventHandler<KeyboardEvent, HTMLElement> = (event) => {
-		if (this.#disabled()) {
+		if (this.#itemContext.disabled) {
 			return;
 		}
 
@@ -244,7 +238,7 @@ export class TreeItemAttributes {
 				break;
 			}
 			case "F2": {
-				if (this.#editable()) {
+				if (this.#itemContext.editable) {
 					this.#itemContext.editing = true;
 				}
 				break;
@@ -298,7 +292,7 @@ export class TreeItemAttributes {
 	};
 
 	readonly onclick: EventHandler<MouseEvent, HTMLElement> = (event) => {
-		if (this.#disabled()) {
+		if (this.#itemContext.disabled) {
 			return;
 		}
 
@@ -313,7 +307,7 @@ export class TreeItemAttributes {
 	};
 
 	readonly ondragstart: EventHandler<DragEvent, HTMLElement> = (event) => {
-		if (this.#disabled()) {
+		if (this.#itemContext.disabled) {
 			return;
 		}
 
@@ -332,7 +326,7 @@ export class TreeItemAttributes {
 
 	readonly ondragover: EventHandler<DragEvent, HTMLElement> = (event) => {
 		if (
-			this.#disabled() ||
+			this.#itemContext.disabled ||
 			this.#treeContext.draggedId === undefined ||
 			this.#itemContext.node.selected ||
 			this.#itemContext.nearestSelectedAncestor !== undefined
@@ -366,7 +360,7 @@ export class TreeItemAttributes {
 		this.#itemContext.dropPosition.clear();
 
 		const draggedId = this.#treeContext.draggedId;
-		if (this.#disabled() || draggedId === undefined) {
+		if (this.#itemContext.disabled || draggedId === undefined) {
 			return;
 		}
 

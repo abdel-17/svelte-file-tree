@@ -16,14 +16,14 @@ export type FileTreeJSON = {
 };
 
 export class FileTree {
+	readonly #children: LinkedState<Array<FileTreeNode>>;
 	readonly selectedIds: SvelteSet<string>;
 	readonly expandedIds: SvelteSet<string>;
-	readonly #children: LinkedState<Array<FileTreeNode>>;
 
 	constructor(props: FileTreeProps) {
+		this.#children = new LinkedState(() => props.children(this));
 		this.selectedIds = props.selectedIds ?? new SvelteSet(props.defaultSelectedIds);
 		this.expandedIds = props.expandedIds ?? new SvelteSet(props.defaultExpandedIds);
-		this.#children = new LinkedState(() => props.children(this));
 	}
 
 	get children(): Array<FileTreeNode> {

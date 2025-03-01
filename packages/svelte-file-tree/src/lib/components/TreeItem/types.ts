@@ -15,7 +15,5 @@ export interface TreeItemProps
 		| "tabindex"
 	> {
 	children: Snippet;
-	editable?: boolean;
-	disabled?: boolean;
 	element?: HTMLElement | null;
 }

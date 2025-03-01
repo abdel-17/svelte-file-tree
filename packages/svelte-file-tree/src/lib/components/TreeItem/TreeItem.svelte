@@ -10,8 +10,6 @@
 
 	let {
 		children,
-		editable = false,
-		disabled = false,
 		element = $bindable(null),
 		onfocusin,
 		onkeydown,
@@ -38,8 +36,6 @@
 	const attributes = new TreeItemAttributes({
 		treeContext,
 		itemContext,
-		editable: () => editable,
-		disabled: () => disabled,
 	});
 </script>
 
