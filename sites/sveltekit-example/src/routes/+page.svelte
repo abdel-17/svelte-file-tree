@@ -58,7 +58,7 @@
 		mutation,
 	}: {
 		affected: Array<FileTreeNode>;
-		mutation: () => Promise<unknown>;
+		mutation: () => Promise<void>;
 	}): Promise<void> {
 		for (const node of affected) {
 			disabledIds.add(node.id);
@@ -77,25 +77,24 @@
 		}
 	}
 
-	function optimisticRenameItem({ target, name }: RenameItemArgs): Promise<void> {
+	function onRenameItem({ target, name }: RenameItemArgs): boolean {
 		target.name = name;
-
-		return mutate({
-			affected: [target],
-			mutation: () =>
-				api.renameFile({
-					id: Number(target.id),
-					name,
-				}),
-		});
-	}
-
-	function onRenameItem(args: RenameItemArgs): boolean {
-		toast.promise(optimisticRenameItem(args), {
-			loading: "Updating database",
-			success: "Renamed item successfully",
-			error: "Failed to rename item",
-		});
+		toast.promise(
+			mutate({
+				affected: [target],
+				mutation: async () => {
+					await api.renameFile({
+						id: Number(target.id),
+						name,
+					});
+				},
+			}),
+			{
+				loading: "Updating database",
+				success: "Renamed item successfully",
+				error: "Failed to rename item",
+			},
+		);
 		return true;
 	}
 
@@ -112,7 +111,7 @@
 		}
 	}
 
-	function optimisticMoveItems({ updates }: MoveItemsArgs): Promise<void> {
+	function onMoveItems({ updates }: MoveItemsArgs): boolean {
 		const body: api.MoveFilesBody = [];
 		for (const { target, children } of updates) {
 			const targetId = target instanceof FolderNode ? Number(target.id) : null;
@@ -130,6 +129,10 @@
 			target.children = children;
 		}
 
+		if (body.length === 0) {
+			return false;
+		}
+
 		let affected: Array<FileTreeNode> = [];
 		for (const { target } of updates) {
 			if (target instanceof FileTree) {
@@ -140,18 +143,19 @@
 			affected.push(target);
 		}
 
-		return mutate({
-			affected,
-			mutation: () => api.moveFiles(body),
-		});
-	}
-
-	function onMoveItems(args: MoveItemsArgs): boolean {
-		toast.promise(optimisticMoveItems(args), {
-			loading: "Updating database",
-			success: "Moved items successfully",
-			error: "Failed to move items",
-		});
+		toast.promise(
+			mutate({
+				affected,
+				mutation: async () => {
+					await api.moveFiles(body);
+				},
+			}),
+			{
+				loading: "Updating database",
+				success: "Moved items successfully",
+				error: "Failed to move items",
+			},
+		);
 		return true;
 	}
 
@@ -159,26 +163,25 @@
 		toast.error(`Cannot move "${target.name}" into or next to itself`);
 	}
 
-	function optimisticInsertItems({ target, start, inserted }: InsertItemsArgs): Promise<void> {
+	function onInsertItems({ target, start, inserted }: InsertItemsArgs): boolean {
 		target.children.splice(start, 0, ...inserted);
-
-		return mutate({
-			affected: target instanceof FileTree ? target.children : [target],
-			mutation: () =>
-				api.insertFiles({
-					parentId: target instanceof FolderNode ? Number(target.id) : null,
-					start,
-					inserted: inserted.map((node) => node.toJSON()),
-				}),
-		});
-	}
-
-	function onInsertItems(args: InsertItemsArgs): boolean {
-		toast.promise(optimisticInsertItems(args), {
-			loading: "Updating database",
-			success: "Inserted items successfully",
-			error: "Failed to insert items",
-		});
+		toast.promise(
+			mutate({
+				affected: target instanceof FileTree ? target.children : [target],
+				mutation: async () => {
+					await api.insertFiles({
+						parentId: target instanceof FolderNode ? Number(target.id) : null,
+						start,
+						inserted: inserted.map((node) => node.toJSON()),
+					});
+				},
+			}),
+			{
+				loading: "Updating database",
+				success: "Inserted items successfully",
+				error: "Failed to insert items",
+			},
+		);
 		return true;
 	}
 
@@ -187,7 +190,7 @@
 		return "cancel";
 	}
 
-	function optimisticDeleteItems({ updates, deleted }: DeleteItemsArgs): Promise<void> {
+	function onDeleteItems({ updates, deleted }: DeleteItemsArgs): boolean {
 		for (const { target, children } of updates) {
 			target.children = children;
 		}
@@ -202,19 +205,20 @@
 			affected.push(target);
 		}
 
-		const deletedIds = deleted.map((node) => Number(node.id));
-		return mutate({
-			affected,
-			mutation: () => api.deleteFiles(deletedIds),
-		});
-	}
-
-	function onDeleteItems(args: DeleteItemsArgs): boolean {
-		toast.promise(optimisticDeleteItems(args), {
-			loading: "Updating database",
-			success: "Deleted items successfully",
-			error: "Failed to delete items",
-		});
+		toast.promise(
+			mutate({
+				affected,
+				mutation: async () => {
+					const deletedIds = deleted.map((node) => Number(node.id));
+					await api.deleteFiles(deletedIds);
+				},
+			}),
+			{
+				loading: "Updating database",
+				success: "Deleted items successfully",
+				error: "Failed to delete items",
+			},
+		);
 		return true;
 	}
 </script>
