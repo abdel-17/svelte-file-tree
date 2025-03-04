@@ -3,14 +3,14 @@ import type { InsertFilesBody } from "./api/files/insert/+server.js";
 import type { MoveFilesBody } from "./api/files/move/+server.js";
 import type { RenameFileBody } from "./api/files/rename/+server.js";
 
-const throwNonOk = (response: Response): Response => {
+function throwNonOk(response: Response): Response {
 	if (!response.ok) {
 		throw new Error(response.statusText);
 	}
 	return response;
-};
+}
 
-export const deleteFiles = async (body: DeleteFilesBody): Promise<Response> => {
+export async function deleteFiles(body: DeleteFilesBody): Promise<Response> {
 	const response = await fetch("/api/files/delete", {
 		method: "POST",
 		headers: {
@@ -19,9 +19,9 @@ export const deleteFiles = async (body: DeleteFilesBody): Promise<Response> => {
 		body: JSON.stringify(body),
 	});
 	return throwNonOk(response);
-};
+}
 
-export const insertFiles = async (body: InsertFilesBody): Promise<Response> => {
+export async function insertFiles(body: InsertFilesBody): Promise<Response> {
 	const response = await fetch("/api/files/insert", {
 		method: "POST",
 		headers: {
@@ -30,9 +30,9 @@ export const insertFiles = async (body: InsertFilesBody): Promise<Response> => {
 		body: JSON.stringify(body),
 	});
 	return throwNonOk(response);
-};
+}
 
-export const moveFiles = async (body: MoveFilesBody): Promise<Response> => {
+export async function moveFiles(body: MoveFilesBody): Promise<Response> {
 	const response = await fetch("/api/files/move", {
 		method: "POST",
 		headers: {
@@ -41,9 +41,9 @@ export const moveFiles = async (body: MoveFilesBody): Promise<Response> => {
 		body: JSON.stringify(body),
 	});
 	return throwNonOk(response);
-};
+}
 
-export const renameFile = async (body: RenameFileBody): Promise<Response> => {
+export async function renameFile(body: RenameFileBody): Promise<Response> {
 	const response = await fetch("/api/files/rename", {
 		method: "POST",
 		headers: {
@@ -52,6 +52,6 @@ export const renameFile = async (body: RenameFileBody): Promise<Response> => {
 		body: JSON.stringify(body),
 	});
 	return throwNonOk(response);
-};
+}
 
 export type { DeleteFilesBody, InsertFilesBody, MoveFilesBody, RenameFileBody };

@@ -1,16 +1,5 @@
 import Database from "better-sqlite3";
 
-export type FileInsert =
-	| {
-			type: "file";
-			name: string;
-	  }
-	| {
-			type: "folder";
-			name: string;
-			children: Array<FileInsert>;
-	  };
-
 export type FileSelect = {
 	id: number;
 	type: "file" | "folder";
@@ -22,7 +11,18 @@ export type FileSelect = {
 	children: Array<FileSelect>;
 };
 
-export const createDatabase = (filename: string) => {
+export type FileInsert =
+	| {
+			type: "file";
+			name: string;
+	  }
+	| {
+			type: "folder";
+			name: string;
+			children: Array<FileInsert>;
+	  };
+
+export function createDatabase(filename: string) {
 	const db = new Database(filename);
 	db.pragma("foreign_keys = ON");
 	db.exec(`
@@ -98,7 +98,7 @@ export const createDatabase = (filename: string) => {
 		`),
 	};
 
-	const getFiles = (): Array<FileSelect> => {
+	function getFiles(): Array<FileSelect> {
 		const lookup = new Map<number, FileSelect>();
 		for (const file of statements.getFiles.all()) {
 			lookup.set(file.id, {
@@ -137,13 +137,9 @@ export const createDatabase = (filename: string) => {
 			}
 		}
 		return files;
-	};
+	}
 
-	const _insertFiles = (
-		parentId: number | null,
-		start: number,
-		inserted: Array<FileInsert>,
-	): void => {
+	function _insertFiles(parentId: number | null, start: number, inserted: Array<FileInsert>): void {
 		for (let i = 0; i < inserted.length; i++) {
 			const file = inserted[i];
 			const result = statements.insertFile.run({
@@ -157,50 +153,47 @@ export const createDatabase = (filename: string) => {
 				_insertFiles(result.lastInsertRowid as number, 0, file.children);
 			}
 		}
-	};
+	}
 
-	const insertFiles = db.transaction(
-		({
-			parentId,
+	function insertFiles({
+		parentId,
+		start,
+		inserted,
+	}: {
+		parentId: number | null;
+		start: number;
+		inserted: Array<FileInsert>;
+	}): void {
+		statements.shiftParentChildren.run({
+			by: inserted.length,
+			parent_id: parentId,
 			start,
-			inserted,
-		}: {
-			parentId: number | null;
-			start: number;
-			inserted: Array<FileInsert>;
-		}): void => {
-			statements.shiftParentChildren.run({
-				by: inserted.length,
-				parent_id: parentId,
-				start,
-			});
-			_insertFiles(parentId, start, inserted);
-		},
-	);
+		});
 
-	const renameFile = ({ id, name }: { id: number; name: string }): void => {
+		_insertFiles(parentId, start, inserted);
+	}
+
+	function renameFile({ id, name }: { id: number; name: string }): void {
 		statements.renameFile.run({ id, name });
-	};
+	}
 
-	const moveFiles = db.transaction(
-		(
-			moved: Array<{
-				id: number;
-				parentId: number | null;
-				index: number;
-			}>,
-		): void => {
-			for (const { id, parentId, index } of moved) {
-				statements.moveFile.run({
-					id,
-					parent_id: parentId,
-					index_in_parent: index,
-				});
-			}
-		},
-	);
+	function moveFiles(
+		moved: Array<{
+			id: number;
+			parentId: number | null;
+			index: number;
+		}>,
+	): void {
+		for (const { id, parentId, index } of moved) {
+			statements.moveFile.run({
+				id,
+				parent_id: parentId,
+				index_in_parent: index,
+			});
+		}
+	}
 
-	const deleteFiles = db.transaction((ids: Array<number>): void => {
+	function deleteFiles(ids: Array<number>): void {
 		const parentIds = new Set<number | null>();
 		for (const id of ids) {
 			const file = statements.getFile.get({ id });
@@ -225,13 +218,13 @@ export const createDatabase = (filename: string) => {
 				}
 			}
 		}
-	});
+	}
 
 	return {
 		getFiles,
-		insertFiles,
+		insertFiles: db.transaction(insertFiles),
 		renameFile,
-		moveFiles,
-		deleteFiles,
+		moveFiles: db.transaction(moveFiles),
+		deleteFiles: db.transaction(deleteFiles),
 	};
-};
+}
