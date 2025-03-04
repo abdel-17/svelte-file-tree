@@ -9,7 +9,7 @@ export default tseslint.config(
 	eslint.configs.recommended,
 	tseslint.configs.strictTypeChecked,
 	tseslint.configs.stylisticTypeChecked,
-	svelte.configs["flat/recommended"],
+	svelte.configs.recommended,
 	{
 		languageOptions: {
 			globals: {
@@ -20,6 +20,18 @@ export default tseslint.config(
 				extraFileExtensions,
 			},
 		},
+	},
+	{
+		files: ["**/*.svelte", "**/*.svelte.js", "**/*.svelte.ts"],
+		languageOptions: {
+			parserOptions: {
+				parser: tseslint.parser,
+				projectService: true,
+				extraFileExtensions,
+			},
+		},
+	},
+	{
 		rules: {
 			"@typescript-eslint/no-non-null-assertion": "off",
 			"@typescript-eslint/no-unnecessary-condition": [
@@ -47,13 +59,6 @@ export default tseslint.config(
 	},
 	{
 		files: ["**/*.svelte"],
-		languageOptions: {
-			parserOptions: {
-				parser: tseslint.parser,
-				projectService: true,
-				extraFileExtensions,
-			},
-		},
 		rules: {
 			// Typed linting is not fully supported in Svelte files,
 			// which causes a lot of false positives.
