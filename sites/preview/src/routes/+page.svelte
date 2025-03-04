@@ -154,7 +154,7 @@
 		NameConflictResolution
 	>();
 
-	const onRenameError = ({ error, name }: RenameErrorArgs): void => {
+	function onRenameError({ error, name }: RenameErrorArgs): void {
 		switch (error) {
 			case "empty": {
 				toast.error("Name cannot be empty");
@@ -165,16 +165,16 @@
 				break;
 			}
 		}
-	};
+	}
 
-	const onMoveError = ({ target }: MoveErrorArgs): void => {
+	function onMoveError({ target }: MoveErrorArgs): void {
 		toast.error(`Cannot move "${target.name}" into or next to itself`);
-	};
+	}
 
-	const onNameConflict = ({
+	function onNameConflict({
 		operation,
 		target,
-	}: NameConflictArgs): Promise<NameConflictResolution> => {
+	}: NameConflictArgs): Promise<NameConflictResolution> {
 		const description = `An item with the name "${target.name}" already exists`;
 		switch (operation) {
 			case "move": {
@@ -190,7 +190,7 @@
 				});
 			}
 		}
-	};
+	}
 </script>
 
 <main class="p-8">

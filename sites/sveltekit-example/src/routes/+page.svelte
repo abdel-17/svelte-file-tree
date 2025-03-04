@@ -54,13 +54,13 @@
 
 	let disabledIds = new SvelteSet<string>();
 
-	const mutate = async ({
+	async function mutate({
 		affected,
 		mutation,
 	}: {
 		affected: Array<FileTreeNode>;
 		mutation: () => Promise<unknown>;
-	}): Promise<void> => {
+	}): Promise<void> {
 		for (const node of affected) {
 			disabledIds.add(node.id);
 		}
@@ -76,9 +76,9 @@
 				}
 			}
 		}
-	};
+	}
 
-	const optimisticRenameItem = ({ target, name }: RenameItemArgs): Promise<void> => {
+	function optimisticRenameItem({ target, name }: RenameItemArgs): Promise<void> {
 		target.name = name;
 
 		return mutate({
@@ -89,18 +89,18 @@
 					name,
 				}),
 		});
-	};
+	}
 
-	const onRenameItem = (args: RenameItemArgs): boolean => {
+	function onRenameItem(args: RenameItemArgs): boolean {
 		toast.promise(optimisticRenameItem(args), {
 			loading: "Updating database",
 			success: "Renamed item successfully",
 			error: "Failed to rename item",
 		});
 		return true;
-	};
+	}
 
-	const onRenameError = ({ error, name }: RenameErrorArgs): void => {
+	function onRenameError({ error, name }: RenameErrorArgs): void {
 		switch (error) {
 			case "empty": {
 				toast.error("Name cannot be empty");
@@ -111,9 +111,9 @@
 				break;
 			}
 		}
-	};
+	}
 
-	const optimisticMoveItems = ({ updates }: MoveItemsArgs): Promise<void> => {
+	function optimisticMoveItems({ updates }: MoveItemsArgs): Promise<void> {
 		const body: MoveFilesBody = [];
 		for (const { target, children } of updates) {
 			const targetId = target instanceof FolderNode ? Number(target.id) : null;
@@ -145,22 +145,22 @@
 			affected,
 			mutation: () => api.moveFiles(body),
 		});
-	};
+	}
 
-	const onMoveItems = (args: MoveItemsArgs): boolean => {
+	function onMoveItems(args: MoveItemsArgs): boolean {
 		toast.promise(optimisticMoveItems(args), {
 			loading: "Updating database",
 			success: "Moved items successfully",
 			error: "Failed to move items",
 		});
 		return true;
-	};
+	}
 
-	const onMoveError = ({ target }: MoveErrorArgs): void => {
+	function onMoveError({ target }: MoveErrorArgs): void {
 		toast.error(`Cannot move "${target.name}" into or next to itself`);
-	};
+	}
 
-	const optimisticInsertItems = ({ target, start, inserted }: InsertItemsArgs): Promise<void> => {
+	function optimisticInsertItems({ target, start, inserted }: InsertItemsArgs): Promise<void> {
 		target.children.splice(start, 0, ...inserted);
 
 		return mutate({
@@ -172,23 +172,23 @@
 					inserted: inserted.map((node) => node.toJSON()),
 				}),
 		});
-	};
+	}
 
-	const onInsertItems = (args: InsertItemsArgs): boolean => {
+	function onInsertItems(args: InsertItemsArgs): boolean {
 		toast.promise(optimisticInsertItems(args), {
 			loading: "Updating database",
 			success: "Inserted items successfully",
 			error: "Failed to insert items",
 		});
 		return true;
-	};
+	}
 
-	const onNameConflict = ({ target }: NameConflictArgs): NameConflictResolution => {
+	function onNameConflict({ target }: NameConflictArgs): NameConflictResolution {
 		toast.error(`An item with the name "${target.name}" already exists`);
 		return "cancel";
-	};
+	}
 
-	const optimisticDeleteItems = ({ updates, deleted }: DeleteItemsArgs): Promise<void> => {
+	function optimisticDeleteItems({ updates, deleted }: DeleteItemsArgs): Promise<void> {
 		for (const { target, children } of updates) {
 			target.children = children;
 		}
@@ -208,16 +208,16 @@
 			affected,
 			mutation: () => api.deleteFiles(deletedIds),
 		});
-	};
+	}
 
-	const onDeleteItems = (args: DeleteItemsArgs): boolean => {
+	function onDeleteItems(args: DeleteItemsArgs): boolean {
 		toast.promise(optimisticDeleteItems(args), {
 			loading: "Updating database",
 			success: "Deleted items successfully",
 			error: "Failed to delete items",
 		});
 		return true;
-	};
+	}
 </script>
 
 <main class="p-8">

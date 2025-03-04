@@ -1,7 +1,7 @@
 import { db } from "$lib/server/database/index.js";
 import type { ServerInit } from "@sveltejs/kit";
 
-const seedDatabase = (): void => {
+function seedDatabase(): void {
 	db.insertFiles({
 		parentId: null,
 		start: 0,
@@ -108,7 +108,7 @@ const seedDatabase = (): void => {
 			},
 		],
 	});
-};
+}
 
 export const init: ServerInit = () => {
 	seedDatabase();
