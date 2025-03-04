@@ -11,7 +11,6 @@
 		Tree,
 		TreeItem,
 		TreeItemInput,
-		type FileTreeNode,
 		type MoveErrorArgs,
 		type NameConflictArgs,
 		type NameConflictResolution,
@@ -19,27 +18,132 @@
 	} from "svelte-file-tree";
 	import { toast } from "svelte-sonner";
 	import { fade, fly } from "svelte/transition";
-	import data from "./data.json" with { type: "json" };
 	import { DialogState } from "./state.svelte.js";
 
 	const tree = new FileTree({
-		children: (tree) =>
-			data.map(function transform(item): FileTreeNode {
-				if (item.children === undefined) {
-					return new FileNode({
+		children: (tree) => [
+			new FolderNode({
+				tree,
+				id: "0",
+				name: "Documents",
+				children: [
+					new FolderNode({
 						tree,
-						id: item.id,
-						name: item.name,
-					});
-				}
-
-				return new FolderNode({
-					tree,
-					id: item.id,
-					name: item.name,
-					children: item.children.map(transform),
-				});
+						id: "1",
+						name: "Work",
+						children: [
+							new FolderNode({
+								tree,
+								id: "2",
+								name: "Projects",
+								children: [
+									new FileNode({
+										tree,
+										id: "3",
+										name: "project_a.md",
+									}),
+									new FileNode({
+										tree,
+										id: "4",
+										name: "project_b.md",
+									}),
+								],
+							}),
+							new FileNode({
+								tree,
+								id: "5",
+								name: "q4_report.docx",
+							}),
+							new FolderNode({
+								tree,
+								id: "6",
+								name: "Meetings",
+								children: [
+									new FileNode({
+										tree,
+										id: "7",
+										name: "meeting_minutes.txt",
+									}),
+									new FileNode({
+										tree,
+										id: "8",
+										name: "schedule.pdf",
+									}),
+								],
+							}),
+						],
+					}),
+					new FolderNode({
+						tree,
+						id: "9",
+						name: "Personal",
+						children: [
+							new FolderNode({
+								tree,
+								id: "10",
+								name: "Recipes",
+								children: [
+									new FileNode({
+										tree,
+										id: "11",
+										name: "pasta.txt",
+									}),
+									new FileNode({
+										tree,
+										id: "12",
+										name: "cookies.txt",
+									}),
+								],
+							}),
+							new FileNode({
+								tree,
+								id: "13",
+								name: "taxes_2023.pdf",
+							}),
+						],
+					}),
+					new FileNode({
+						tree,
+						id: "14",
+						name: "resume.pdf",
+					}),
+				],
 			}),
+			new FolderNode({
+				tree,
+				id: "15",
+				name: "Pictures",
+				children: [
+					new FolderNode({
+						tree,
+						id: "16",
+						name: "Vacation",
+						children: [
+							new FileNode({
+								tree,
+								id: "17",
+								name: "beach.jpg",
+							}),
+							new FileNode({
+								tree,
+								id: "18",
+								name: "mountain.jpg",
+							}),
+						],
+					}),
+					new FileNode({
+						tree,
+						id: "19",
+						name: "profile.jpg",
+					}),
+				],
+			}),
+			new FileNode({
+				tree,
+				id: "20",
+				name: "notes.txt",
+			}),
+		],
 	});
 
 	const dialog = new DialogState<
