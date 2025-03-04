@@ -22,9 +22,8 @@
 		type RenameErrorArgs,
 		type RenameItemArgs,
 	} from "svelte-file-tree";
-	import { toast, Toaster } from "svelte-sonner";
+	import { toast } from "svelte-sonner";
 	import * as api from "./api.js";
-	import type { MoveFilesBody } from "./api.js";
 	import { FILES_DEPENDENCY } from "./shared.js";
 
 	const { data } = $props();
@@ -52,7 +51,7 @@
 			}),
 	});
 
-	let disabledIds = new SvelteSet<string>();
+	const disabledIds = new SvelteSet<string>();
 
 	async function mutate({
 		affected,
@@ -114,7 +113,7 @@
 	}
 
 	function optimisticMoveItems({ updates }: MoveItemsArgs): Promise<void> {
-		const body: MoveFilesBody = [];
+		const body: api.MoveFilesBody = [];
 		for (const { target, children } of updates) {
 			const targetId = target instanceof FolderNode ? Number(target.id) : null;
 			for (let i = 0; i < children.length; i++) {
@@ -285,5 +284,3 @@
 		{/snippet}
 	</Tree>
 </main>
-
-<Toaster richColors />
