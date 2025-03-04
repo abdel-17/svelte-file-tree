@@ -17,7 +17,7 @@
 		type NameConflictResolution,
 		type RenameErrorArgs,
 	} from "svelte-file-tree";
-	import { Toaster, toast } from "svelte-sonner";
+	import { toast } from "svelte-sonner";
 	import { fade, fly } from "svelte/transition";
 	import data from "./data.json" with { type: "json" };
 	import { DialogState } from "./state.svelte.js";
@@ -48,9 +48,7 @@
 			description: string;
 		},
 		NameConflictResolution
-	>({
-		defaultResult: "cancel",
-	});
+	>();
 
 	const onRenameError = ({ error, name }: RenameErrorArgs): void => {
 		switch (error) {
@@ -144,13 +142,11 @@
 	</Tree>
 </main>
 
-<Toaster richColors />
-
 <Dialog.Root
 	open={dialog.data !== undefined}
 	onOpenChange={(open) => {
 		if (!open) {
-			dialog.close();
+			dialog.close("cancel");
 		}
 	}}
 >

@@ -1,15 +1,6 @@
-export type DialogStateProps<TResult> = {
-	defaultResult: TResult;
-};
-
 export class DialogState<TData, TResult> {
-	readonly #defaultResult: TResult;
 	#data?: TData = $state.raw();
 	#resolveOpen?: (result: TResult) => void;
-
-	constructor(props: DialogStateProps<TResult>) {
-		this.#defaultResult = props.defaultResult;
-	}
 
 	get data(): TData | undefined {
 		return this.#data;
@@ -22,7 +13,7 @@ export class DialogState<TData, TResult> {
 		});
 	}
 
-	close(result: TResult = this.#defaultResult): void {
+	close(result: TResult): void {
 		this.#data = undefined;
 		this.#resolveOpen?.(result);
 	}
