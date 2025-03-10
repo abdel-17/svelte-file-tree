@@ -1,8 +1,12 @@
 import { isControlOrMeta } from "$lib/internal/helpers.svelte.js";
 import { flushSync } from "svelte";
 import type { EventHandler } from "svelte/elements";
-import type { TreeContext, TreeItemContext, TreeItemPosition } from "../Tree/state.svelte.js";
-import type { DropPosition } from "../Tree/types.js";
+import type {
+	DropPosition,
+	TreeContext,
+	TreeItemContext,
+	TreeItemPosition,
+} from "../Tree/state.svelte.js";
 
 export type TreeItemAttributesProps = {
 	treeContext: TreeContext;
