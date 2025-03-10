@@ -312,7 +312,7 @@ export class TreeContext {
 			current = current.parent
 		) {
 			if (isMoved(current.node)) {
-				// Don't move an item inside itself.
+				// Don't move an item next to or inside itself.
 				this.#onMoveError({
 					error: "circular-reference",
 					target: current.node,
