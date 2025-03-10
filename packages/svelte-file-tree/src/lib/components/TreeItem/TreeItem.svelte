@@ -22,17 +22,6 @@
 		...rest
 	}: TreeItemProps = $props();
 
-	$effect(() => {
-		treeContext.onSetItem(itemContext);
-	});
-
-	$effect(() => {
-		return () => {
-			itemContext.onDestroy();
-			treeContext.onDestroyItem(itemContext.node.id);
-		};
-	});
-
 	const attributes = new TreeItemAttributes({
 		treeContext,
 		itemContext,
@@ -40,8 +29,8 @@
 </script>
 
 <div
-	bind:this={element}
 	{...rest}
+	bind:this={element}
 	id={attributes.id}
 	role="treeitem"
 	aria-selected={attributes.ariaSelected}

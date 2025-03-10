@@ -13,7 +13,6 @@
 		TreeItem,
 		TreeItemInput,
 		type DeleteItemsArgs,
-		type FileTreeNode,
 		type InsertItemsArgs,
 		type MoveErrorArgs,
 		type MoveItemsArgs,
@@ -30,7 +29,7 @@
 
 	const tree = new FileTree({
 		children: (tree) =>
-			data.files.map(function transform(file): FileTreeNode {
+			data.files.map(function transform(file): FileTree.Node {
 				switch (file.type) {
 					case "file": {
 						return new FileNode({
@@ -57,7 +56,7 @@
 		affected,
 		mutation,
 	}: {
-		affected: Array<FileTreeNode>;
+		affected: Array<FileTree.Node>;
 		mutation: () => Promise<void>;
 	}): Promise<void> {
 		for (const node of affected) {
@@ -133,7 +132,7 @@
 			return false;
 		}
 
-		let affected: Array<FileTreeNode> = [];
+		let affected: Array<FileTree.Node> = [];
 		for (const { target } of updates) {
 			if (target instanceof FileTree) {
 				affected = target.children;
@@ -195,7 +194,7 @@
 			target.children = children;
 		}
 
-		let affected: Array<FileTreeNode> = [];
+		let affected: Array<FileTree.Node> = [];
 		for (const { target } of updates) {
 			if (target instanceof FileTree) {
 				affected = target.children;

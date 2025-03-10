@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import type { FileTreeNode } from "$lib/tree.svelte.js";
+	import type { FileTree } from "$lib/tree.svelte.js";
 	import { DEV } from "esm-env";
 	import { getContext, hasContext, setContext } from "svelte";
 	import TreeItemContextProvider from "./TreeItemContextProvider.svelte";
@@ -22,10 +22,10 @@
 		tree,
 		item,
 		pasteOperation = $bindable(),
-		id = defaultId,
-		element = $bindable(null),
 		editable = false,
 		disabled = false,
+		id = defaultId,
+		element = $bindable(null),
 		generateCopyId = () => crypto.randomUUID(),
 		onRenameItem = (args) => {
 			args.target.name = args.name;
@@ -72,7 +72,7 @@
 	setContext(CONTEXT_KEY, context);
 </script>
 
-{#snippet items(nodes: Array<FileTreeNode>)}
+{#snippet items(nodes: Array<FileTree.Node>)}
 	{#each nodes as node, index (node.id)}
 		<TreeItemContextProvider
 			{node}
@@ -91,6 +91,6 @@
 	{/each}
 {/snippet}
 
-<div bind:this={element} {...rest} {id} role="tree" aria-multiselectable="true">
+<div {...rest} bind:this={element} {id} role="tree" aria-multiselectable="true">
 	{@render items(tree.children)}
 </div>

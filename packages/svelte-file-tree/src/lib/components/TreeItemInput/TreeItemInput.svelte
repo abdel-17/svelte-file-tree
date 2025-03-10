@@ -25,8 +25,8 @@
 </script>
 
 <input
-	bind:this={element}
 	{...rest}
+	bind:this={element}
 	bind:value={name}
 	onfocus={composeEventHandlers(onfocus, attributes.onfocus)}
 	onkeydown={composeEventHandlers(onkeydown, attributes.onkeydown)}
