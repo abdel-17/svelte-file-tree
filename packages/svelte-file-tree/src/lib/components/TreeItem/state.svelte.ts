@@ -1,8 +1,8 @@
 import { isControlOrMeta } from "$lib/internal/helpers.svelte.js";
-import type { FileTreeItemPosition } from "$lib/tree.svelte.js";
 import { flushSync } from "svelte";
 import type { EventHandler } from "svelte/elements";
-import type { DropPosition, TreeContext, TreeItemContext } from "../Tree/state.svelte.js";
+import type { TreeContext, TreeItemContext, TreeItemPosition } from "../Tree/state.svelte.js";
+import type { DropPosition } from "../Tree/types.js";
 
 export type TreeItemAttributesProps = {
 	treeContext: TreeContext;
@@ -27,9 +27,8 @@ export class TreeItemAttributes {
 	}
 
 	get ariaExpanded(): boolean | undefined {
-		const { node } = this.#itemContext;
-		if (node.type === "folder") {
-			return node.expanded;
+		if (this.#itemContext.node.type === "folder") {
+			return this.#itemContext.node.expanded;
 		}
 	}
 
@@ -119,7 +118,7 @@ export class TreeItemAttributes {
 				);
 				const itemRect = event.currentTarget.getBoundingClientRect();
 
-				let current: FileTreeItemPosition = this.#itemContext;
+				let current: TreeItemPosition = this.#itemContext;
 				let currentElement: HTMLElement = event.currentTarget;
 				while (true) {
 					const next = down
@@ -171,7 +170,7 @@ export class TreeItemAttributes {
 				}
 
 				if (event.shiftKey && isControlOrMeta(event)) {
-					let current: FileTreeItemPosition | undefined = this.#itemContext;
+					let current: TreeItemPosition | undefined = this.#itemContext;
 					do {
 						current.node.select();
 						current = this.#treeContext.getPreviousItem(current);
@@ -197,7 +196,7 @@ export class TreeItemAttributes {
 				}
 
 				if (event.shiftKey && isControlOrMeta(event)) {
-					let current: FileTreeItemPosition | undefined = this.#itemContext;
+					let current: TreeItemPosition | undefined = this.#itemContext;
 					do {
 						current.node.select();
 						current = this.#treeContext.getNextItem(current);
@@ -217,7 +216,7 @@ export class TreeItemAttributes {
 			}
 			case "Escape": {
 				this.#treeContext.tree.selectedIds.clear();
-				this.#treeContext.pasteOperation = undefined;
+				this.#treeContext.clearClipboard();
 				break;
 			}
 			case "*": {
@@ -255,13 +254,13 @@ export class TreeItemAttributes {
 			}
 			case "c": {
 				if (isControlOrMeta(event)) {
-					this.#treeContext.pasteOperation = "copy";
+					this.#treeContext.copySelectedToClipboard("copy");
 				}
 				break;
 			}
 			case "x": {
 				if (isControlOrMeta(event)) {
-					this.#treeContext.pasteOperation = "cut";
+					this.#treeContext.copySelectedToClipboard("cut");
 				}
 				break;
 			}
@@ -279,7 +278,7 @@ export class TreeItemAttributes {
 						}
 					}
 
-					void this.#treeContext.pasteSelected(position, this.#itemContext);
+					void this.#treeContext.paste(this.#itemContext, position);
 				}
 				break;
 			}
@@ -333,7 +332,7 @@ export class TreeItemAttributes {
 		) {
 			// If the dragged item is dropped next to or inside a selected item,
 			// it would cause a circular reference because the selected item
-			// would be moved inside itself.
+			// would be moved next to or inside itself.
 			this.#itemContext.dropPosition.clear();
 			return;
 		}
@@ -370,7 +369,7 @@ export class TreeItemAttributes {
 		);
 
 		this.#treeContext.tree.selectedIds.add(draggedId);
-		void this.#treeContext.moveSelected(position, this.#itemContext).then((didMove) => {
+		void this.#treeContext.moveSelected(this.#itemContext, position).then((didMove) => {
 			if (didMove) {
 				this.#treeContext.getItemElement(draggedId)?.focus();
 			}

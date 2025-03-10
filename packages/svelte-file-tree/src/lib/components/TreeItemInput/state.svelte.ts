@@ -30,14 +30,8 @@ export class TreeItemInputAttributes {
 	readonly onkeydown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => {
 		switch (event.key) {
 			case "Enter": {
-				const name = this.#name();
 				const { node } = this.#itemContext;
-				if (name === node.name) {
-					this.#treeContext.getItemElement(node.id)?.focus();
-					break;
-				}
-
-				void this.#treeContext.renameItem(name, this.#itemContext).then((didRename) => {
+				void this.#treeContext.renameItem(this.#itemContext, this.#name()).then((didRename) => {
 					if (didRename) {
 						this.#treeContext.getItemElement(node.id)?.focus();
 					}

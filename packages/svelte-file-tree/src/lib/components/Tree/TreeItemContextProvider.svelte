@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+	import type { FileTree, FolderNode } from "$lib/tree.svelte.js";
 	import { DEV } from "esm-env";
 	import { getContext, hasContext, setContext, type Snippet } from "svelte";
 	import { getTreeContext } from "./Tree.svelte";
@@ -26,7 +26,7 @@
 		disabled,
 		children,
 	}: {
-		node: FileTreeNode;
+		node: FileTree.Node;
 		index: number;
 		editable: boolean;
 		disabled: boolean;
