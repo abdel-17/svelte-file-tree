@@ -3,55 +3,36 @@ import type { InsertFilesBody } from "./api/files/insert/+server.js";
 import type { MoveFilesBody } from "./api/files/move/+server.js";
 import type { RenameFileBody } from "./api/files/rename/+server.js";
 
-function throwNonOk(response: Response): Response {
+async function fetchJSON(method: string, url: string, body: unknown): Promise<Response> {
+	const response = await fetch(url, {
+		method,
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(body),
+	});
+
 	if (!response.ok) {
 		throw new Error(response.statusText);
 	}
+
 	return response;
 }
 
-export async function deleteFiles(body: DeleteFilesBody): Promise<Response> {
-	const response = await fetch("/api/files/delete", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(body),
-	});
-	return throwNonOk(response);
+export function deleteFiles(body: DeleteFilesBody): Promise<Response> {
+	return fetchJSON("POST", "/api/files/delete", body);
 }
 
-export async function insertFiles(body: InsertFilesBody): Promise<Response> {
-	const response = await fetch("/api/files/insert", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(body),
-	});
-	return throwNonOk(response);
+export function insertFiles(body: InsertFilesBody): Promise<Response> {
+	return fetchJSON("POST", "/api/files/insert", body);
 }
 
-export async function moveFiles(body: MoveFilesBody): Promise<Response> {
-	const response = await fetch("/api/files/move", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(body),
-	});
-	return throwNonOk(response);
+export function moveFiles(body: MoveFilesBody): Promise<Response> {
+	return fetchJSON("POST", "/api/files/move", body);
 }
 
-export async function renameFile(body: RenameFileBody): Promise<Response> {
-	const response = await fetch("/api/files/rename", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(body),
-	});
-	return throwNonOk(response);
+export function renameFile(body: RenameFileBody): Promise<Response> {
+	return fetchJSON("POST", "/api/files/rename", body);
 }
 
 export type { DeleteFilesBody, InsertFilesBody, MoveFilesBody, RenameFileBody };

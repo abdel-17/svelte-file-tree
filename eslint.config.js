@@ -14,9 +14,11 @@ export default tseslint.config(
 		languageOptions: {
 			globals: {
 				...globals.browser,
+				...globals.node,
 			},
 			parserOptions: {
 				projectService: true,
+				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions,
 			},
 		},
@@ -33,7 +35,6 @@ export default tseslint.config(
 	},
 	{
 		rules: {
-			"@typescript-eslint/no-non-null-assertion": "off",
 			"@typescript-eslint/no-unnecessary-condition": [
 				"error",
 				{
@@ -54,27 +55,19 @@ export default tseslint.config(
 				},
 			],
 			"@typescript-eslint/consistent-type-definitions": "off",
-			"@typescript-eslint/unbound-method": "off",
-			"@typescript-eslint/no-namespace": [
+			"@typescript-eslint/strict-boolean-expressions": [
 				"error",
 				{
-					allowDeclarations: true,
+					allowNullableObject: false,
+					allowNumber: false,
+					allowString: false,
 				},
 			],
 		},
 	},
 	{
 		files: ["**/*.svelte"],
-		rules: {
-			// Typed linting is not fully supported in Svelte files,
-			// which causes a lot of false positives.
-			"@typescript-eslint/no-confusing-void-expression": "off",
-			"@typescript-eslint/no-unsafe-argument": "off",
-			"@typescript-eslint/no-unsafe-assignment": "off",
-			"@typescript-eslint/no-unsafe-call": "off",
-			"@typescript-eslint/no-unsafe-member-access": "off",
-			"@typescript-eslint/no-unsafe-return": "off",
-		},
+		extends: [tseslint.configs.disableTypeChecked],
 	},
 	{
 		ignores: ["**/.svelte-kit", "**/dist", "**/build"],

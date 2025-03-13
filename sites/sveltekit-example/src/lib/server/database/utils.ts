@@ -50,7 +50,7 @@ export function createDatabase(filename: string) {
 	};
 
 	const statements = {
-		deleteFile: db.prepare<[params: Pick<DatabaseFile, "id">]>(`
+		deleteFile: db.prepare<[Pick<DatabaseFile, "id">]>(`
 			DELETE FROM files
 			WHERE id = :id;
 		`),
@@ -58,34 +58,34 @@ export function createDatabase(filename: string) {
 			SELECT * FROM files
 			ORDER BY index_in_parent;
 		`),
-		getFile: db.prepare<[params: Pick<DatabaseFile, "id">], DatabaseFile>(`
+		getFile: db.prepare<[Pick<DatabaseFile, "id">], DatabaseFile>(`
 			SELECT * FROM files
 			WHERE id = :id;
 		`),
-		getParentChildren: db.prepare<[params: Pick<DatabaseFile, "parent_id">], DatabaseFile>(`
+		getParentChildren: db.prepare<[Pick<DatabaseFile, "parent_id">], DatabaseFile>(`
 			SELECT * FROM files
 			WHERE parent_id IS NOT DISTINCT FROM :parent_id
 			ORDER BY index_in_parent;
 		`),
 		insertFile: db.prepare<
-			[params: Pick<DatabaseFile, "type" | "name" | "parent_id" | "index_in_parent">]
+			[Pick<DatabaseFile, "type" | "name" | "parent_id" | "index_in_parent">]
 		>(`
 			INSERT INTO files (type, name, parent_id, index_in_parent)
 			VALUES (:type, :name, :parent_id, :index_in_parent);
 		`),
-		moveFile: db.prepare<[params: Pick<DatabaseFile, "id" | "parent_id" | "index_in_parent">]>(`
+		moveFile: db.prepare<[Pick<DatabaseFile, "id" | "parent_id" | "index_in_parent">]>(`
 			UPDATE files
 			SET parent_id = :parent_id, index_in_parent = :index_in_parent, updated_at = CURRENT_TIMESTAMP
 			WHERE id = :id;
 		`),
-		renameFile: db.prepare<[params: Pick<DatabaseFile, "id" | "name">]>(`
+		renameFile: db.prepare<[Pick<DatabaseFile, "id" | "name">]>(`
 			UPDATE files
 			SET name = :name, updated_at = CURRENT_TIMESTAMP
 			WHERE id = :id;
 		`),
 		shiftParentChildren: db.prepare<
 			[
-				params: {
+				{
 					by: number;
 					parent_id: DatabaseFile["parent_id"];
 					start: number;

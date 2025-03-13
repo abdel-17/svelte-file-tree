@@ -1,35 +1,67 @@
 <script lang="ts">
-	import { composeEventHandlers } from "$lib/internal/helpers.svelte.js";
-	import { getTreeContext } from "../Tree/Tree.svelte";
-	import { getTreeItemContext } from "../Tree/TreeItemContextProvider.svelte";
-	import { TreeItemInputAttributes } from "./state.svelte.js";
+	import { composeEventHandlers } from "$lib/internal/helpers.js";
+	import type { Action } from "svelte/action";
+	import type { EventHandler } from "svelte/elements";
+	import { getTreeItemProviderContext } from "../Tree/TreeItemProvider.svelte";
+	import { getTreeItemContext } from "../TreeItem/TreeItem.svelte";
 	import type { TreeItemInputProps } from "./types.js";
 
-	const itemContext = getTreeItemContext();
-	const treeContext = getTreeContext();
+	const { treeState, item } = getTreeItemProviderContext();
+	const { setEditing } = getTreeItemContext();
 
 	let {
-		name = $bindable(itemContext.node.name),
-		element = $bindable(null),
-		onfocus,
+		name = $bindable(item().node.name),
+		ref = $bindable(null),
 		onkeydown,
 		onblur,
 		...rest
 	}: TreeItemInputProps = $props();
 
-	const attributes = new TreeItemInputAttributes({
-		treeContext,
-		itemContext,
-		name: () => name,
+	const handleKeyDown: EventHandler<KeyboardEvent, HTMLInputElement> = (event) => {
+		switch (event.key) {
+			case "Enter": {
+				const { node } = item();
+				void treeState.renameItem(item(), name).then((didRename) => {
+					if (didRename) {
+						treeState.getItemElement(node.id)?.focus();
+					}
+				});
+				break;
+			}
+			case "Escape": {
+				treeState.getItemElement(item().node.id)?.focus();
+				break;
+			}
+			default: {
+				return;
+			}
+		}
+
+		event.preventDefault();
+	};
+
+	const handleBlur: EventHandler<FocusEvent, HTMLInputElement> = () => {
+		setEditing(false);
+	};
+
+	const init: Action<HTMLInputElement> = (input) => {
+		input.focus();
+		input.select();
+	};
+
+	$effect(() => {
+		setEditing(true);
+		return () => {
+			setEditing(false);
+		};
 	});
 </script>
 
 <input
 	{...rest}
-	bind:this={element}
+	bind:this={ref}
 	bind:value={name}
-	onfocus={composeEventHandlers(onfocus, attributes.onfocus)}
-	onkeydown={composeEventHandlers(onkeydown, attributes.onkeydown)}
-	onblur={composeEventHandlers(onblur, attributes.onblur)}
-	use:attributes.onMount
+	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
+	onblur={composeEventHandlers(onblur, handleBlur)}
+	use:init
 />
