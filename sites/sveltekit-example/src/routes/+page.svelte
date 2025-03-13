@@ -1,24 +1,15 @@
 <script lang="ts">
 	import { invalidate } from "$app/navigation";
-	import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
-	import FileIcon from "@lucide/svelte/icons/file";
-	import FolderIcon from "@lucide/svelte/icons/folder";
-	import FolderOpenIcon from "@lucide/svelte/icons/folder-open";
+	import Tree from "$lib/components/Tree.svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import {
 		FileNode,
 		FileTree,
 		FolderNode,
-		Tree,
-		TreeItem,
-		TreeItemInput,
 		type DeleteItemsArgs,
+		type FileTreeNode,
 		type InsertItemsArgs,
-		type MoveErrorArgs,
 		type MoveItemsArgs,
-		type NameConflictArgs,
-		type NameConflictResolution,
-		type RenameErrorArgs,
 		type RenameItemArgs,
 	} from "svelte-file-tree";
 	import { toast } from "svelte-sonner";
@@ -27,20 +18,18 @@
 
 	const { data } = $props();
 
-	const tree = new FileTree({
-		children: (tree) =>
-			data.files.map(function transform(file): FileTree.Node {
+	const tree = $derived(
+		new FileTree(
+			data.files.map(function transform(file): FileTreeNode {
 				switch (file.type) {
 					case "file": {
 						return new FileNode({
-							tree,
 							id: file.id.toString(),
 							name: file.name,
 						});
 					}
 					case "folder": {
 						return new FolderNode({
-							tree,
 							id: file.id.toString(),
 							name: file.name,
 							children: file.children.map(transform),
@@ -48,19 +37,20 @@
 					}
 				}
 			}),
-	});
+		),
+	);
 
-	const disabledIds = new SvelteSet<string>();
+	const pendingIds = new SvelteSet<string>();
 
 	async function mutate({
-		affected,
+		mutated,
 		mutation,
 	}: {
-		affected: Array<FileTree.Node>;
+		mutated: Array<FileTreeNode>;
 		mutation: () => Promise<void>;
 	}): Promise<void> {
-		for (const node of affected) {
-			disabledIds.add(node.id);
+		for (const node of mutated) {
+			pendingIds.add(node.id);
 		}
 
 		try {
@@ -69,8 +59,8 @@
 			try {
 				await invalidate(FILES_DEPENDENCY);
 			} finally {
-				for (const node of affected) {
-					disabledIds.delete(node.id);
+				for (const node of mutated) {
+					pendingIds.delete(node.id);
 				}
 			}
 		}
@@ -80,7 +70,7 @@
 		target.name = name;
 		toast.promise(
 			mutate({
-				affected: [target],
+				mutated: [target],
 				mutation: async () => {
 					await api.renameFile({
 						id: Number(target.id),
@@ -95,19 +85,6 @@
 			},
 		);
 		return true;
-	}
-
-	function onRenameError({ error, name }: RenameErrorArgs): void {
-		switch (error) {
-			case "empty": {
-				toast.error("Name cannot be empty");
-				break;
-			}
-			case "already-exists": {
-				toast.error(`An item with the name "${name}" already exists`);
-				break;
-			}
-		}
 	}
 
 	function onMoveItems({ updates }: MoveItemsArgs): boolean {
@@ -132,19 +109,19 @@
 			return false;
 		}
 
-		let affected: Array<FileTree.Node> = [];
+		let mutated: Array<FileTreeNode> = [];
 		for (const { target } of updates) {
 			if (target instanceof FileTree) {
-				affected = target.children;
+				mutated = target.children;
 				break;
 			}
 
-			affected.push(target);
+			mutated.push(target);
 		}
 
 		toast.promise(
 			mutate({
-				affected,
+				mutated,
 				mutation: async () => {
 					await api.moveFiles(body);
 				},
@@ -158,15 +135,11 @@
 		return true;
 	}
 
-	function onMoveError({ target }: MoveErrorArgs): void {
-		toast.error(`Cannot move "${target.name}" into or next to itself`);
-	}
-
 	function onInsertItems({ target, start, inserted }: InsertItemsArgs): boolean {
 		target.children.splice(start, 0, ...inserted);
 		toast.promise(
 			mutate({
-				affected: target instanceof FileTree ? target.children : [target],
+				mutated: target instanceof FileTree ? target.children : [target],
 				mutation: async () => {
 					await api.insertFiles({
 						parentId: target instanceof FolderNode ? Number(target.id) : null,
@@ -184,29 +157,24 @@
 		return true;
 	}
 
-	function onNameConflict({ target }: NameConflictArgs): NameConflictResolution {
-		toast.error(`An item with the name "${target.name}" already exists`);
-		return "cancel";
-	}
-
 	function onDeleteItems({ updates, deleted }: DeleteItemsArgs): boolean {
 		for (const { target, children } of updates) {
 			target.children = children;
 		}
 
-		let affected: Array<FileTree.Node> = [];
+		let mutated: Array<FileTreeNode> = [];
 		for (const { target } of updates) {
 			if (target instanceof FileTree) {
-				affected = target.children;
+				mutated = target.children;
 				break;
 			}
 
-			affected.push(target);
+			mutated.push(target);
 		}
 
 		toast.promise(
 			mutate({
-				affected,
+				mutated,
 				mutation: async () => {
 					const deletedIds = deleted.map((node) => Number(node.id));
 					await api.deleteFiles(deletedIds);
@@ -225,65 +193,11 @@
 <main class="p-8">
 	<Tree
 		{tree}
-		editable
-		disabled={(node) => disabledIds.has(node.id)}
 		{onRenameItem}
-		{onRenameError}
 		{onMoveItems}
-		{onMoveError}
 		{onInsertItems}
-		{onNameConflict}
 		{onDeleteItems}
-		class="space-y-4"
-	>
-		{#snippet item({ node, depth, editing, disabled, dragged, dropPosition })}
-			<TreeItem
-				draggable
-				class={[
-					"relative flex items-center rounded-md border border-neutral-400 p-3 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:border-blue-400 aria-selected:bg-blue-100 aria-selected:text-blue-800 aria-selected:active:bg-blue-200",
-					dragged && "opacity-50",
-					dropPosition !== undefined &&
-						"before:pointer-events-none before:absolute before:-inset-[2px] before:rounded-[inherit] before:border-2",
-					dropPosition === "before" && "before:border-transparent before:border-t-red-500",
-					dropPosition === "after" && "before:border-transparent before:border-b-red-500",
-					dropPosition === "inside" && "before:border-red-500",
-					disabled && "pointer-events-none opacity-50",
-				]}
-				style="margin-inline-start: {depth * 16}px;"
-			>
-				<ChevronDownIcon
-					role="presentation"
-					size={20}
-					class={[
-						"rounded-full p-0.25 transition-transform duration-200 hover:bg-current/8 active:bg-current/12",
-						node.type === "folder" && node.expanded && "-rotate-90",
-						node.type === "file" && "invisible",
-					]}
-					onclick={(event) => {
-						if (node.type === "folder") {
-							node.toggleExpanded();
-						}
-
-						event.stopPropagation();
-					}}
-				/>
-
-				<div class="ms-1 me-3">
-					{#if node.type === "file"}
-						<FileIcon role="presentation" />
-					{:else if node.expanded}
-						<FolderOpenIcon role="presentation" class="fill-blue-300" />
-					{:else}
-						<FolderIcon role="presentation" class="fill-blue-300" />
-					{/if}
-				</div>
-
-				{#if editing}
-					<TreeItemInput class="border bg-white focus:outline-none" />
-				{:else}
-					<span class="select-none">{node.name}</span>
-				{/if}
-			</TreeItem>
-		{/snippet}
-	</Tree>
+		isItemEditable
+		isItemDisabled={(node) => pendingIds.has(node.id)}
+	/>
 </main>

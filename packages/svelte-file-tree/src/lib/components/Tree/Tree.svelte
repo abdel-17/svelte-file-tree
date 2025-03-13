@@ -1,51 +1,44 @@
-<script lang="ts" module>
-	import type { FileTree } from "$lib/tree.svelte.js";
-	import { DEV } from "esm-env";
-	import { getContext, hasContext, setContext } from "svelte";
-	import TreeItemContextProvider from "./TreeItemContextProvider.svelte";
-	import { TreeContext } from "./state.svelte.js";
+<script lang="ts">
+	import { SvelteSet } from "svelte/reactivity";
+	import TreeItemProvider from "./TreeItemProvider.svelte";
+	import { createTreeState } from "./state.svelte.js";
 	import type { TreeProps } from "./types.js";
 
-	const CONTEXT_KEY = Symbol("Tree");
-
-	export function getTreeContext(): TreeContext {
-		if (DEV && !hasContext(CONTEXT_KEY)) {
-			throw new Error("No parent <Tree> found");
-		}
-		return getContext(CONTEXT_KEY);
-	}
-</script>
-
-<script lang="ts">
 	const defaultId = $props.id();
 	let {
 		tree,
 		item,
+		defaultSelectedIds,
+		selectedIds = new SvelteSet(defaultSelectedIds),
+		defaultExpandedIds,
+		expandedIds = new SvelteSet(defaultExpandedIds),
+		defaultClipboardIds,
+		clipboardIds = new SvelteSet(defaultClipboardIds),
 		pasteOperation = $bindable(),
-		editable = false,
-		disabled = false,
+		isItemEditable = false,
+		isItemDisabled = false,
 		id = defaultId,
-		element = $bindable(null),
+		ref = $bindable(null),
 		generateCopyId = () => crypto.randomUUID(),
-		onRenameItem = (args) => {
-			args.target.name = args.name;
+		onRenameItem = ({ target, name }) => {
+			target.name = name;
 			return true;
 		},
 		onRenameError,
-		onMoveItems = (args) => {
-			for (const { target, children } of args.updates) {
+		onMoveItems = ({ updates }) => {
+			for (const { target, children } of updates) {
 				target.children = children;
 			}
 			return true;
 		},
 		onMoveError,
-		onInsertItems = (args) => {
-			args.target.children.splice(args.start, 0, ...args.inserted);
+		onInsertItems = ({ target, start, inserted }) => {
+			target.children.splice(start, 0, ...inserted);
 			return true;
 		},
 		onNameConflict = () => "cancel",
-		onDeleteItems = (args) => {
-			for (const { target, children } of args.updates) {
+		onDeleteItems = ({ updates }) => {
+			for (const { target, children } of updates) {
 				target.children = children;
 			}
 			return true;
@@ -53,11 +46,28 @@
 		...rest
 	}: TreeProps = $props();
 
-	const context = new TreeContext({
+	const treeState = createTreeState({
 		tree: () => tree,
+		selectedIds: () => selectedIds,
+		expandedIds: () => expandedIds,
+		clipboardIds: () => clipboardIds,
 		pasteOperation: () => pasteOperation,
 		setPasteOperation: (value) => {
 			pasteOperation = value;
+		},
+		isItemEditable: (node) => {
+			if (typeof isItemEditable === "function") {
+				return isItemEditable(node);
+			}
+
+			return isItemEditable;
+		},
+		isItemDisabled: (node) => {
+			if (typeof isItemDisabled === "function") {
+				return isItemDisabled(node);
+			}
+
+			return isItemDisabled;
 		},
 		id: () => id,
 		generateCopyId: () => generateCopyId(),
@@ -69,28 +79,14 @@
 		onNameConflict: (args) => onNameConflict(args),
 		onDeleteItems: (args) => onDeleteItems(args),
 	});
-	setContext(CONTEXT_KEY, context);
 </script>
 
-{#snippet items(nodes: Array<FileTree.Node>)}
-	{#each nodes as node, index (node.id)}
-		<TreeItemContextProvider
-			{node}
-			{index}
-			editable={typeof editable === "function" ? editable(node) : editable}
-			disabled={typeof disabled === "function" ? disabled(node) : disabled}
-		>
-			{#snippet children(args)}
-				{@render item(args)}
-
-				{#if node.type === "folder" && node.expanded}
-					{@render items(node.children)}
-				{/if}
-			{/snippet}
-		</TreeItemContextProvider>
+<div {...rest} bind:this={ref} {id} role="tree" aria-multiselectable="true">
+	{#each treeState.items() as i (i.node.id)}
+		<TreeItemProvider {treeState} item={i}>
+			{#if i.visible()}
+				{@render item(i)}
+			{/if}
+		</TreeItemProvider>
 	{/each}
-{/snippet}
-
-<div {...rest} bind:this={element} {id} role="tree" aria-multiselectable="true">
-	{@render items(tree.children)}
 </div>
