@@ -5,7 +5,9 @@
 	"overrides": [
 		{
 			"files": "*.svelte",
-			"parser": "svelte"
+			"options": {
+				"parser": "svelte"
+			}
 		}
 	]
 }
