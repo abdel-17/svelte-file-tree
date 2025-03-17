@@ -118,6 +118,9 @@
 
 				if (event.shiftKey) {
 					treeState.selectedIds().add(item().node.id).add(next.node.id);
+				} else if (!isControlOrMeta(event)) {
+					treeState.selectedIds().clear();
+					treeState.selectedIds().add(next.node.id);
 				}
 
 				nextElement.focus();
@@ -127,7 +130,7 @@
 			case "PageUp": {
 				const down = event.key === "PageDown";
 				const navigate = down ? treeState.getNextItem : treeState.getPreviousItem;
-
+				const shouldSelectMultiple = event.shiftKey && isControlOrMeta(event);
 				const maxScrollDistance = Math.min(
 					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 					document.getElementById(treeState.id())!.clientHeight,
@@ -154,8 +157,8 @@
 						break;
 					}
 
-					if (event.shiftKey) {
-						treeState.selectedIds().add(next.node.id);
+					if (shouldSelectMultiple) {
+						treeState.selectedIds().add(current.node.id);
 					}
 
 					current = next;
@@ -166,10 +169,11 @@
 					break;
 				}
 
-				if (event.shiftKey) {
-					treeState.selectedIds().add(item().node.id);
+				if (!shouldSelectMultiple) {
+					treeState.selectedIds().clear();
 				}
 
+				treeState.selectedIds().add(current.node.id);
 				currentElement.focus();
 				break;
 			}
@@ -184,12 +188,16 @@
 					break;
 				}
 
-				if (event.shiftKey && isControlOrMeta(event)) {
+				const shouldSelectMultiple = event.shiftKey && isControlOrMeta(event);
+				if (shouldSelectMultiple) {
 					let current: TreeItemPosition | undefined = item();
 					do {
 						treeState.selectedIds().add(current.node.id);
 						current = treeState.getPreviousItem(current);
 					} while (current !== undefined);
+				} else {
+					treeState.selectedIds().clear();
+					treeState.selectedIds().add(first.id);
 				}
 
 				firstElement.focus();
@@ -222,6 +230,9 @@
 						treeState.selectedIds().add(current.node.id);
 						current = treeState.getNextItem(current);
 					} while (current !== undefined);
+				} else if (!event.shiftKey && !isControlOrMeta(event)) {
+					treeState.selectedIds().clear();
+					treeState.selectedIds().add(last.id);
 				}
 
 				lastElement.focus();
