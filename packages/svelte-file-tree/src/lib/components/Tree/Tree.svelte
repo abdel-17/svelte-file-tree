@@ -85,7 +85,10 @@
 	{#each treeState.items() as i (i.node.id)}
 		<TreeItemProvider {treeState} item={i}>
 			{#if i.visible()}
-				{@render item(i)}
+				{@render item({
+					item: i,
+					paste: (position) => treeState.paste(i, position),
+				})}
 			{/if}
 		</TreeItemProvider>
 	{/each}

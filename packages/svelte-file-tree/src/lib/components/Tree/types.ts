@@ -17,6 +17,13 @@ export type TreeItemState<TNode extends FileTreeNode = FileTreeNode> = {
 	dragged: () => boolean;
 };
 
+export type DropPosition = "before" | "after" | "inside";
+
+export type TreeItemSnippetArgs = {
+	item: TreeItemState;
+	paste: (position?: DropPosition) => Promise<boolean>;
+};
+
 export type PasteOperation = "copy" | "cut";
 
 export type RenameItemArgs = {
@@ -67,7 +74,7 @@ export type DeleteItemsArgs = {
 export interface TreeProps
 	extends Omit<HTMLDivAttributes, "children" | "role" | "aria-multiselectable"> {
 	tree: FileTree;
-	item: Snippet<[item: TreeItemState]>;
+	item: Snippet<[args: TreeItemSnippetArgs]>;
 	defaultSelectedIds?: Iterable<string>;
 	selectedIds?: SvelteSet<string>;
 	defaultExpandedIds?: Iterable<string>;

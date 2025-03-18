@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { invalidate } from "$app/navigation";
-	import Tree from "$lib/components/Tree.svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import {
 		FileNode,
@@ -12,6 +11,7 @@
 		type MoveItemsArgs,
 		type RenameItemArgs,
 	} from "svelte-file-tree";
+	import { Tree } from "svelte-file-tree-styled";
 	import { toast } from "svelte-sonner";
 	import * as api from "./api.js";
 	import { FILES_DEPENDENCY } from "./shared.js";

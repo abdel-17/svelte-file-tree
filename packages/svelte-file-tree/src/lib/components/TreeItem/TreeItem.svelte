@@ -4,7 +4,7 @@
 	import { flushSync, getContext, hasContext, setContext } from "svelte";
 	import type { EventHandler } from "svelte/elements";
 	import { getTreeItemProviderContext } from "../Tree/TreeItemProvider.svelte";
-	import type { DropPosition, TreeItemPosition } from "../Tree/state.svelte.js";
+	import type { TreeItemPosition } from "../Tree/state.svelte.js";
 	import { createDragState } from "./state.svelte.js";
 	import type { TreeItemChildrenSnippetArgs, TreeItemProps } from "./types.js";
 
@@ -299,19 +299,7 @@
 			}
 			case "v": {
 				if (isControlOrMeta(event)) {
-					let position: DropPosition;
-					switch (item().node.type) {
-						case "file": {
-							position = "after";
-							break;
-						}
-						case "folder": {
-							position = item().expanded() ? "inside" : "after";
-							break;
-						}
-					}
-
-					void treeState.paste(item(), position);
+					void treeState.paste(item());
 				}
 				break;
 			}

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Tree from "$lib/components/Tree.svelte";
 	import { FileNode, FileTree, FolderNode } from "svelte-file-tree";
+	import { Tree } from "svelte-file-tree-styled";
 
 	const tree = new FileTree([
 		new FolderNode({

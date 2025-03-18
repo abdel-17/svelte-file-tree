@@ -1,6 +1,5 @@
 import { createDerived, createRawState } from "svelte-signals";
-import type { DropPosition } from "../Tree/state.svelte.js";
-import type { TreeItemState } from "../Tree/types.js";
+import type { DropPosition, TreeItemState } from "../Tree/types.js";
 
 export type DragStateProps = {
 	draggedId: () => string | undefined;

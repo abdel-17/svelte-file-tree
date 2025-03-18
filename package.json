@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "pnpm -r build",
-		"build:packages": "pnpm -F \"./packages/**\" --parallel build",
+		"build:packages": "pnpm -F \"./packages/**\" -r build",
 		"build:preview": "pnpm build:packages && pnpm -F preview build",
 		"check": "pnpm --parallel check",
 		"format": "pnpm --parallel format",

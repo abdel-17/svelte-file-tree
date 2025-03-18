@@ -1,9 +1,7 @@
 import type { HTMLDivAttributes } from "$lib/internal/types.js";
 import type { Snippet } from "svelte";
 import type { ClassValue } from "svelte/elements";
-import type { DropPosition } from "../Tree/state.svelte.js";
-
-export type { DropPosition };
+import type { DropPosition } from "../Tree/types.js";
 
 export type TreeItemChildrenSnippetArgs = {
 	editing: () => boolean;
@@ -27,15 +25,7 @@ export interface TreeItemProps
 	> {
 	children: Snippet<[args: TreeItemChildrenSnippetArgs]>;
 	editing?: boolean;
-	class?:
-		| ClassValue
-		| null
-		| undefined
-		| ((args: TreeItemChildrenSnippetArgs) => ClassValue | null | undefined);
-	style?:
-		| string
-		| null
-		| undefined
-		| ((args: TreeItemChildrenSnippetArgs) => string | null | undefined);
+	class?: ClassValue | undefined | ((args: TreeItemChildrenSnippetArgs) => ClassValue | undefined);
+	style?: string | undefined | ((args: TreeItemChildrenSnippetArgs) => string | undefined);
 	ref?: HTMLElement | null;
 }

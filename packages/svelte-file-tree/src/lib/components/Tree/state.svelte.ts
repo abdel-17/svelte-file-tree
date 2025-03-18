@@ -5,6 +5,7 @@ import { createDerived, createRawState } from "svelte-signals";
 import type { SvelteSet } from "svelte/reactivity";
 import type {
 	DeleteItemsArgs,
+	DropPosition,
 	InsertItemsArgs,
 	MoveErrorArgs,
 	MoveItemsArgs,
@@ -41,8 +42,6 @@ export type TreeItemPosition<TNode extends FileTreeNode = FileTreeNode> = {
 	index: number;
 	parent?: TreeItemPosition<FolderNode>;
 };
-
-export type DropPosition = "before" | "after" | "inside";
 
 export function createTreeState({
 	tree,
@@ -201,6 +200,7 @@ export function createTreeState({
 		}
 
 		clipboardIds().clear();
+
 		for (const id of selectedIds()) {
 			clipboardIds().add(id);
 		}
@@ -571,7 +571,20 @@ export function createTreeState({
 		return result instanceof Promise ? await result : result;
 	}
 
-	async function paste(item: TreeItemState, position: DropPosition): Promise<boolean> {
+	async function paste(item: TreeItemState, position?: DropPosition): Promise<boolean> {
+		if (position === undefined) {
+			switch (item.node.type) {
+				case "file": {
+					position = "after";
+					break;
+				}
+				case "folder": {
+					position = item.expanded() ? "inside" : "after";
+					break;
+				}
+			}
+		}
+
 		let didPaste: boolean;
 		switch (pasteOperation()) {
 			case "copy": {
