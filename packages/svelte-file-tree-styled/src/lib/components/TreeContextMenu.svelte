@@ -87,7 +87,7 @@
 
 			<ContextMenu.Item
 				class="flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200"
-				onSelect={onPaste}
+				onSelect={() => onPaste()}
 			>
 				<ClipboardPasteIcon size={20} />
 				<span>Paste</span>
@@ -95,7 +95,7 @@
 
 			<ContextMenu.Item
 				class="flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200"
-				onSelect={onDelete}
+				onSelect={() => onDelete()}
 			>
 				<TrashIcon size={20} />
 				<span>Delete</span>
@@ -104,7 +104,7 @@
 			{#if item.node.type === "folder"}
 				<ContextMenu.Item
 					class="flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200"
-					onSelect={onAdd}
+					onSelect={() => onAdd()}
 				>
 					<PlusIcon size={20} />
 					<span>Add</span>
