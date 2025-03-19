@@ -33,9 +33,9 @@
 	let {
 		children,
 		editing = $bindable(false),
+		ref = $bindable(null),
 		class: className,
 		style,
-		ref = $bindable(null),
 		onfocusin,
 		onkeydown,
 		onclick,
@@ -276,7 +276,7 @@
 				break;
 			}
 			case "Delete": {
-				void treeState.deleteSelected(item());
+				void treeState.remove(item());
 				break;
 			}
 			case "a": {
@@ -382,8 +382,8 @@
 		);
 
 		treeState.selectedIds().add(draggedId);
-		void treeState.moveSelected(item(), position).then((didMove) => {
-			if (didMove) {
+		void treeState.drop(item(), position).then((didDrop) => {
+			if (didDrop) {
 				treeState.getItemElement(draggedId)?.focus();
 			}
 		});
@@ -395,16 +395,16 @@
 		treeState.setDraggedId(undefined);
 	};
 
-	$effect(() => {
-		return () => {
-			treeState.onDestroyItem(item().node.id);
-		};
-	});
-
 	const childrenArgs: TreeItemChildrenSnippetArgs = {
 		editing: () => editing,
 		dropPosition,
 	};
+
+	$effect(() => {
+		return () => {
+			treeState.onItemDestroyed(item().node.id);
+		};
+	});
 </script>
 
 <div

@@ -25,7 +25,7 @@ export interface TreeItemProps
 	> {
 	children: Snippet<[args: TreeItemChildrenSnippetArgs]>;
 	editing?: boolean;
+	ref?: HTMLElement | null;
 	class?: ClassValue | undefined | ((args: TreeItemChildrenSnippetArgs) => ClassValue | undefined);
 	style?: string | undefined | ((args: TreeItemChildrenSnippetArgs) => string | undefined);
-	ref?: HTMLElement | null;
 }

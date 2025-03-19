@@ -4,19 +4,16 @@
 		FolderNode,
 		Tree,
 		type FileTreeNode,
-		type MoveErrorArgs,
-		type NameConflictArgs,
 		type NameConflictResolution,
 		type PasteOperation,
-		type RenameErrorArgs,
+		type ResolveNameConflictArgs,
 		type TreeItemState,
 		type TreeProps,
 	} from "svelte-file-tree";
-	import { toast } from "svelte-sonner";
 	import { SvelteSet } from "svelte/reactivity";
 	import AddItemDialog from "./AddItemDialog.svelte";
 	import NameConflictDialog from "./NameConflictDialog.svelte";
-	import TreeItem from "./TreeItem.svelte";
+	import StyledTreeItem from "./StyledTreeItem.svelte";
 
 	let {
 		defaultSelectedIds,
@@ -27,48 +24,23 @@
 		clipboardIds = new SvelteSet(defaultClipboardIds),
 		pasteOperation = $bindable(),
 		ref = $bindable(null),
-		class: className,
-		onRenameError,
-		onMoveError,
 		onInsertItems = ({ inserted, start, target }) => {
 			target.children.splice(start, 0, ...inserted);
 			return true;
 		},
-		onNameConflict,
+		onAlreadyExistsError,
+		class: className,
 		...rest
-	}: Omit<TreeProps, "item"> = $props();
+	}: Omit<TreeProps, "item" | "onResolveNameConflict"> = $props();
 
 	let addItemDialog: AddItemDialog | null = $state.raw(null);
 	let nameConflictDialog: NameConflictDialog | null = $state.raw(null);
 
-	function handleRenameError(args: RenameErrorArgs): void {
-		onRenameError?.(args);
-
-		const { error, name } = args;
-		switch (error) {
-			case "empty": {
-				toast.error("Name cannot be empty");
-				break;
-			}
-			case "already-exists": {
-				toast.error(`An item with the name "${name}" already exists`);
-				break;
-			}
-		}
-	}
-
-	function handleMoveError(args: MoveErrorArgs): void {
-		onMoveError?.(args);
-
-		const { target } = args;
-		toast.error(`Cannot move "${target.name}" into or next to itself`);
-	}
-
-	function handleNameConflict(args: NameConflictArgs): Promise<NameConflictResolution> {
-		onNameConflict?.(args);
-
-		const { target, operation } = args;
-		const description = `An item with the name "${target.name}" already exists`;
+	function handleResolveNameConflict(
+		args: ResolveNameConflictArgs,
+	): Promise<NameConflictResolution> {
+		const { operation, name } = args;
+		const description = `An item with the name "${name}" already exists`;
 
 		let title: string;
 		switch (operation) {
@@ -127,7 +99,7 @@
 
 				for (const child of item.node.children) {
 					if (child.name === name) {
-						toast.error(`An item with the name "${name}" already exists`);
+						onAlreadyExistsError?.({ name });
 						return false;
 					}
 				}
@@ -168,19 +140,18 @@
 	{clipboardIds}
 	bind:pasteOperation
 	bind:ref
-	class={["space-y-4", className]}
-	onRenameError={handleRenameError}
-	onMoveError={handleMoveError}
 	{onInsertItems}
-	onNameConflict={handleNameConflict}
+	onResolveNameConflict={handleResolveNameConflict}
+	class={["space-y-4", className]}
 >
-	{#snippet item({ item, paste })}
-		<TreeItem
+	{#snippet item({ item, paste, remove })}
+		<StyledTreeItem
 			{item}
 			onExpand={() => handleExpandItem(item)}
 			onCollapse={() => handleCollapseItem(item)}
 			onCopy={(operation) => handleCopyItem(item, operation)}
 			onPaste={paste}
+			onDelete={remove}
 			onAdd={() => handleAddItem(item)}
 		/>
 	{/snippet}

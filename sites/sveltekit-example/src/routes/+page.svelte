@@ -5,13 +5,15 @@
 		FileNode,
 		FileTree,
 		FolderNode,
-		type DeleteItemsArgs,
+		type AlreadyExistsErrorArgs,
+		type CircularReferenceErrorArgs,
 		type FileTreeNode,
 		type InsertItemsArgs,
 		type MoveItemsArgs,
+		type RemoveItemsArgs,
 		type RenameItemArgs,
 	} from "svelte-file-tree";
-	import { Tree } from "svelte-file-tree-styled";
+	import { StyledTree } from "svelte-file-tree-styled";
 	import { toast } from "svelte-sonner";
 	import * as api from "./api.js";
 	import { FILES_DEPENDENCY } from "./shared.js";
@@ -66,7 +68,7 @@
 		}
 	}
 
-	function onRenameItem({ target, name }: RenameItemArgs): boolean {
+	function handleRenameItem({ target, name }: RenameItemArgs): boolean {
 		target.name = name;
 		toast.promise(
 			mutate({
@@ -87,7 +89,7 @@
 		return true;
 	}
 
-	function onMoveItems({ updates }: MoveItemsArgs): boolean {
+	function handleMoveItems({ updates }: MoveItemsArgs): boolean {
 		const body: api.MoveFilesBody = [];
 		for (const { target, children } of updates) {
 			const targetId = target instanceof FolderNode ? Number(target.id) : null;
@@ -135,7 +137,7 @@
 		return true;
 	}
 
-	function onInsertItems({ target, start, inserted }: InsertItemsArgs): boolean {
+	function handleInsertItems({ target, start, inserted }: InsertItemsArgs): boolean {
 		target.children.splice(start, 0, ...inserted);
 		toast.promise(
 			mutate({
@@ -157,7 +159,7 @@
 		return true;
 	}
 
-	function onDeleteItems({ updates, deleted }: DeleteItemsArgs): boolean {
+	function handleRemoveItems({ updates, removed }: RemoveItemsArgs): boolean {
 		for (const { target, children } of updates) {
 			target.children = children;
 		}
@@ -176,7 +178,7 @@
 			mutate({
 				mutated,
 				mutation: async () => {
-					const deletedIds = deleted.map((node) => Number(node.id));
+					const deletedIds = removed.map((node) => Number(node.id));
 					await api.deleteFiles(deletedIds);
 				},
 			}),
@@ -188,16 +190,26 @@
 		);
 		return true;
 	}
+
+	function handleAlreadyExistsError({ name }: AlreadyExistsErrorArgs): void {
+		toast.error(`An item with the name "${name}" already exists`);
+	}
+
+	function handleCircularReferenceError({ target, position }: CircularReferenceErrorArgs): void {
+		toast.error(`Cannot move "${target.name}" ${position} itself`);
+	}
 </script>
 
 <main class="p-8">
-	<Tree
+	<StyledTree
 		{tree}
-		{onRenameItem}
-		{onMoveItems}
-		{onInsertItems}
-		{onDeleteItems}
 		isItemEditable
 		isItemDisabled={(node) => pendingIds.has(node.id)}
+		onRenameItem={handleRenameItem}
+		onMoveItems={handleMoveItems}
+		onInsertItems={handleInsertItems}
+		onRemoveItems={handleRemoveItems}
+		onAlreadyExistsError={handleAlreadyExistsError}
+		onCircularReferenceError={handleCircularReferenceError}
 	/>
 </main>

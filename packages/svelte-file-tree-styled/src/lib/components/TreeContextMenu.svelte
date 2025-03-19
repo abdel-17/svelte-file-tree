@@ -3,6 +3,7 @@
 	import CopyIcon from "@lucide/svelte/icons/copy";
 	import PenIcon from "@lucide/svelte/icons/pen";
 	import PlusIcon from "@lucide/svelte/icons/plus";
+	import TrashIcon from "@lucide/svelte/icons/trash";
 	import ScissorsIcon from "@lucide/svelte/icons/scissors";
 	import { ContextMenu } from "bits-ui";
 	import type { Snippet } from "svelte";
@@ -14,6 +15,7 @@
 		children,
 		onCopy,
 		onPaste,
+		onDelete,
 		onAdd,
 	}: {
 		item: TreeItemState;
@@ -21,6 +23,7 @@
 		children: Snippet;
 		onCopy: (operation: PasteOperation) => void;
 		onPaste: () => void;
+		onDelete: () => void;
 		onAdd: () => void;
 	} = $props();
 
@@ -88,6 +91,14 @@
 			>
 				<ClipboardPasteIcon size={20} />
 				<span>Paste</span>
+			</ContextMenu.Item>
+
+			<ContextMenu.Item
+				class="flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200"
+				onSelect={onDelete}
+			>
+				<TrashIcon size={20} />
+				<span>Delete</span>
 			</ContextMenu.Item>
 
 			{#if item.node.type === "folder"}

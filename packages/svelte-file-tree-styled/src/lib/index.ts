@@ -1,1 +1,1 @@
-export { default as Tree } from "./components/Tree.svelte";
+export { default as StyledTree } from "./components/StyledTree.svelte";

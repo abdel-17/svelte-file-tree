@@ -18,6 +18,7 @@
 		onCollapse,
 		onCopy,
 		onPaste,
+		onDelete,
 		onAdd,
 	}: {
 		item: TreeItemState;
@@ -25,6 +26,7 @@
 		onCollapse: () => void;
 		onCopy: (operation: PasteOperation) => void;
 		onPaste: () => void;
+		onDelete: () => void;
 		onAdd: () => void;
 	} = $props();
 
@@ -42,7 +44,7 @@
 	};
 </script>
 
-<TreeContextMenu {item} bind:editing {onAdd} {onCopy} {onPaste}>
+<TreeContextMenu {item} bind:editing {onCopy} {onPaste} {onDelete} {onAdd}>
 	<TreeItem
 		bind:editing
 		draggable

@@ -83,7 +83,7 @@
 							Add a New Item
 						</Dialog.Title>
 
-						<form class="mt-4" onsubmit={handleSubmit}>
+						<form onsubmit={handleSubmit} class="mt-4">
 							<div>
 								<label for={typeId} class="text-sm font-medium">Type</label>
 								<select

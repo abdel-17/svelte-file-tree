@@ -4,16 +4,16 @@ import { DEV } from "esm-env";
 import { createDerived, createRawState } from "svelte-signals";
 import type { SvelteSet } from "svelte/reactivity";
 import type {
-	DeleteItemsArgs,
+	AlreadyExistsErrorArgs,
+	CircularReferenceErrorArgs,
 	DropPosition,
 	InsertItemsArgs,
-	MoveErrorArgs,
 	MoveItemsArgs,
-	NameConflictArgs,
 	NameConflictResolution,
 	PasteOperation,
-	RenameErrorArgs,
+	RemoveItemsArgs,
 	RenameItemArgs,
+	ResolveNameConflictArgs,
 	TreeItemState,
 } from "./types.js";
 
@@ -29,12 +29,12 @@ export type TreeStateProps = {
 	id: () => string;
 	generateCopyId: () => string;
 	onRenameItem: (args: RenameItemArgs) => MaybePromise<boolean>;
-	onRenameError: (args: RenameErrorArgs) => void;
 	onMoveItems: (args: MoveItemsArgs) => MaybePromise<boolean>;
-	onMoveError: (args: MoveErrorArgs) => void;
 	onInsertItems: (args: InsertItemsArgs) => MaybePromise<boolean>;
-	onNameConflict: (args: NameConflictArgs) => MaybePromise<NameConflictResolution>;
-	onDeleteItems: (args: DeleteItemsArgs) => MaybePromise<boolean>;
+	onRemoveItems: (args: RemoveItemsArgs) => MaybePromise<boolean>;
+	onResolveNameConflict: (args: ResolveNameConflictArgs) => MaybePromise<NameConflictResolution>;
+	onAlreadyExistsError: (args: AlreadyExistsErrorArgs) => void;
+	onCircularReferenceError: (args: CircularReferenceErrorArgs) => void;
 };
 
 export type TreeItemPosition<TNode extends FileTreeNode = FileTreeNode> = {
@@ -42,6 +42,27 @@ export type TreeItemPosition<TNode extends FileTreeNode = FileTreeNode> = {
 	index: number;
 	parent?: TreeItemPosition<FolderNode>;
 };
+
+function hasAncestor(
+	item: TreeItemState,
+	predicate: (ancestor: TreeItemState<FolderNode>) => boolean,
+): boolean {
+	for (let ancestor = item.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+		if (predicate(ancestor)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+function isSelected(item: TreeItemState): boolean {
+	return item.selected();
+}
+
+function isInClipboard(item: TreeItemState): boolean {
+	return item.inClipboard();
+}
 
 export function createTreeState({
 	tree,
@@ -55,12 +76,12 @@ export function createTreeState({
 	id,
 	generateCopyId,
 	onRenameItem,
-	onRenameError,
 	onMoveItems,
-	onMoveError,
 	onInsertItems,
-	onNameConflict,
-	onDeleteItems,
+	onRemoveItems,
+	onResolveNameConflict,
+	onAlreadyExistsError,
+	onCircularReferenceError,
 }: TreeStateProps) {
 	const [tabbableId, setTabbableId] = createRawState<string>();
 	const [draggedId, setDraggedId] = createRawState<string>();
@@ -194,6 +215,68 @@ export function createTreeState({
 		return { node, index, parent };
 	}
 
+	function toggleSelection(target: TreeItemState): void {
+		if (target.selected()) {
+			selectedIds().delete(target.node.id);
+		} else {
+			selectedIds().add(target.node.id);
+		}
+	}
+
+	function _selectAll(nodes: Array<FileTreeNode>): void {
+		for (const node of nodes) {
+			selectedIds().add(node.id);
+
+			if (node.type === "folder" && expandedIds().has(node.id)) {
+				_selectAll(node.children);
+			}
+		}
+	}
+
+	function selectAll(): void {
+		_selectAll(tree().children);
+	}
+
+	function selectUntil(target: TreeItemState, element: HTMLElement): void {
+		let lastSelected: TreeItemState | undefined;
+		for (const id of selectedIds()) {
+			const current = lookup().get(id);
+			if (current !== undefined) {
+				lastSelected = current;
+			}
+		}
+
+		if (lastSelected === undefined) {
+			let current: TreeItemPosition | undefined = items()[0];
+			do {
+				selectedIds().add(current.node.id);
+				if (current.node === target.node) {
+					break;
+				}
+				current = getNextItem(current);
+			} while (current !== undefined);
+			return;
+		}
+
+		const lastSelectedElement = getItemElement(lastSelected.node.id);
+		if (lastSelectedElement === null) {
+			return;
+		}
+
+		const positionBitmask = lastSelectedElement.compareDocumentPosition(element);
+		const following = positionBitmask & Node.DOCUMENT_POSITION_FOLLOWING;
+		const navigate = following !== 0 ? getNextItem : getPreviousItem;
+
+		let current: TreeItemPosition | undefined = lastSelected;
+		while (current.node !== target.node) {
+			current = navigate(current);
+			if (current === undefined) {
+				break;
+			}
+			selectedIds().add(current.node.id);
+		}
+	}
+
 	function copySelectedToClipboard(operation: PasteOperation): void {
 		if (selectedIds().size === 0) {
 			return;
@@ -213,116 +296,50 @@ export function createTreeState({
 		setPasteOperation(undefined);
 	}
 
-	function toggleSelection(item: TreeItemState): void {
-		if (item.selected()) {
-			selectedIds().delete(item.node.id);
-		} else {
-			selectedIds().add(item.node.id);
-		}
-	}
-
-	function _selectAll(nodes: Array<FileTreeNode>): void {
-		for (const node of nodes) {
-			selectedIds().add(node.id);
-
-			if (node.type === "folder" && expandedIds().has(node.id)) {
-				_selectAll(node.children);
-			}
-		}
-	}
-
-	function selectAll(): void {
-		_selectAll(tree().children);
-	}
-
-	function selectUntil(item: TreeItemState, element: HTMLElement): void {
-		let lastSelected: TreeItemState | undefined;
-		for (const id of selectedIds()) {
-			const current = lookup().get(id);
-			if (current !== undefined) {
-				lastSelected = current;
-			}
-		}
-
-		if (lastSelected === undefined) {
-			let current: TreeItemPosition | undefined = items()[0];
-			do {
-				selectedIds().add(current.node.id);
-				if (current.node === item.node) {
-					break;
-				}
-				current = getNextItem(current);
-			} while (current !== undefined);
-			return;
-		}
-
-		const lastSelectedElement = getItemElement(lastSelected.node.id);
-		if (lastSelectedElement === null) {
-			return;
-		}
-
-		const positionBitmask = lastSelectedElement.compareDocumentPosition(element);
-		const following = positionBitmask & Node.DOCUMENT_POSITION_FOLLOWING;
-		const navigate = following !== 0 ? getNextItem : getPreviousItem;
-
-		let current: TreeItemPosition | undefined = lastSelected;
-		while (current.node !== item.node) {
-			current = navigate(current);
-			if (current === undefined) {
-				break;
-			}
-			selectedIds().add(current.node.id);
-		}
-	}
-
-	async function renameItem(item: TreeItemState, name: string): Promise<boolean> {
+	async function rename(target: TreeItemState, name: string): Promise<boolean> {
 		if (name.length === 0) {
-			onRenameError({
-				error: "empty",
-				target: item.node,
-				name,
-			});
 			return false;
 		}
 
-		const owner = item.parent?.node ?? tree();
+		const owner = target.parent?.node ?? tree();
 		for (const child of owner.children) {
-			if (child !== item.node && name === child.name) {
-				onRenameError({
-					error: "already-exists",
-					target: item.node,
-					name,
-				});
+			if (child !== target.node && name === child.name) {
+				onAlreadyExistsError({ name });
 				return false;
 			}
 		}
 
-		if (name === item.node.name) {
+		if (name === target.node.name) {
 			return true;
 		}
 
-		const result = onRenameItem({
-			target: item.node,
+		return await onRenameItem({
+			target: target.node,
 			name,
 		});
-		return result instanceof Promise ? await result : result;
 	}
 
 	async function moveItems(
 		movedIds: Set<string>,
-		item: TreeItemState,
+		isMoved: (item: TreeItemState) => boolean,
+		target: TreeItemState,
 		position: DropPosition,
 	): Promise<boolean> {
-		for (
-			let current: TreeItemState | undefined = item;
-			current !== undefined;
-			current = current.parent
-		) {
-			if (movedIds.has(current.node.id)) {
-				// Don't move an item next to or inside itself.
-				onMoveError({
-					error: "circular-reference",
-					target: current.node,
+		if (isMoved(target)) {
+			// Don't move the target next to or inside itself.
+			onCircularReferenceError({
+				target: target.node,
+				position,
+			});
+			return false;
+		}
+
+		for (let ancestor = target.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+			if (isMoved(ancestor)) {
+				// Don't move the ancestor inside itself.
+				onCircularReferenceError({
+					target: ancestor.node,
+					position: "inside",
 				});
 				return false;
 			}
@@ -332,18 +349,19 @@ export function createTreeState({
 		switch (position) {
 			case "before":
 			case "after": {
-				owner = item.parent?.node ?? tree();
+				owner = target.parent?.node ?? tree();
 				break;
 			}
 			case "inside": {
-				if (item.node.type === "file") {
+				if (target.node.type === "file") {
 					if (DEV) {
 						throw new Error("Cannot move an item inside a file");
 					}
+
 					return false;
 				}
 
-				owner = item.node;
+				owner = target.node;
 				break;
 			}
 		}
@@ -356,27 +374,25 @@ export function createTreeState({
 		const moved: Array<FileTreeNode> = [];
 		const movedOwners = new Set<FolderNode | FileTree>();
 		const skippedIds = new Set<string>();
-		outer: for (const id of movedIds) {
+		for (const id of movedIds) {
 			const current = lookup().get(id);
 			if (current === undefined) {
 				continue;
 			}
 
-			for (let ancestor = current.parent; ancestor !== undefined; ancestor = ancestor.parent) {
-				if (movedIds.has(ancestor.node.id)) {
-					// If an ancestor is moved, its children are moved along with it.
-					continue outer;
-				}
+			if (hasAncestor(current, isMoved)) {
+				// If an ancestor is moved, its children are moved along with it.
+				continue;
 			}
 
 			const currentOwner = current.parent?.node ?? tree();
-			if (currentOwner !== owner && ownerChildrenNames.has(current.node.name)) {
-				const result = onNameConflict({
+			const { name } = current.node;
+			if (currentOwner !== owner && ownerChildrenNames.has(name)) {
+				const resolution = await onResolveNameConflict({
 					operation: "move",
-					target: current.node,
+					name,
 				});
-				const conflictResolution = result instanceof Promise ? await result : result;
-				switch (conflictResolution) {
+				switch (resolution) {
 					case "skip": {
 						skippedIds.add(current.node.id);
 						continue;
@@ -387,7 +403,7 @@ export function createTreeState({
 				}
 			}
 
-			ownerChildrenNames.add(current.node.name);
+			ownerChildrenNames.add(name);
 			moved.push(current.node);
 			movedOwners.add(currentOwner);
 		}
@@ -417,7 +433,7 @@ export function createTreeState({
 						continue;
 					}
 
-					if (child === item.node) {
+					if (child === target.node) {
 						children.push(...moved);
 					}
 
@@ -434,7 +450,7 @@ export function createTreeState({
 
 					children.push(child);
 
-					if (child === item.node) {
+					if (child === target.node) {
 						children.push(...moved);
 					}
 				}
@@ -452,15 +468,14 @@ export function createTreeState({
 			children,
 		});
 
-		const result = onMoveItems({
+		return await onMoveItems({
 			updates,
 			moved,
 		});
-		return result instanceof Promise ? await result : result;
 	}
 
-	function moveSelected(item: TreeItemState, position: DropPosition): Promise<boolean> {
-		return moveItems(selectedIds(), item, position);
+	function drop(target: TreeItemState, position: DropPosition): Promise<boolean> {
+		return moveItems(selectedIds(), isSelected, target, position);
 	}
 
 	function copyNode(node: FileTreeNode): FileTreeNode {
@@ -482,23 +497,24 @@ export function createTreeState({
 		}
 	}
 
-	async function copyPaste(item: TreeItemState, position: DropPosition): Promise<boolean> {
+	async function copyPaste(target: TreeItemState, position: DropPosition): Promise<boolean> {
 		let owner: FolderNode | FileTree;
 		switch (position) {
 			case "before":
 			case "after": {
-				owner = item.parent?.node ?? tree();
+				owner = target.parent?.node ?? tree();
 				break;
 			}
 			case "inside": {
-				if (item.node.type === "file") {
+				if (target.node.type === "file") {
 					if (DEV) {
 						throw new Error("Cannot move an item inside a file");
 					}
+
 					return false;
 				}
 
-				owner = item.node;
+				owner = target.node;
 				break;
 			}
 		}
@@ -509,27 +525,25 @@ export function createTreeState({
 		}
 
 		const copies: Array<FileTreeNode> = [];
-		outer: for (const id of clipboardIds()) {
+		for (const id of clipboardIds()) {
 			const current = lookup().get(id);
 			if (current === undefined) {
 				continue;
 			}
 
-			for (let ancestor = current.parent; ancestor !== undefined; ancestor = ancestor.parent) {
-				if (ancestor.inClipboard()) {
-					// If an ancestor is copied, its children are copied along with it.
-					continue outer;
-				}
+			if (hasAncestor(current, isInClipboard)) {
+				// If an ancestor is copied, its children are copied along with it.
+				continue;
 			}
 
 			const copy = copyNode(current.node);
-			if (ownerChildrenNames.has(copy.name)) {
-				const result = onNameConflict({
+			const { name } = copy;
+			if (ownerChildrenNames.has(name)) {
+				const resolution = await onResolveNameConflict({
 					operation: "insert",
-					target: copy,
+					name,
 				});
-				const conflictResolution = result instanceof Promise ? await result : result;
-				switch (conflictResolution) {
+				switch (resolution) {
 					case "skip": {
 						continue;
 					}
@@ -539,7 +553,7 @@ export function createTreeState({
 				}
 			}
 
-			ownerChildrenNames.add(copy.name);
+			ownerChildrenNames.add(name);
 			copies.push(copy);
 		}
 
@@ -550,11 +564,11 @@ export function createTreeState({
 		let start: number;
 		switch (position) {
 			case "before": {
-				start = item.index;
+				start = target.index;
 				break;
 			}
 			case "after": {
-				start = item.index + 1;
+				start = target.index + 1;
 				break;
 			}
 			case "inside": {
@@ -563,23 +577,22 @@ export function createTreeState({
 			}
 		}
 
-		const result = onInsertItems({
+		return await onInsertItems({
 			target: owner,
 			start,
 			inserted: copies,
 		});
-		return result instanceof Promise ? await result : result;
 	}
 
-	async function paste(item: TreeItemState, position?: DropPosition): Promise<boolean> {
+	async function paste(target: TreeItemState, position?: DropPosition): Promise<boolean> {
 		if (position === undefined) {
-			switch (item.node.type) {
+			switch (target.node.type) {
 				case "file": {
 					position = "after";
 					break;
 				}
 				case "folder": {
-					position = item.expanded() ? "inside" : "after";
+					position = target.expanded() ? "inside" : "after";
 					break;
 				}
 			}
@@ -588,11 +601,11 @@ export function createTreeState({
 		let didPaste: boolean;
 		switch (pasteOperation()) {
 			case "copy": {
-				didPaste = await copyPaste(item, position);
+				didPaste = await copyPaste(target, position);
 				break;
 			}
 			case "cut": {
-				didPaste = await moveItems(clipboardIds(), item, position);
+				didPaste = await moveItems(clipboardIds(), isInClipboard, target, position);
 				break;
 			}
 			case undefined: {
@@ -607,33 +620,32 @@ export function createTreeState({
 		return didPaste;
 	}
 
-	async function deleteSelected(item: TreeItemState): Promise<boolean> {
-		const deleted: Array<FileTreeNode> = [];
-		const deletedOwners = new Set<FolderNode | FileTree>();
-		outer: for (const id of selectedIds()) {
+	async function remove(target: TreeItemState): Promise<boolean> {
+		const removed: Array<FileTreeNode> = [];
+		const removedOwners = new Set<FolderNode | FileTree>();
+		for (const id of selectedIds()) {
 			const current = lookup().get(id);
 			if (current === undefined) {
 				continue;
 			}
 
-			for (let ancestor = current.parent; ancestor !== undefined; ancestor = ancestor.parent) {
-				if (ancestor.selected()) {
-					// If an ancestor is deleted, its children are deleted along with it.
-					continue outer;
-				}
+			if (hasAncestor(current, isSelected)) {
+				// If an ancestor is removed, its children are removed along with it.
+				continue;
 			}
 
-			deleted.push(current.node);
-			deletedOwners.add(current.parent?.node ?? tree());
+			removed.push(current.node);
+			removedOwners.add(current.parent?.node ?? tree());
 		}
 
-		if (deleted.length === 0) {
-			return true;
+		if (!hasAncestor(target, isSelected)) {
+			removed.push(target.node);
+			removedOwners.add(target.parent?.node ?? tree());
 		}
 
-		let focusTarget: TreeItemPosition | undefined = item;
-		do {
-			// Move to the highest selected ancestor as all its children will be deleted.
+		let focusTarget = getNextNonChildItem(target) ?? getPreviousItem(target);
+		while (focusTarget !== undefined) {
+			// Move to the highest selected ancestor as all its children will be removed.
 			for (
 				let ancestor: TreeItemPosition<FolderNode> | undefined = focusTarget.parent;
 				ancestor !== undefined;
@@ -647,7 +659,7 @@ export function createTreeState({
 			// Focus the nearest remaining item after this item.
 			let nearestUnselected: TreeItemPosition | undefined = focusTarget;
 			while (nearestUnselected !== undefined && selectedIds().has(nearestUnselected.node.id)) {
-				// The current item will be deleted, so we shouldn't traverse its children.
+				// The current item will be removed, so we shouldn't traverse its children.
 				nearestUnselected = getNextNonChildItem(nearestUnselected);
 			}
 
@@ -665,36 +677,37 @@ export function createTreeState({
 
 			// This item might be inside a selected folder, so we need to continue the loop.
 			focusTarget = nearestUnselected;
-		} while (focusTarget !== undefined);
+		}
 
-		const updates: DeleteItemsArgs["updates"] = [];
-		for (const deletedOwner of deletedOwners) {
+		const updates: RemoveItemsArgs["updates"] = [];
+		for (const removedOwner of removedOwners) {
 			updates.push({
-				target: deletedOwner,
-				children: deletedOwner.children.filter((child) => !selectedIds().has(child.id)),
+				target: removedOwner,
+				children: removedOwner.children.filter(
+					(child) => child !== target.node && !selectedIds().has(child.id),
+				),
 			});
 		}
 
-		const result = onDeleteItems({
+		const didRemove = await onRemoveItems({
 			updates,
-			deleted,
+			removed,
 		});
-		const didDelete = result instanceof Promise ? await result : result;
 
-		if (didDelete && focusTarget !== undefined) {
+		if (didRemove && focusTarget !== undefined) {
 			getItemElement(focusTarget.node.id)?.focus();
 		}
 
-		return didDelete;
+		return didRemove;
 	}
 
-	function onDeleteItem(id: string): void {
+	function onItemRemoved(id: string): void {
 		selectedIds().delete(id);
 		expandedIds().delete(id);
 		clipboardIds().delete(id);
 	}
 
-	function onDestroyItem(id: string): void {
+	function onItemDestroyed(id: string): void {
 		if (tabbableId() === id) {
 			setTabbableId(undefined);
 		}
@@ -711,26 +724,28 @@ export function createTreeState({
 		clipboardIds,
 		pasteOperation,
 		id,
+		tabbableId,
 		isItemTabbable,
 		setTabbableId,
 		draggedId,
 		setDraggedId,
 		items,
+		lookup,
 		getItemElementId,
 		getItemElement,
 		getNextItem,
 		getPreviousItem,
-		copySelectedToClipboard,
-		clearClipboard,
 		toggleSelection,
 		selectAll,
 		selectUntil,
-		renameItem,
-		moveSelected,
+		copySelectedToClipboard,
+		clearClipboard,
+		rename,
+		drop,
 		paste,
-		deleteSelected,
-		onDeleteItem,
-		onDestroyItem,
+		remove,
+		onItemRemoved,
+		onItemDestroyed,
 	};
 }
 
