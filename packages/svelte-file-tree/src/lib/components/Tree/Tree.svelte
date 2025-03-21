@@ -24,25 +24,25 @@
 			target.name = name;
 			return true;
 		},
-		onRenameError,
 		onMoveItems = ({ updates }) => {
 			for (const { target, children } of updates) {
 				target.children = children;
 			}
 			return true;
 		},
-		onMoveError,
-		onInsertItems = ({ target, start, inserted }) => {
-			target.children.splice(start, 0, ...inserted);
+		onCopyPasteItems = ({ target, start, copies }) => {
+			target.children.splice(start, 0, ...copies);
 			return true;
 		},
-		onNameConflict = () => "cancel",
-		onDeleteItems = ({ updates }) => {
+		onRemoveItems = ({ updates }) => {
 			for (const { target, children } of updates) {
 				target.children = children;
 			}
 			return true;
 		},
+		onResolveNameConflict = () => "cancel",
+		onAlreadyExistsError,
+		onCircularReferenceError,
 		...rest
 	}: TreeProps = $props();
 
@@ -72,12 +72,12 @@
 		id: () => id,
 		generateCopyId: () => generateCopyId(),
 		onRenameItem: (args) => onRenameItem(args),
-		onRenameError: (args) => onRenameError?.(args),
 		onMoveItems: (args) => onMoveItems(args),
-		onMoveError: (args) => onMoveError?.(args),
-		onInsertItems: (args) => onInsertItems(args),
-		onNameConflict: (args) => onNameConflict(args),
-		onDeleteItems: (args) => onDeleteItems(args),
+		onCopyPasteItems: (args) => onCopyPasteItems(args),
+		onRemoveItems: (args) => onRemoveItems(args),
+		onResolveNameConflict: (args) => onResolveNameConflict(args),
+		onAlreadyExistsError: (args) => onAlreadyExistsError?.(args),
+		onCircularReferenceError: (args) => onCircularReferenceError?.(args),
 	});
 </script>
 
@@ -85,7 +85,12 @@
 	{#each treeState.items() as i (i.node.id)}
 		<TreeItemProvider {treeState} item={i}>
 			{#if i.visible()}
-				{@render item(i)}
+				{@render item({
+					item: i,
+					rename: (name) => treeState.rename(i, name),
+					paste: (position) => treeState.paste(i, position),
+					remove: () => treeState.remove(i),
+				})}
 			{/if}
 		</TreeItemProvider>
 	{/each}

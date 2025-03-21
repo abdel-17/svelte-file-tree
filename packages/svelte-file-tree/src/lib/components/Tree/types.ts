@@ -17,15 +17,18 @@ export type TreeItemState<TNode extends FileTreeNode = FileTreeNode> = {
 	dragged: () => boolean;
 };
 
+export type DropPosition = "before" | "after" | "inside";
+
+export type TreeItemSnippetArgs = {
+	item: TreeItemState;
+	rename: (name: string) => Promise<boolean>;
+	paste: (position?: DropPosition) => Promise<boolean>;
+	remove: () => Promise<boolean>;
+};
+
 export type PasteOperation = "copy" | "cut";
 
 export type RenameItemArgs = {
-	target: FileTreeNode;
-	name: string;
-};
-
-export type RenameErrorArgs = {
-	error: "empty" | "already-exists";
 	target: FileTreeNode;
 	name: string;
 };
@@ -38,36 +41,41 @@ export type MoveItemsArgs = {
 	moved: Array<FileTreeNode>;
 };
 
-export type MoveErrorArgs = {
-	error: "circular-reference";
-	target: FileTreeNode;
-};
-
-export type InsertItemsArgs = {
+export type CopyPasteItemsArgs = {
 	target: FolderNode | FileTree;
 	start: number;
-	inserted: Array<FileTreeNode>;
+	copies: Array<FileTreeNode>;
+	originals: Array<FileTreeNode>;
 };
 
-export type NameConflictArgs = {
-	operation: "move" | "insert";
-	target: FileTreeNode;
-};
-
-export type NameConflictResolution = "skip" | "cancel";
-
-export type DeleteItemsArgs = {
+export type RemoveItemsArgs = {
 	updates: Array<{
 		target: FolderNode | FileTree;
 		children: Array<FileTreeNode>;
 	}>;
-	deleted: Array<FileTreeNode>;
+	removed: Array<FileTreeNode>;
+};
+
+export type ResolveNameConflictArgs = {
+	operation: "move" | "copy-paste";
+	name: string;
+};
+
+export type NameConflictResolution = "skip" | "cancel";
+
+export type AlreadyExistsErrorArgs = {
+	name: string;
+};
+
+export type CircularReferenceErrorArgs = {
+	target: FileTreeNode;
+	position: DropPosition;
 };
 
 export interface TreeProps
 	extends Omit<HTMLDivAttributes, "children" | "role" | "aria-multiselectable"> {
 	tree: FileTree;
-	item: Snippet<[item: TreeItemState]>;
+	item: Snippet<[args: TreeItemSnippetArgs]>;
 	defaultSelectedIds?: Iterable<string>;
 	selectedIds?: SvelteSet<string>;
 	defaultExpandedIds?: Iterable<string>;
@@ -81,10 +89,10 @@ export interface TreeProps
 	ref?: HTMLElement | null;
 	generateCopyId?: () => string;
 	onRenameItem?: (args: RenameItemArgs) => MaybePromise<boolean>;
-	onRenameError?: (args: RenameErrorArgs) => void;
 	onMoveItems?: (args: MoveItemsArgs) => MaybePromise<boolean>;
-	onMoveError?: (args: MoveErrorArgs) => void;
-	onInsertItems?: (args: InsertItemsArgs) => MaybePromise<boolean>;
-	onNameConflict?: (args: NameConflictArgs) => MaybePromise<NameConflictResolution>;
-	onDeleteItems?: (args: DeleteItemsArgs) => MaybePromise<boolean>;
+	onCopyPasteItems?: (args: CopyPasteItemsArgs) => MaybePromise<boolean>;
+	onRemoveItems?: (args: RemoveItemsArgs) => MaybePromise<boolean>;
+	onResolveNameConflict?: (args: ResolveNameConflictArgs) => MaybePromise<NameConflictResolution>;
+	onAlreadyExistsError?: (args: AlreadyExistsErrorArgs) => void;
+	onCircularReferenceError?: (args: CircularReferenceErrorArgs) => void;
 }

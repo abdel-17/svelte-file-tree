@@ -1,17 +1,19 @@
 <script lang="ts">
 	import { invalidate } from "$app/navigation";
-	import Tree from "$lib/components/Tree.svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import {
 		FileNode,
 		FileTree,
 		FolderNode,
-		type DeleteItemsArgs,
+		type AlreadyExistsErrorArgs,
+		type CircularReferenceErrorArgs,
+		type CopyPasteItemsArgs,
 		type FileTreeNode,
-		type InsertItemsArgs,
 		type MoveItemsArgs,
+		type RemoveItemsArgs,
 		type RenameItemArgs,
 	} from "svelte-file-tree";
+	import { StyledTree, type AddItemsArgs } from "svelte-file-tree-styled";
 	import { toast } from "svelte-sonner";
 	import * as api from "./api.js";
 	import { FILES_DEPENDENCY } from "./shared.js";
@@ -66,7 +68,7 @@
 		}
 	}
 
-	function onRenameItem({ target, name }: RenameItemArgs): boolean {
+	function handleRenameItem({ target, name }: RenameItemArgs): boolean {
 		target.name = name;
 		toast.promise(
 			mutate({
@@ -87,7 +89,7 @@
 		return true;
 	}
 
-	function onMoveItems({ updates }: MoveItemsArgs): boolean {
+	function handleMoveItems({ updates }: MoveItemsArgs): boolean {
 		const body: api.MoveFilesBody = [];
 		for (const { target, children } of updates) {
 			const targetId = target instanceof FolderNode ? Number(target.id) : null;
@@ -135,8 +137,8 @@
 		return true;
 	}
 
-	function onInsertItems({ target, start, inserted }: InsertItemsArgs): boolean {
-		target.children.splice(start, 0, ...inserted);
+	function handleCopyPasteItems({ target, start, copies }: CopyPasteItemsArgs): boolean {
+		target.children.splice(start, 0, ...copies);
 		toast.promise(
 			mutate({
 				mutated: target instanceof FileTree ? target.children : [target],
@@ -144,20 +146,42 @@
 					await api.insertFiles({
 						parentId: target instanceof FolderNode ? Number(target.id) : null,
 						start,
-						inserted: inserted.map((node) => node.toJSON()),
+						inserted: copies.map((node) => node.toJSON()),
 					});
 				},
 			}),
 			{
 				loading: "Updating database",
-				success: "Inserted items successfully",
-				error: "Failed to insert items",
+				success: "Pasted items successfully",
+				error: "Failed to pasted items",
 			},
 		);
 		return true;
 	}
 
-	function onDeleteItems({ updates, deleted }: DeleteItemsArgs): boolean {
+	function handleAddItems({ target, added }: AddItemsArgs): boolean {
+		const start = target.children.push(...added) - 1;
+		toast.promise(
+			mutate({
+				mutated: target instanceof FileTree ? target.children : [target],
+				mutation: async () => {
+					await api.insertFiles({
+						parentId: target instanceof FolderNode ? Number(target.id) : null,
+						start,
+						inserted: added.map((node) => node.toJSON()),
+					});
+				},
+			}),
+			{
+				loading: "Updating database",
+				success: "Added items successfully",
+				error: "Failed to add items",
+			},
+		);
+		return true;
+	}
+
+	function handleRemoveItems({ updates, removed }: RemoveItemsArgs): boolean {
 		for (const { target, children } of updates) {
 			target.children = children;
 		}
@@ -176,7 +200,7 @@
 			mutate({
 				mutated,
 				mutation: async () => {
-					const deletedIds = deleted.map((node) => Number(node.id));
+					const deletedIds = removed.map((node) => Number(node.id));
 					await api.deleteFiles(deletedIds);
 				},
 			}),
@@ -188,16 +212,27 @@
 		);
 		return true;
 	}
+
+	function handleAlreadyExistsError({ name }: AlreadyExistsErrorArgs): void {
+		toast.error(`An item with the name "${name}" already exists`);
+	}
+
+	function handleCircularReferenceError({ target, position }: CircularReferenceErrorArgs): void {
+		toast.error(`Cannot move "${target.name}" ${position} itself`);
+	}
 </script>
 
 <main class="p-8">
-	<Tree
+	<StyledTree
 		{tree}
-		{onRenameItem}
-		{onMoveItems}
-		{onInsertItems}
-		{onDeleteItems}
 		isItemEditable
 		isItemDisabled={(node) => pendingIds.has(node.id)}
+		onRenameItem={handleRenameItem}
+		onMoveItems={handleMoveItems}
+		onCopyPasteItems={handleCopyPasteItems}
+		onAddItems={handleAddItems}
+		onRemoveItems={handleRemoveItems}
+		onAlreadyExistsError={handleAlreadyExistsError}
+		onCircularReferenceError={handleCircularReferenceError}
 	/>
 </main>

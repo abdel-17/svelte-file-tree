@@ -21,7 +21,7 @@
 		switch (event.key) {
 			case "Enter": {
 				const { node } = item();
-				void treeState.renameItem(item(), name).then((didRename) => {
+				void treeState.rename(item(), name).then((didRename) => {
 					if (didRename) {
 						treeState.getItemElement(node.id)?.focus();
 					}

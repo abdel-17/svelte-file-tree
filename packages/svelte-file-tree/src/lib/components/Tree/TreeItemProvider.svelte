@@ -42,7 +42,7 @@
 
 	$effect(() => {
 		return () => {
-			treeState.onDeleteItem(item.node.id);
+			treeState.onItemRemoved(item.node.id);
 		};
 	});
 </script>

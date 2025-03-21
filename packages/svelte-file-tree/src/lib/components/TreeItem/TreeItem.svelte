@@ -4,7 +4,7 @@
 	import { flushSync, getContext, hasContext, setContext } from "svelte";
 	import type { EventHandler } from "svelte/elements";
 	import { getTreeItemProviderContext } from "../Tree/TreeItemProvider.svelte";
-	import type { DropPosition, TreeItemPosition } from "../Tree/state.svelte.js";
+	import type { TreeItemPosition } from "../Tree/state.svelte.js";
 	import { createDragState } from "./state.svelte.js";
 	import type { TreeItemChildrenSnippetArgs, TreeItemProps } from "./types.js";
 
@@ -33,9 +33,9 @@
 	let {
 		children,
 		editing = $bindable(false),
+		ref = $bindable(null),
 		class: className,
 		style,
-		ref = $bindable(null),
 		onfocusin,
 		onkeydown,
 		onclick,
@@ -276,7 +276,7 @@
 				break;
 			}
 			case "Delete": {
-				void treeState.deleteSelected(item());
+				void treeState.remove(item());
 				break;
 			}
 			case "a": {
@@ -299,19 +299,7 @@
 			}
 			case "v": {
 				if (isControlOrMeta(event)) {
-					let position: DropPosition;
-					switch (item().node.type) {
-						case "file": {
-							position = "after";
-							break;
-						}
-						case "folder": {
-							position = item().expanded() ? "inside" : "after";
-							break;
-						}
-					}
-
-					void treeState.paste(item(), position);
+					void treeState.paste(item());
 				}
 				break;
 			}
@@ -394,8 +382,8 @@
 		);
 
 		treeState.selectedIds().add(draggedId);
-		void treeState.moveSelected(item(), position).then((didMove) => {
-			if (didMove) {
+		void treeState.drop(item(), position).then((didDrop) => {
+			if (didDrop) {
 				treeState.getItemElement(draggedId)?.focus();
 			}
 		});
@@ -407,16 +395,16 @@
 		treeState.setDraggedId(undefined);
 	};
 
-	$effect(() => {
-		return () => {
-			treeState.onDestroyItem(item().node.id);
-		};
-	});
-
 	const childrenArgs: TreeItemChildrenSnippetArgs = {
 		editing: () => editing,
 		dropPosition,
 	};
+
+	$effect(() => {
+		return () => {
+			treeState.onItemDestroyed(item().node.id);
+		};
+	});
 </script>
 
 <div

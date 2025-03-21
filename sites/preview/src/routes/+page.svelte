@@ -1,6 +1,13 @@
 <script lang="ts">
-	import Tree from "$lib/components/Tree.svelte";
-	import { FileNode, FileTree, FolderNode } from "svelte-file-tree";
+	import {
+		FileNode,
+		FileTree,
+		FolderNode,
+		type AlreadyExistsErrorArgs,
+		type CircularReferenceErrorArgs,
+	} from "svelte-file-tree";
+	import { StyledTree } from "svelte-file-tree-styled";
+	import { toast } from "svelte-sonner";
 
 	const tree = new FileTree([
 		new FolderNode({
@@ -104,8 +111,21 @@
 			name: "notes.txt",
 		}),
 	]);
+
+	function handleAlreadyExistsError({ name }: AlreadyExistsErrorArgs): void {
+		toast.error(`An item with the name "${name}" already exists`);
+	}
+
+	function handleCircularReferenceError({ target, position }: CircularReferenceErrorArgs): void {
+		toast.error(`Cannot move "${target.name}" ${position} itself`);
+	}
 </script>
 
 <main class="p-8">
-	<Tree {tree} isItemEditable />
+	<StyledTree
+		{tree}
+		isItemEditable
+		onAlreadyExistsError={handleAlreadyExistsError}
+		onCircularReferenceError={handleCircularReferenceError}
+	/>
 </main>
