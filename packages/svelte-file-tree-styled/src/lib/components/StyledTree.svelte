@@ -123,7 +123,6 @@
 
 				return await onAddItems({
 					target: item.node,
-					start: item.node.children.length,
 					added: [node],
 				});
 			},
