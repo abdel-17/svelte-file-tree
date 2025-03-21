@@ -24,8 +24,8 @@
 		clipboardIds = new SvelteSet(defaultClipboardIds),
 		pasteOperation = $bindable(),
 		ref = $bindable(null),
-		onAddItems = ({ target, start, added }) => {
-			target.children.splice(start, 0, ...added);
+		onAddItems = ({ target, added }) => {
+			target.children.push(...added);
 			return true;
 		},
 		onAlreadyExistsError,

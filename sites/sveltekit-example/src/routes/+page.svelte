@@ -159,8 +159,8 @@
 		return true;
 	}
 
-	function handleAddItems({ target, start, added }: AddItemsArgs): boolean {
-		target.children.splice(start, 0, ...added);
+	function handleAddItems({ target, added }: AddItemsArgs): boolean {
+		const start = target.children.push(...added) - 1;
 		toast.promise(
 			mutate({
 				mutated: target instanceof FileTree ? target.children : [target],

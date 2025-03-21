@@ -2,7 +2,6 @@ import type { FileTree, FileTreeNode, FolderNode, TreeProps } from "svelte-file-
 
 export type AddItemsArgs = {
 	target: FolderNode | FileTree;
-	start: number;
 	added: Array<FileTreeNode>;
 };
 
