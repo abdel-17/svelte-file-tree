@@ -21,10 +21,6 @@
 
 		return getContext(CONTEXT_KEY);
 	}
-
-	function setTreeItemContext(context: TreeItemContext): void {
-		setContext(CONTEXT_KEY, context);
-	}
 </script>
 
 <script lang="ts">
@@ -53,11 +49,12 @@
 			item,
 		});
 
-	setTreeItemContext({
+	const context: TreeItemContext = {
 		setEditing: (value) => {
 			editing = value;
 		},
-	});
+	};
+	setContext(CONTEXT_KEY, context);
 
 	const handleFocusIn: EventHandler<FocusEvent, HTMLElement> = () => {
 		treeState.setTabbableId(item().node.id);

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidate } from "$app/navigation";
+	import type { FileInsert } from "$lib/server/database/utils.js";
 	import { SvelteSet } from "svelte/reactivity";
 	import {
 		FileNode,
@@ -27,13 +28,17 @@
 					case "file": {
 						return new FileNode({
 							id: file.id.toString(),
-							name: file.name,
+							data: {
+								name: file.name,
+							},
 						});
 					}
 					case "folder": {
 						return new FolderNode({
 							id: file.id.toString(),
-							name: file.name,
+							data: {
+								name: file.name,
+							},
 							children: file.children.map(transform),
 						});
 					}
@@ -69,7 +74,7 @@
 	}
 
 	function handleRenameItem({ target, name }: RenameItemArgs): boolean {
-		target.name = name;
+		target.data.name = name;
 		toast.promise(
 			mutate({
 				mutated: [target],
@@ -137,6 +142,24 @@
 		return true;
 	}
 
+	function toFileInsert(node: FileTreeNode): FileInsert {
+		switch (node.type) {
+			case "file": {
+				return {
+					type: "file",
+					name: node.data.name,
+				};
+			}
+			case "folder": {
+				return {
+					type: "folder",
+					name: node.data.name,
+					children: node.children.map(toFileInsert),
+				};
+			}
+		}
+	}
+
 	function handleCopyPasteItems({ target, start, copies }: CopyPasteItemsArgs): boolean {
 		target.children.splice(start, 0, ...copies);
 		toast.promise(
@@ -146,7 +169,7 @@
 					await api.insertFiles({
 						parentId: target instanceof FolderNode ? Number(target.id) : null,
 						start,
-						inserted: copies.map((node) => node.toJSON()),
+						inserted: copies.map(toFileInsert),
 					});
 				},
 			}),
@@ -168,7 +191,7 @@
 					await api.insertFiles({
 						parentId: target instanceof FolderNode ? Number(target.id) : null,
 						start,
-						inserted: added.map((node) => node.toJSON()),
+						inserted: added.map(toFileInsert),
 					});
 				},
 			}),
@@ -218,7 +241,7 @@
 	}
 
 	function handleCircularReferenceError({ target, position }: CircularReferenceErrorArgs): void {
-		toast.error(`Cannot move "${target.name}" ${position} itself`);
+		toast.error(`Cannot move "${target.data.name}" ${position} itself`);
 	}
 </script>
 

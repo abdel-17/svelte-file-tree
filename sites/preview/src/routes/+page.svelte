@@ -12,41 +12,59 @@
 	const tree = new FileTree([
 		new FolderNode({
 			id: "0",
-			name: "Documents",
+			data: {
+				name: "Documents",
+			},
 			children: [
 				new FolderNode({
 					id: "1",
-					name: "Work",
+					data: {
+						name: "Work",
+					},
 					children: [
 						new FolderNode({
 							id: "2",
-							name: "Projects",
+							data: {
+								name: "Projects",
+							},
 							children: [
 								new FileNode({
 									id: "3",
-									name: "project_a.md",
+									data: {
+										name: "project_a.md",
+									},
 								}),
 								new FileNode({
 									id: "4",
-									name: "project_b.md",
+									data: {
+										name: "project_b.md",
+									},
 								}),
 							],
 						}),
 						new FileNode({
 							id: "5",
-							name: "q4_report.docx",
+							data: {
+								name: "q4_report.docx",
+							},
 						}),
 						new FolderNode({
 							id: "6",
-							name: "Meetings",
+							data: {
+								name: "Meetings",
+							},
 							children: [
 								new FileNode({
 									id: "7",
-									name: "meeting_minutes.txt",
+									data: {
+										name: "meeting_minutes.txt",
+									},
 								}),
 								new FileNode({
 									id: "8",
-									name: "schedule.pdf",
+									data: {
+										name: "schedule.pdf",
+									},
 								}),
 							],
 						}),
@@ -54,61 +72,85 @@
 				}),
 				new FolderNode({
 					id: "9",
-					name: "Personal",
+					data: {
+						name: "Personal",
+					},
 					children: [
 						new FolderNode({
 							id: "10",
-							name: "Recipes",
+							data: {
+								name: "Recipes",
+							},
 							children: [
 								new FileNode({
 									id: "11",
-									name: "pasta.txt",
+									data: {
+										name: "pasta.txt",
+									},
 								}),
 								new FileNode({
 									id: "12",
-									name: "cookies.txt",
+									data: {
+										name: "cookies.txt",
+									},
 								}),
 							],
 						}),
 						new FileNode({
 							id: "13",
-							name: "taxes_2023.pdf",
+							data: {
+								name: "taxes_2023.pdf",
+							},
 						}),
 					],
 				}),
 				new FileNode({
 					id: "14",
-					name: "resume.pdf",
+					data: {
+						name: "resume.pdf",
+					},
 				}),
 			],
 		}),
 		new FolderNode({
 			id: "15",
-			name: "Pictures",
+			data: {
+				name: "Pictures",
+			},
 			children: [
 				new FolderNode({
 					id: "16",
-					name: "Vacation",
+					data: {
+						name: "Vacation",
+					},
 					children: [
 						new FileNode({
 							id: "17",
-							name: "beach.jpg",
+							data: {
+								name: "beach.jpg",
+							},
 						}),
 						new FileNode({
 							id: "18",
-							name: "mountain.jpg",
+							data: {
+								name: "mountain.jpg",
+							},
 						}),
 					],
 				}),
 				new FileNode({
 					id: "19",
-					name: "profile.jpg",
+					data: {
+						name: "profile.jpg",
+					},
 				}),
 			],
 		}),
 		new FileNode({
 			id: "20",
-			name: "notes.txt",
+			data: {
+				name: "notes.txt",
+			},
 		}),
 	]);
 
@@ -117,7 +159,7 @@
 	}
 
 	function handleCircularReferenceError({ target, position }: CircularReferenceErrorArgs): void {
-		toast.error(`Cannot move "${target.name}" ${position} itself`);
+		toast.error(`Cannot move "${target.data.name}" ${position} itself`);
 	}
 </script>
 

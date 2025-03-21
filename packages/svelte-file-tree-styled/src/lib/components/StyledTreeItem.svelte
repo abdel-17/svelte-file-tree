@@ -85,7 +85,7 @@
 		{#if editing}
 			<TreeItemInput class="border bg-white focus:outline-none" />
 		{:else}
-			<span class="select-none">{item.node.name}</span>
+			<span class="select-none">{item.node.data.name}</span>
 		{/if}
 	</TreeItem>
 </TreeContextMenu>
