@@ -1,88 +1,52 @@
-export type FileTreeNode = FileNode | FolderNode;
-
-export type FileTreeNodeJSON = FileNodeJSON | FolderNodeJSON;
-
-export type FileTreeJSON = {
-	children: Array<FileTreeNodeJSON>;
+export type FileTreeNodeData = {
+	name: string;
 };
 
-export class FileTree {
-	children: Array<FileTreeNode> = $state([]);
+export type FileTreeNode<TData extends FileTreeNodeData = FileTreeNodeData> =
+	| FileNode<TData>
+	| FolderNode<TData>;
 
-	constructor(children: Array<FileTreeNode>) {
+export class FileTree<TData extends FileTreeNodeData = FileTreeNodeData> {
+	children: Array<FileTreeNode<TData>> = $state([]);
+
+	constructor(children: Array<FileTreeNode<TData>>) {
 		this.children = children;
-	}
-
-	toJSON(): FileTreeJSON {
-		return {
-			children: this.children.map((child) => child.toJSON()),
-		};
 	}
 }
 
-export type FileNodeProps = {
+export type FileNodeProps<TData extends FileTreeNodeData = FileTreeNodeData> = {
 	id: string;
-	name: string;
+	data: TData;
 };
 
-export type FileNodeJSON = {
-	type: "file";
-	id: string;
-	name: string;
-};
-
-export class FileNode {
+export class FileNode<TData extends FileTreeNodeData = FileTreeNodeData> {
 	readonly id: string;
-	name = $state.raw("");
+	data: TData = $state({} as TData);
 
-	constructor({ id, name }: FileNodeProps) {
+	constructor({ id, data }: FileNodeProps<TData>) {
 		this.id = id;
-		this.name = name;
+		this.data = data;
 	}
 
 	readonly type = "file";
-
-	toJSON(): FileNodeJSON {
-		return {
-			type: "file",
-			id: this.id,
-			name: this.name,
-		};
-	}
 }
 
-export type FolderNodeProps = {
+export type FolderNodeProps<TData extends FileTreeNodeData = FileTreeNodeData> = {
 	id: string;
-	name: string;
-	children: Array<FileTreeNode>;
+	data: TData;
+	children: Array<FileTreeNode<TData>>;
 };
 
-export type FolderNodeJSON = {
-	type: "folder";
-	id: string;
-	name: string;
-	children: Array<FileTreeNodeJSON>;
-};
-
-export class FolderNode {
+export class FolderNode<TData extends FileTreeNodeData = FileTreeNodeData> {
 	readonly id: string;
-	name = $state.raw("");
-	children: Array<FileTreeNode> = $state([]);
+	data: TData = $state({} as TData);
+	children: Array<FileTreeNode<TData>> = $state([]);
 
-	constructor({ id, name, children }: FolderNodeProps) {
+	constructor({ id, data, children }: FolderNodeProps<TData>) {
 		this.id = id;
-		this.name = name;
+		this.data = data;
 		this.children = children;
 	}
 
 	readonly type = "folder";
-
-	toJSON(): FolderNodeJSON {
-		return {
-			type: "folder",
-			id: this.id,
-			name: this.name,
-			children: this.children.map((child) => child.toJSON()),
-		};
-	}
 }

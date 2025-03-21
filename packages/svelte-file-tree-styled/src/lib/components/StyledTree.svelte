@@ -96,7 +96,7 @@
 				}
 
 				for (const child of item.node.children) {
-					if (child.name === name) {
+					if (child.data.name === name) {
 						onAlreadyExistsError?.({ name });
 						return false;
 					}
@@ -107,14 +107,14 @@
 					case "file": {
 						node = new FileNode({
 							id: crypto.randomUUID(),
-							name,
+							data: { name },
 						});
 						break;
 					}
 					case "folder": {
 						node = new FolderNode({
 							id: crypto.randomUUID(),
-							name,
+							data: { name },
 							children: [],
 						});
 						break;

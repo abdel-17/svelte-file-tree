@@ -1,4 +1,5 @@
-<script lang="ts">
+<script lang="ts" generics="TData extends FileTreeNodeData">
+	import type { FileTreeNodeData } from "$lib/tree.svelte.js";
 	import { SvelteSet } from "svelte/reactivity";
 	import TreeItemProvider from "./TreeItemProvider.svelte";
 	import { createTreeState } from "./state.svelte.js";
@@ -21,7 +22,7 @@
 		ref = $bindable(null),
 		generateCopyId = () => crypto.randomUUID(),
 		onRenameItem = ({ target, name }) => {
-			target.name = name;
+			target.data.name = name;
 			return true;
 		},
 		onMoveItems = ({ updates }) => {
@@ -44,7 +45,7 @@
 		onAlreadyExistsError,
 		onCircularReferenceError,
 		...rest
-	}: TreeProps = $props();
+	}: TreeProps<TData> = $props();
 
 	const treeState = createTreeState({
 		tree: () => tree,
