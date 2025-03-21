@@ -8,12 +8,12 @@
 		type PasteOperation,
 		type ResolveNameConflictArgs,
 		type TreeItemState,
-		type TreeProps,
 	} from "svelte-file-tree";
 	import { SvelteSet } from "svelte/reactivity";
 	import AddItemDialog from "./AddItemDialog.svelte";
 	import NameConflictDialog from "./NameConflictDialog.svelte";
 	import StyledTreeItem from "./StyledTreeItem.svelte";
+	import type { StyledTreeProps } from "./types.js";
 
 	let {
 		defaultSelectedIds,
@@ -24,32 +24,30 @@
 		clipboardIds = new SvelteSet(defaultClipboardIds),
 		pasteOperation = $bindable(),
 		ref = $bindable(null),
-		onInsertItems = ({ inserted, start, target }) => {
-			target.children.splice(start, 0, ...inserted);
+		onAddItems = ({ target, start, added }) => {
+			target.children.splice(start, 0, ...added);
 			return true;
 		},
 		onAlreadyExistsError,
 		class: className,
 		...rest
-	}: Omit<TreeProps, "item" | "onResolveNameConflict"> = $props();
+	}: StyledTreeProps = $props();
 
 	let addItemDialog: AddItemDialog | null = $state.raw(null);
 	let nameConflictDialog: NameConflictDialog | null = $state.raw(null);
 
-	function handleResolveNameConflict(
-		args: ResolveNameConflictArgs,
-	): Promise<NameConflictResolution> {
-		const { operation, name } = args;
-		const description = `An item with the name "${name}" already exists`;
-
+	function handleResolveNameConflict({
+		name,
+		operation,
+	}: ResolveNameConflictArgs): Promise<NameConflictResolution> {
 		let title: string;
 		switch (operation) {
 			case "move": {
 				title = "Failed to move items";
 				break;
 			}
-			case "insert": {
-				title = "Failed to add items";
+			case "copy-paste": {
+				title = "Failed to paste items";
 				break;
 			}
 		}
@@ -61,7 +59,7 @@
 
 			nameConflictDialog.open({
 				title,
-				description,
+				description: `An item with the name "${name}" already exists`,
 				onClose: resolve,
 			});
 		});
@@ -123,10 +121,10 @@
 					}
 				}
 
-				return await onInsertItems({
-					inserted: [node],
+				return await onAddItems({
 					target: item.node,
 					start: item.node.children.length,
+					added: [node],
 				});
 			},
 		});
@@ -140,7 +138,6 @@
 	{clipboardIds}
 	bind:pasteOperation
 	bind:ref
-	{onInsertItems}
 	onResolveNameConflict={handleResolveNameConflict}
 	class={["space-y-4", className]}
 >

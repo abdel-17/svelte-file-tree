@@ -30,8 +30,8 @@
 			}
 			return true;
 		},
-		onInsertItems = ({ target, start, inserted }) => {
-			target.children.splice(start, 0, ...inserted);
+		onCopyPasteItems = ({ target, start, copies }) => {
+			target.children.splice(start, 0, ...copies);
 			return true;
 		},
 		onRemoveItems = ({ updates }) => {
@@ -73,7 +73,7 @@
 		generateCopyId: () => generateCopyId(),
 		onRenameItem: (args) => onRenameItem(args),
 		onMoveItems: (args) => onMoveItems(args),
-		onInsertItems: (args) => onInsertItems(args),
+		onCopyPasteItems: (args) => onCopyPasteItems(args),
 		onRemoveItems: (args) => onRemoveItems(args),
 		onResolveNameConflict: (args) => onResolveNameConflict(args),
 		onAlreadyExistsError: (args) => onAlreadyExistsError?.(args),

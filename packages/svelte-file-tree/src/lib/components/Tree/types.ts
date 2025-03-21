@@ -41,10 +41,11 @@ export type MoveItemsArgs = {
 	moved: Array<FileTreeNode>;
 };
 
-export type InsertItemsArgs = {
+export type CopyPasteItemsArgs = {
 	target: FolderNode | FileTree;
 	start: number;
-	inserted: Array<FileTreeNode>;
+	copies: Array<FileTreeNode>;
+	originals: Array<FileTreeNode>;
 };
 
 export type RemoveItemsArgs = {
@@ -56,7 +57,7 @@ export type RemoveItemsArgs = {
 };
 
 export type ResolveNameConflictArgs = {
-	operation: "move" | "insert";
+	operation: "move" | "copy-paste";
 	name: string;
 };
 
@@ -89,7 +90,7 @@ export interface TreeProps
 	generateCopyId?: () => string;
 	onRenameItem?: (args: RenameItemArgs) => MaybePromise<boolean>;
 	onMoveItems?: (args: MoveItemsArgs) => MaybePromise<boolean>;
-	onInsertItems?: (args: InsertItemsArgs) => MaybePromise<boolean>;
+	onCopyPasteItems?: (args: CopyPasteItemsArgs) => MaybePromise<boolean>;
 	onRemoveItems?: (args: RemoveItemsArgs) => MaybePromise<boolean>;
 	onResolveNameConflict?: (args: ResolveNameConflictArgs) => MaybePromise<NameConflictResolution>;
 	onAlreadyExistsError?: (args: AlreadyExistsErrorArgs) => void;

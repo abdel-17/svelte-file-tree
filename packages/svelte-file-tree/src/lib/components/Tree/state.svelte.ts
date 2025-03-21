@@ -6,8 +6,8 @@ import type { SvelteSet } from "svelte/reactivity";
 import type {
 	AlreadyExistsErrorArgs,
 	CircularReferenceErrorArgs,
+	CopyPasteItemsArgs,
 	DropPosition,
-	InsertItemsArgs,
 	MoveItemsArgs,
 	NameConflictResolution,
 	PasteOperation,
@@ -30,7 +30,7 @@ export type TreeStateProps = {
 	generateCopyId: () => string;
 	onRenameItem: (args: RenameItemArgs) => MaybePromise<boolean>;
 	onMoveItems: (args: MoveItemsArgs) => MaybePromise<boolean>;
-	onInsertItems: (args: InsertItemsArgs) => MaybePromise<boolean>;
+	onCopyPasteItems: (args: CopyPasteItemsArgs) => MaybePromise<boolean>;
 	onRemoveItems: (args: RemoveItemsArgs) => MaybePromise<boolean>;
 	onResolveNameConflict: (args: ResolveNameConflictArgs) => MaybePromise<NameConflictResolution>;
 	onAlreadyExistsError: (args: AlreadyExistsErrorArgs) => void;
@@ -77,7 +77,7 @@ export function createTreeState({
 	generateCopyId,
 	onRenameItem,
 	onMoveItems,
-	onInsertItems,
+	onCopyPasteItems,
 	onRemoveItems,
 	onResolveNameConflict,
 	onAlreadyExistsError,
@@ -525,6 +525,7 @@ export function createTreeState({
 		}
 
 		const copies: Array<FileTreeNode> = [];
+		const originals: Array<FileTreeNode> = [];
 		for (const id of clipboardIds()) {
 			const current = lookup().get(id);
 			if (current === undefined) {
@@ -536,11 +537,11 @@ export function createTreeState({
 				continue;
 			}
 
-			const copy = copyNode(current.node);
-			const { name } = copy;
+			const original = current.node;
+			const { name } = original;
 			if (ownerChildrenNames.has(name)) {
 				const resolution = await onResolveNameConflict({
-					operation: "insert",
+					operation: "copy-paste",
 					name,
 				});
 				switch (resolution) {
@@ -554,7 +555,8 @@ export function createTreeState({
 			}
 
 			ownerChildrenNames.add(name);
-			copies.push(copy);
+			copies.push(copyNode(original));
+			originals.push(original);
 		}
 
 		if (copies.length === 0) {
@@ -577,10 +579,11 @@ export function createTreeState({
 			}
 		}
 
-		return await onInsertItems({
+		return await onCopyPasteItems({
 			target: owner,
 			start,
-			inserted: copies,
+			copies,
+			originals,
 		});
 	}
 

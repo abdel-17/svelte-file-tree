@@ -65,8 +65,8 @@
 <Dialog.Root bind:open={isOpen} {onOpenChange}>
 	<Dialog.Portal>
 		<Dialog.Overlay forceMount class="fixed inset-0 z-50 bg-black/50">
-			{#snippet child({ props, open })}
-				{#if open}
+			{#snippet child({ props })}
+				{#if isOpen}
 					<div {...props} transition:fade={{ duration: 200 }}></div>
 				{/if}
 			{/snippet}
@@ -76,8 +76,8 @@
 			forceMount
 			class="fixed top-1/2 left-1/2 z-50 w-xs -translate-x-1/2 -translate-y-1/2 rounded-lg bg-neutral-100 p-4 md:w-md"
 		>
-			{#snippet child({ props, open })}
-				{#if open}
+			{#snippet child({ props })}
+				{#if isOpen}
 					<div {...props} transition:scale={{ duration: 200, start: 0.9 }}>
 						<Dialog.Title class="text-center text-2xl font-semibold tracking-tight">
 							Add a New Item

@@ -7,13 +7,13 @@
 		FolderNode,
 		type AlreadyExistsErrorArgs,
 		type CircularReferenceErrorArgs,
+		type CopyPasteItemsArgs,
 		type FileTreeNode,
-		type InsertItemsArgs,
 		type MoveItemsArgs,
 		type RemoveItemsArgs,
 		type RenameItemArgs,
 	} from "svelte-file-tree";
-	import { StyledTree } from "svelte-file-tree-styled";
+	import { StyledTree, type AddItemsArgs } from "svelte-file-tree-styled";
 	import { toast } from "svelte-sonner";
 	import * as api from "./api.js";
 	import { FILES_DEPENDENCY } from "./shared.js";
@@ -137,8 +137,8 @@
 		return true;
 	}
 
-	function handleInsertItems({ target, start, inserted }: InsertItemsArgs): boolean {
-		target.children.splice(start, 0, ...inserted);
+	function handleCopyPasteItems({ target, start, copies }: CopyPasteItemsArgs): boolean {
+		target.children.splice(start, 0, ...copies);
 		toast.promise(
 			mutate({
 				mutated: target instanceof FileTree ? target.children : [target],
@@ -146,14 +146,36 @@
 					await api.insertFiles({
 						parentId: target instanceof FolderNode ? Number(target.id) : null,
 						start,
-						inserted: inserted.map((node) => node.toJSON()),
+						inserted: copies.map((node) => node.toJSON()),
 					});
 				},
 			}),
 			{
 				loading: "Updating database",
-				success: "Inserted items successfully",
-				error: "Failed to insert items",
+				success: "Pasted items successfully",
+				error: "Failed to pasted items",
+			},
+		);
+		return true;
+	}
+
+	function handleAddItems({ target, start, added }: AddItemsArgs): boolean {
+		target.children.splice(start, 0, ...added);
+		toast.promise(
+			mutate({
+				mutated: target instanceof FileTree ? target.children : [target],
+				mutation: async () => {
+					await api.insertFiles({
+						parentId: target instanceof FolderNode ? Number(target.id) : null,
+						start,
+						inserted: added.map((node) => node.toJSON()),
+					});
+				},
+			}),
+			{
+				loading: "Updating database",
+				success: "Added items successfully",
+				error: "Failed to add items",
 			},
 		);
 		return true;
@@ -207,7 +229,8 @@
 		isItemDisabled={(node) => pendingIds.has(node.id)}
 		onRenameItem={handleRenameItem}
 		onMoveItems={handleMoveItems}
-		onInsertItems={handleInsertItems}
+		onCopyPasteItems={handleCopyPasteItems}
+		onAddItems={handleAddItems}
 		onRemoveItems={handleRemoveItems}
 		onAlreadyExistsError={handleAlreadyExistsError}
 		onCircularReferenceError={handleCircularReferenceError}
