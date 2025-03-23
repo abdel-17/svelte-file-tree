@@ -1,8 +1,5 @@
 <script lang="ts">
-	import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
-	import FileIcon from "@lucide/svelte/icons/file";
-	import FolderIcon from "@lucide/svelte/icons/folder";
-	import FolderOpenIcon from "@lucide/svelte/icons/folder-open";
+	import {ChevronDown, File, Folder, FolderOpen} from 'lucide-svelte'
 	import {
 		TreeItem,
 		TreeItemInput,
@@ -69,16 +66,16 @@
 			onclick={handleToggleButtonClick}
 		>
 			<span class="sr-only">Toggle expansion</span>
-			<ChevronDownIcon role="presentation" size={20} />
+			<ChevronDown role="presentation" size={20} />
 		</button>
 
 		<div class="ms-1 me-2">
 			{#if item.node.type === "file"}
-				<FileIcon role="presentation" />
+				<File role="presentation" />
 			{:else if item.expanded()}
-				<FolderOpenIcon role="presentation" class="fill-blue-300" />
+				<FolderOpen role="presentation" class="fill-blue-300" />
 			{:else}
-				<FolderIcon role="presentation" class="fill-blue-300" />
+				<Folder role="presentation" class="fill-blue-300" />
 			{/if}
 		</div>
 

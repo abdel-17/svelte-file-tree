@@ -1,10 +1,6 @@
 <script lang="ts">
-	import ClipboardPasteIcon from "@lucide/svelte/icons/clipboard-paste";
-	import CopyIcon from "@lucide/svelte/icons/copy";
-	import PenIcon from "@lucide/svelte/icons/pen";
-	import PlusIcon from "@lucide/svelte/icons/plus";
-	import TrashIcon from "@lucide/svelte/icons/trash";
-	import ScissorsIcon from "@lucide/svelte/icons/scissors";
+	import {ClipboardPaste, Copy, Pen, Plus, Scissors, Trash} from 'lucide-svelte'
+
 	import { ContextMenu } from "bits-ui";
 	import type { Snippet } from "svelte";
 	import type { PasteOperation, TreeItemState } from "svelte-file-tree";
@@ -65,7 +61,7 @@
 				class="flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200"
 				onSelect={handleRename}
 			>
-				<PenIcon size={20} />
+				<Pen size={20} />
 				<span>Rename</span>
 			</ContextMenu.Item>
 
@@ -73,7 +69,7 @@
 				class="flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200"
 				onSelect={() => onCopy("copy")}
 			>
-				<CopyIcon size={20} />
+				<Copy size={20} />
 				<span>Copy</span>
 			</ContextMenu.Item>
 
@@ -81,7 +77,7 @@
 				class="flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200"
 				onSelect={() => onCopy("cut")}
 			>
-				<ScissorsIcon size={20} />
+				<Scissors size={20} />
 				<span>Cut</span>
 			</ContextMenu.Item>
 
@@ -89,7 +85,7 @@
 				class="flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200"
 				onSelect={() => onPaste()}
 			>
-				<ClipboardPasteIcon size={20} />
+				<ClipboardPaste size={20} />
 				<span>Paste</span>
 			</ContextMenu.Item>
 
@@ -97,7 +93,7 @@
 				class="flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200"
 				onSelect={() => onDelete()}
 			>
-				<TrashIcon size={20} />
+				<Trash size={20} />
 				<span>Delete</span>
 			</ContextMenu.Item>
 
@@ -106,7 +102,7 @@
 					class="flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200"
 					onSelect={() => onAdd()}
 				>
-					<PlusIcon size={20} />
+					<Plus size={20} />
 					<span>Add</span>
 				</ContextMenu.Item>
 			{/if}
