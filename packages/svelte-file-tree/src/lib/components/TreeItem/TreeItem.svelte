@@ -129,7 +129,6 @@
 				const navigate = down ? treeState.getNextItem : treeState.getPreviousItem;
 				const shouldSelectMultiple = event.shiftKey && isControlOrMeta(event);
 				const maxScrollDistance = Math.min(
-					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 					document.getElementById(treeState.id())!.clientHeight,
 					document.documentElement.clientHeight,
 				);
@@ -201,14 +200,12 @@
 				break;
 			}
 			case "End": {
-				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 				let last = treeState.tree().children.at(-1)!;
 				while (
 					last.type === "folder" &&
 					treeState.expandedIds().has(last.id) &&
 					last.children.length !== 0
 				) {
-					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 					last = last.children.at(-1)!;
 				}
 

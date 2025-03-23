@@ -8,11 +8,7 @@ export default {
 			config(config) {
 				return {
 					...config,
-					include: [
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-						...config.include,
-						"../vitest.workspace.ts",
-					],
+					include: [...config.include, "../vitest.workspace.ts"],
 				};
 			},
 		},
