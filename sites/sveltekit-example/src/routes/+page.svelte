@@ -74,7 +74,7 @@
 	}
 
 	function handleRenameItem({ target, name }: RenameItemArgs): boolean {
-		target.data.name = name;
+		target.name = name;
 		toast.promise(
 			mutate({
 				mutated: [target],
