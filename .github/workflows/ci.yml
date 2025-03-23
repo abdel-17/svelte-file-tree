@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   check:
-    name: Check
+    name: Svelte Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +28,7 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Run Svelte Check
       - run: pnpm check
 
   # TODO: re-enable tests in CI
@@ -51,7 +52,7 @@ jobs:
   #     - run: pnpm test
 
   lint:
-    name: Lint
+    name: Formatting
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,4 +68,5 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - run: pnpm lint
+      - name: Run Prettier
+      - run: pnpm format:check
