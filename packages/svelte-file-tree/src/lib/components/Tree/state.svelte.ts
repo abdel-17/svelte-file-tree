@@ -488,7 +488,7 @@ export function createTreeState<TData extends FileTreeNodeData>({
 
 	function copyNode(node: FileTreeNode<TData>): FileTreeNode<TData> {
 		if (DEV && Object.getPrototypeOf(node.data) !== Object.prototype) {
-			throw new Error(`Expected the data property to be a POJO`);
+			throw new Error("Expected the data property to be a POJO");
 		}
 
 		const id = generateCopyId();
