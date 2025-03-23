@@ -9,17 +9,11 @@
 		"build:preview": "pnpm build:packages && pnpm -F preview build",
 		"check": "pnpm --parallel check",
 		"format": "pnpm --parallel format",
-		"lint": "pnpm --parallel format:check && eslint ."
+		"format:check": "pnpm --parallel format:check"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.28.1",
-		"@eslint/js": "^9.21.0",
-		"eslint": "^9.21.0",
-		"eslint-plugin-svelte": "^3.0.2",
-		"globals": "^16.0.0",
-		"playwright": "^1.50.1",
-		"typescript": "^5.8.2",
-		"typescript-eslint": "^8.26.0"
+		"playwright": "^1.50.1"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
