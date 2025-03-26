@@ -5,6 +5,7 @@
 	import type { EventHandler } from "svelte/elements";
 	import { getTreeItemProviderContext } from "../Tree/TreeItemProvider.svelte";
 	import type { TreeItemPosition } from "../Tree/state.svelte.js";
+	import type { TreeItemState } from "../Tree/types.js";
 	import { createDragState } from "./state.svelte.js";
 	import type { TreeItemChildrenSnippetArgs, TreeItemProps } from "./types.js";
 
@@ -20,6 +21,10 @@
 		}
 
 		return getContext(CONTEXT_KEY);
+	}
+
+	function hasChildren(item: TreeItemState): boolean {
+		return item.node.type === "folder" && item.node.children.length !== 0;
 	}
 </script>
 
@@ -407,7 +412,7 @@
 	id={treeState.getItemElementId(item().node.id)}
 	role="treeitem"
 	aria-selected={item().selected()}
-	aria-expanded={item().node.type === "folder" ? item().expanded() : undefined}
+	aria-expanded={hasChildren(item()) ? item().expanded() : undefined}
 	aria-level={item().depth + 1}
 	aria-posinset={item().index + 1}
 	aria-setsize={item().parent?.node.children.length ?? treeState.tree().children.length}
