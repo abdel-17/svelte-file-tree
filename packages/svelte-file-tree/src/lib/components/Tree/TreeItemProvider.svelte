@@ -21,7 +21,7 @@
 	}
 </script>
 
-<script lang="ts" generics="TData extends FileTreeNodeData">
+<script lang="ts" generics="TData extends FileTreeNodeData = FileTreeNodeData">
 	const {
 		treeState,
 		item,

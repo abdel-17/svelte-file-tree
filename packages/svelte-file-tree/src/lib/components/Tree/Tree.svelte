@@ -1,4 +1,4 @@
-<script lang="ts" generics="TData extends FileTreeNodeData">
+<script lang="ts" generics="TData extends FileTreeNodeData = FileTreeNodeData">
 	import type { FileTreeNodeData } from "$lib/tree.svelte.js";
 	import { SvelteSet } from "svelte/reactivity";
 	import TreeItemProvider from "./TreeItemProvider.svelte";
@@ -88,7 +88,12 @@
 			{#if i.visible()}
 				{@render item({
 					item: i,
+					select: () => selectedIds.add(i.node.id),
+					deselect: () => selectedIds.delete(i.node.id),
+					expand: () => expandedIds.add(i.node.id),
+					collapse: () => expandedIds.delete(i.node.id),
 					rename: (name) => treeState.rename(i, name),
+					copy: (operation) => treeState.copy(i, operation),
 					paste: (position) => treeState.paste(i, position),
 					remove: () => treeState.remove(i),
 				})}
