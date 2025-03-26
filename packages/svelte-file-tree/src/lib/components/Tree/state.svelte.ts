@@ -286,16 +286,13 @@ export function createTreeState<TData extends FileTreeNodeData>({
 		}
 	}
 
-	function copySelectedToClipboard(operation: PasteOperation): void {
-		if (selectedIds().size === 0) {
-			return;
-		}
-
+	function copy(target: TreeItemState<TData>, operation: PasteOperation): void {
 		clipboardIds().clear();
 
 		for (const id of selectedIds()) {
 			clipboardIds().add(id);
 		}
+		clipboardIds().add(target.node.id);
 
 		setPasteOperation(operation);
 	}
@@ -754,7 +751,7 @@ export function createTreeState<TData extends FileTreeNodeData>({
 		toggleSelection,
 		selectAll,
 		selectUntil,
-		copySelectedToClipboard,
+		copy,
 		clearClipboard,
 		rename,
 		drop,
