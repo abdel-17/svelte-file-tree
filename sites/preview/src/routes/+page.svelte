@@ -4,9 +4,7 @@
 	import TreeContextMenuTrigger from "$lib/components/TreeContextMenuTrigger.svelte";
 	import TreeItem from "$lib/components/TreeItem.svelte";
 	import TreeItemToggle from "$lib/components/TreeItemToggle.svelte";
-	import FileIcon from "@lucide/svelte/icons/file";
-	import FolderIcon from "@lucide/svelte/icons/folder";
-	import FolderOpenIcon from "@lucide/svelte/icons/folder-open";
+	import { FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import {
 		FileNode,
 		FileTree,
