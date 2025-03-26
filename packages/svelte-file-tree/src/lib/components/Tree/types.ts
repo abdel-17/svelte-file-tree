@@ -24,7 +24,12 @@ export type DropPosition = "before" | "after" | "inside";
 
 export type TreeItemSnippetArgs<TData extends FileTreeNodeData = FileTreeNodeData> = {
 	item: TreeItemState<TData>;
+	select: () => void;
+	deselect: () => void;
+	expand: () => void;
+	collapse: () => void;
 	rename: (name: string) => Promise<boolean>;
+	copy: (operation: PasteOperation) => void;
 	paste: (position?: DropPosition) => Promise<boolean>;
 	remove: () => Promise<boolean>;
 };

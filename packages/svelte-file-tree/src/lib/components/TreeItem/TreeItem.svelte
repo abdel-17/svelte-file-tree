@@ -281,13 +281,13 @@
 			}
 			case "c": {
 				if (isControlOrMeta(event)) {
-					treeState.copySelectedToClipboard("copy");
+					treeState.copy(item(), "copy");
 				}
 				break;
 			}
 			case "x": {
 				if (isControlOrMeta(event)) {
-					treeState.copySelectedToClipboard("cut");
+					treeState.copy(item(), "cut");
 				}
 				break;
 			}
