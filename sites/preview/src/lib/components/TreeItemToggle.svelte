@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
+	import { ChevronDownIcon } from "@lucide/svelte";
 	import type { TreeItemState } from "svelte-file-tree";
 	import type { EventHandler, HTMLButtonAttributes } from "svelte/elements";
 

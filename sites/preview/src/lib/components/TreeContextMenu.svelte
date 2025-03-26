@@ -1,11 +1,13 @@
 <script lang="ts" module>
-	import ClipboardPasteIcon from "@lucide/svelte/icons/clipboard-paste";
-	import CopyIcon from "@lucide/svelte/icons/copy";
-	import PenIcon from "@lucide/svelte/icons/pen";
-	import PlusIcon from "@lucide/svelte/icons/plus";
-	import ScissorsIcon from "@lucide/svelte/icons/scissors";
-	import TrashIcon from "@lucide/svelte/icons/trash";
-	import UploadIcon from "@lucide/svelte/icons/upload";
+	import {
+		ClipboardPasteIcon,
+		CopyIcon,
+		PenIcon,
+		PlusIcon,
+		ScissorsIcon,
+		TrashIcon,
+		UploadIcon,
+	} from "@lucide/svelte";
 	import { ContextMenu } from "bits-ui";
 	import { getContext, hasContext, setContext, type Snippet } from "svelte";
 	import type { FileTree, FileTreeNodeData, FolderNode, TreeItemState } from "svelte-file-tree";
