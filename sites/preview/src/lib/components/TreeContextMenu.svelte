@@ -228,10 +228,12 @@
 			onCloseAutoFocus={handleContentCloseAutoFocus}
 		>
 			{#if menuState?.type === "item"}
-				<TreeContextMenuItem onSelect={menuState.onRename}>
-					<PenIcon role="presentation" size={20} />
-					<span>Rename</span>
-				</TreeContextMenuItem>
+				{#if menuState.item().editable()}
+					<TreeContextMenuItem onSelect={menuState.onRename}>
+						<PenIcon role="presentation" size={20} />
+						<span>Rename</span>
+					</TreeContextMenuItem>
+				{/if}
 
 				<TreeContextMenuItem onSelect={menuState.onCopy}>
 					<CopyIcon role="presentation" size={20} />

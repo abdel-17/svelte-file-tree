@@ -337,10 +337,11 @@
 				<div>Kind</div>
 			</div>
 
-			<Tree {tree} class="mt-2">
+			<Tree {tree} isItemEditable class="mt-2">
 				{#snippet item({ item, expand, collapse, copy, paste, remove })}
 					<TreeItem
 						{item}
+						draggable
 						onCopy={copy}
 						onPaste={paste}
 						onDelete={remove}
