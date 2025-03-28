@@ -224,7 +224,7 @@
 	<ContextMenu.Portal>
 		<ContextMenu.Content
 			{trapFocus}
-			class="w-[200px] rounded-xl border border-gray-300 bg-gray-50 p-2 shadow focus-visible:outline-none"
+			class="z-50 w-[200px] rounded-xl border border-gray-300 bg-gray-50 p-2 shadow focus-visible:outline-none"
 			onCloseAutoFocus={handleContentCloseAutoFocus}
 		>
 			{#if menuState?.type === "item"}
