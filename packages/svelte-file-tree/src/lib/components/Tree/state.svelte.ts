@@ -718,6 +718,10 @@ export function createTreeState<TData extends FileTreeNodeData>({
 		selectedIds().delete(id);
 		expandedIds().delete(id);
 		clipboardIds().delete(id);
+
+		if (clipboardIds().size === 0) {
+			setPasteOperation(undefined);
+		}
 	}
 
 	function onItemDestroyed(id: string): void {
