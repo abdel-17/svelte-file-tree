@@ -11,7 +11,10 @@
 		FolderNode,
 		TreeItemInput,
 		type FileTreeNode,
+		type PasteOperation,
+		type TreeItemState,
 	} from "svelte-file-tree";
+	import { SvelteSet } from "svelte/reactivity";
 	import files from "./files.json" with { type: "json" };
 
 	type File = {
@@ -48,6 +51,50 @@
 			});
 		}),
 	);
+
+	const selectedIds = new SvelteSet<string>();
+	const clipboardIds = new SvelteSet<string>();
+	let pasteOperation: PasteOperation | undefined = $state.raw();
+	let focusedItem: TreeItemState<NodeData> | undefined = $state.raw();
+
+	function getTotalCount(nodes: Array<FileTreeNode<NodeData>>): number {
+		let count = 0;
+		for (const node of nodes) {
+			count++;
+
+			if (node.type === "folder") {
+				count += getTotalCount(node.children);
+			}
+		}
+		return count;
+	}
+
+	function getTotalSize(nodes: Array<FileTreeNode<NodeData>>): number {
+		let size = 0;
+		for (const node of nodes) {
+			size += node.data.size ?? 0;
+
+			if (node.type === "folder") {
+				size += getTotalSize(node.children);
+			}
+		}
+		return size;
+	}
+
+	const totalCount = $derived(getTotalCount(tree.children));
+	const totalSize = $derived(getTotalSize(tree.children));
+
+	const pasteDirection = $derived.by((): string | undefined => {
+		if (pasteOperation === undefined || focusedItem === undefined) {
+			return;
+		}
+
+		if (focusedItem.node.type === "folder" && focusedItem.expanded()) {
+			return "Inside";
+		}
+
+		return "After";
+	});
 
 	function getFileKind(name: string): string | undefined {
 		const dotIndex = name.lastIndexOf(".");
@@ -267,22 +314,22 @@
 			return "-";
 		}
 
-		if (size < 1_000) {
+		if (size < 1000) {
 			return sizeFormatter.format(size) + " B";
 		}
 
-		size /= 1_000;
-		if (size < 1_000) {
+		size /= 1000;
+		if (size < 1000) {
 			return sizeFormatter.format(size) + " KB";
 		}
 
-		size /= 1_000;
-		if (size < 1_000) {
+		size /= 1000;
+		if (size < 1000) {
 			return sizeFormatter.format(size) + " MB";
 		}
 
 		size /= 1000;
-		if (size < 1_000) {
+		if (size < 1000) {
 			return sizeFormatter.format(size) + " GB";
 		}
 
@@ -290,7 +337,7 @@
 		return sizeFormatter.format(size) + " TB";
 	}
 
-	function onUploadFiles({
+	function handleUploadFiles({
 		target,
 		files,
 	}: {
@@ -310,7 +357,7 @@
 		}
 	}
 
-	function onCreateNewFolder({
+	function handleCreateNewFolder({
 		target,
 		name,
 	}: {
@@ -326,25 +373,35 @@
 	}
 </script>
 
-<main class="flex min-h-svh flex-col p-8">
-	<TreeContextMenu {tree} {onUploadFiles} {onCreateNewFolder}>
-		<TreeContextMenuTrigger class="grow rounded border border-gray-400 p-5">
-			<div
-				class="grid grid-cols-(--grid-cols) gap-x-(--grid-gap) px-(--grid-inline-padding) text-sm font-semibold"
-			>
-				<div>Name</div>
-				<div>Size</div>
-				<div>Kind</div>
-			</div>
+<main class="flex h-svh flex-col">
+	<div
+		class="grid grid-cols-(--grid-cols) gap-x-(--grid-gap) border-b border-gray-300 px-[calc(var(--tree-inline-padding)+var(--grid-inline-padding))] py-3 text-sm font-semibold"
+	>
+		<div>Name</div>
+		<div>Size</div>
+		<div>Kind</div>
+	</div>
 
-			<Tree {tree} isItemEditable class="mt-2">
+	<TreeContextMenu
+		{tree}
+		onUploadFiles={handleUploadFiles}
+		onCreateNewFolder={handleCreateNewFolder}
+	>
+		<TreeContextMenuTrigger class="grow overflow-y-auto rounded px-(--tree-inline-padding) py-2">
+			<Tree
+				{tree}
+				{selectedIds}
+				{clipboardIds}
+				bind:pasteOperation
+				isItemEditable
+				onfocusout={() => {
+					focusedItem = undefined;
+				}}
+			>
 				{#snippet item({ item, expand, collapse, copy, paste, remove })}
 					<TreeItem
 						{item}
 						draggable
-						onCopy={copy}
-						onPaste={paste}
-						onDelete={remove}
 						class={({ dropPosition }) => [
 							"relative grid grid-cols-(--grid-cols) gap-x-(--grid-gap) rounded-md p-(--grid-inline-padding) hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300 aria-selected:has-[+[aria-selected='true']]:rounded-b-none aria-selected:[&+[aria-selected='true']]:rounded-t-none",
 							item.dragged() && "opacity-50",
@@ -354,12 +411,21 @@
 							dropPosition() === "after" && "before:border-neutral-300 before:border-b-red-500",
 							dropPosition() === "inside" && "before:border-red-500",
 						]}
+						onCopy={copy}
+						onPaste={paste}
+						onDelete={remove}
+						onfocusin={() => {
+							focusedItem = item;
+						}}
 					>
 						{#snippet children({ editing })}
-							<div class="flex items-center" style="padding-inline-start: {item.depth * 24}px">
+							<div
+								class="flex items-center"
+								style="padding-inline-start: calc(var(--spacing) * {item.depth * 6})"
+							>
 								<TreeItemToggle {item} onExpand={expand} onCollapse={collapse} />
 
-								<div class="ms-1 me-2">
+								<div class="ps-1 pe-2">
 									{#if item.node.type === "file"}
 										<FileIcon role="presentation" />
 									{:else if item.expanded()}
@@ -383,6 +449,33 @@
 			</Tree>
 		</TreeContextMenuTrigger>
 	</TreeContextMenu>
+
+	<div class="grid shrink-0 grid-cols-5 place-items-center bg-gray-200 p-2 text-sm">
+		<div>
+			<span class="font-medium text-gray-700">Items:</span>
+			<span class="font-semibold text-gray-900">{totalCount}</span>
+		</div>
+
+		<div>
+			<span class="font-medium text-gray-700">Selected:</span>
+			<span class="font-semibold text-gray-900">{selectedIds.size}</span>
+		</div>
+
+		<div>
+			<span class="font-medium text-gray-700">Clipboard:</span>
+			<span class="font-semibold text-gray-900">{clipboardIds.size}</span>
+		</div>
+
+		<div>
+			<span class="font-medium text-gray-700">Paste:</span>
+			<span class="font-semibold text-gray-900">{pasteDirection}</span>
+		</div>
+
+		<div>
+			<span class="font-medium text-gray-700">Total Size:</span>
+			<span class="font-semibold text-gray-900">{formatSize(totalSize)}</span>
+		</div>
+	</div>
 </main>
 
 <style>
@@ -390,5 +483,6 @@
 		--grid-cols: 5fr 1fr 2fr;
 		--grid-gap: calc(var(--spacing) * 4);
 		--grid-inline-padding: calc(var(--spacing) * 3);
+		--tree-inline-padding: calc(var(--spacing) * 6);
 	}
 </style>
