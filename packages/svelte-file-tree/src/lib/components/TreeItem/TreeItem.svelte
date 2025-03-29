@@ -275,7 +275,7 @@
 				break;
 			}
 			case "Delete": {
-				void treeState.remove(item());
+				treeState.remove(item());
 				break;
 			}
 			case "a": {
@@ -298,7 +298,7 @@
 			}
 			case "v": {
 				if (isControlOrMeta(event)) {
-					void treeState.paste(item());
+					treeState.paste(item());
 				}
 				break;
 			}
@@ -370,22 +370,11 @@
 	const handleDrop: EventHandler<DragEvent, HTMLElement> = (event) => {
 		clearDropPosition();
 
-		const draggedId = treeState.draggedId();
-		if (draggedId === undefined || !canDrop()) {
-			return;
-		}
-
 		const position = getLatestDropPosition(
 			event.currentTarget.getBoundingClientRect(),
 			event.clientY,
 		);
-
-		treeState.selectedIds().add(draggedId);
-		void treeState.drop(item(), position).then((didDrop) => {
-			if (didDrop) {
-				treeState.getItemElement(draggedId)?.focus();
-			}
-		});
+		treeState.drop(item(), position);
 
 		event.preventDefault();
 	};

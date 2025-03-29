@@ -479,8 +479,20 @@ export function createTreeState<TData extends FileTreeNodeData>({
 		});
 	}
 
-	function drop(target: TreeItemState<TData>, position: DropPosition): Promise<boolean> {
-		return moveItems(selectedIds(), isSelected, target, position);
+	async function drop(target: TreeItemState<TData>, position: DropPosition): Promise<boolean> {
+		const currentDraggedId = draggedId();
+		if (currentDraggedId === undefined) {
+			return false;
+		}
+
+		selectedIds().add(currentDraggedId);
+		const didMove = await moveItems(selectedIds(), isSelected, target, position);
+
+		if (didMove) {
+			getItemElement(currentDraggedId)?.focus();
+		}
+
+		return didMove;
 	}
 
 	function copyNode(node: FileTreeNode<TData>): FileTreeNode<TData> {
