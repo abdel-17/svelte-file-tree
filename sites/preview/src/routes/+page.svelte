@@ -419,7 +419,10 @@
 						}}
 					>
 						{#snippet children({ editing })}
-							<div class="flex items-center" style="padding-inline-start: {item.depth * 24}px">
+							<div
+								class="flex items-center"
+								style="padding-inline-start: calc(var(--spacing) * {item.depth * 6})"
+							>
 								<TreeItemToggle {item} onExpand={expand} onCollapse={collapse} />
 
 								<div class="ps-1 pe-2">
@@ -447,7 +450,7 @@
 		</TreeContextMenuTrigger>
 	</TreeContextMenu>
 
-	<div class="grid h-9 shrink-0 grid-cols-5 place-items-center bg-gray-200 text-sm">
+	<div class="grid shrink-0 grid-cols-5 place-items-center bg-gray-200 p-2 text-sm">
 		<div>
 			<span class="font-medium text-gray-700">Items:</span>
 			<span class="font-semibold text-gray-900">{totalCount}</span>
