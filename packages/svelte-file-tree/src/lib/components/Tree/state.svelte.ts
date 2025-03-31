@@ -640,6 +640,11 @@ export function createTreeState<TData extends FileTreeNodeData>({
 
 		if (didPaste) {
 			clearClipboard();
+
+			// After pasting, the order of the items changes, which may cause focus
+			// to be lost.
+			// https://github.com/sveltejs/svelte/issues/15634
+			getItemElement(target.node.id)?.focus();
 		}
 
 		return didPaste;
