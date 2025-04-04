@@ -37,6 +37,7 @@
 		ref = $bindable(null),
 		class: className,
 		style,
+		draggable = true,
 		onfocusin,
 		onkeydown,
 		onclick,
@@ -397,6 +398,7 @@
 
 <div
 	{...rest}
+	{draggable}
 	bind:this={ref}
 	id={treeState.getItemElementId(item().node.id)}
 	role="treeitem"

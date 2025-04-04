@@ -83,4 +83,4 @@ export function createDragState({ draggedId, item }: DragStateProps) {
 	};
 }
 
-export type DropPositionState = ReturnType<typeof createDragState>;
+export type DragState = ReturnType<typeof createDragState>;

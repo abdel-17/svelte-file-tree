@@ -10,7 +10,7 @@
 	const { setEditing } = getTreeItemContext();
 
 	let {
-		name = $bindable(item().node.data.name),
+		name = $bindable(item().node.name),
 		ref = $bindable(null),
 		onkeydown,
 		onblur,

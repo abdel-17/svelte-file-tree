@@ -1,52 +1,60 @@
-export type FileTreeNodeData = {
+function getTotalCount(nodes: Array<FileTreeNode>): number {
+	let count = 0;
+	for (const node of nodes) {
+		count += node.count;
+	}
+	return count;
+}
+
+export class FileTree<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> {
+	children: Array<TNode> = $state([]);
+
+	constructor(children: Array<TNode>) {
+		this.children = children;
+	}
+
+	readonly count = $derived(getTotalCount(this.children));
+}
+
+export type FileNodeProps = {
+	id: string;
 	name: string;
 };
 
-export type FileTreeNode<TData extends FileTreeNodeData = FileTreeNodeData> =
-	| FileNode<TData>
-	| FolderNode<TData>;
-
-export class FileTree<TData extends FileTreeNodeData = FileTreeNodeData> {
-	children: Array<FileTreeNode<TData>> = $state([]);
-
-	constructor(children: Array<FileTreeNode<TData>>) {
-		this.children = children;
-	}
-}
-
-export type FileNodeProps<TData extends FileTreeNodeData = FileTreeNodeData> = {
-	id: string;
-	data: TData;
-};
-
-export class FileNode<TData extends FileTreeNodeData = FileTreeNodeData> {
+export class FileNode {
 	readonly id: string;
-	data: TData = $state({} as TData);
+	name: string = $state.raw("");
 
-	constructor({ id, data }: FileNodeProps<TData>) {
+	constructor({ id, name }: FileNodeProps) {
 		this.id = id;
-		this.data = data;
+		this.name = name;
 	}
 
 	readonly type = "file";
+
+	readonly count = 1;
 }
 
-export type FolderNodeProps<TData extends FileTreeNodeData = FileTreeNodeData> = {
+export type FolderNodeProps<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
 	id: string;
-	data: TData;
-	children: Array<FileTreeNode<TData>>;
+	name: string;
+	children: Array<TNode>;
 };
 
-export class FolderNode<TData extends FileTreeNodeData = FileTreeNodeData> {
+export class FolderNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> {
 	readonly id: string;
-	data: TData = $state({} as TData);
-	children: Array<FileTreeNode<TData>> = $state([]);
+	name: string = $state.raw("");
+	children: Array<TNode> = $state([]);
 
-	constructor({ id, data, children }: FolderNodeProps<TData>) {
+	constructor({ id, name, children }: FolderNodeProps<TNode>) {
 		this.id = id;
-		this.data = data;
+		this.name = name;
 		this.children = children;
 	}
 
 	readonly type = "folder";
+
+	readonly count = $derived(1 + getTotalCount(this.children));
 }
+
+export type FileTreeNode = FileNode | FolderNode<FileTreeNode>;
