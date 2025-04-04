@@ -1,5 +1,6 @@
-<script lang="ts" generics="TData extends FileTreeNodeData = FileTreeNodeData">
-	import type { FileTreeNodeData } from "$lib/tree.svelte.js";
+<script lang="ts" generics="TNode extends FileNode | FolderNode<TNode> = FileTreeNode">
+	import { FileNode, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
+	import { DEV } from "esm-env";
 	import { SvelteSet } from "svelte/reactivity";
 	import TreeItemProvider from "./TreeItemProvider.svelte";
 	import { createTreeState } from "./state.svelte.js";
@@ -16,13 +17,35 @@
 		defaultClipboardIds,
 		clipboardIds = new SvelteSet(defaultClipboardIds),
 		pasteOperation = $bindable(),
-		isItemEditable = false,
+		isItemEditable = true,
 		isItemDisabled = false,
 		id = defaultId,
 		ref = $bindable(null),
-		generateCopyId = () => crypto.randomUUID(),
+		copyNode = function copyNode(node): TNode {
+			if (DEV && node.constructor !== FileNode && node.constructor !== FolderNode) {
+				throw new Error(
+					"Cannot copy an object that extends from `FileNode` or `FolderNode`. Pass a `copyNode` prop to specify how the object should be copied.",
+				);
+			}
+
+			switch (node.type) {
+				case "file": {
+					return new FileNode({
+						id: crypto.randomUUID(),
+						name: node.name,
+					}) as TNode;
+				}
+				case "folder": {
+					return new FolderNode({
+						id: crypto.randomUUID(),
+						name: node.name,
+						children: node.children.map(copyNode),
+					}) as TNode;
+				}
+			}
+		},
 		onRenameItem = ({ target, name }) => {
-			target.data.name = name;
+			target.name = name;
 			return true;
 		},
 		onMoveItems = ({ updates }) => {
@@ -45,7 +68,7 @@
 		onAlreadyExistsError,
 		onCircularReferenceError,
 		...rest
-	}: TreeProps<TData> = $props();
+	}: TreeProps<TNode> = $props();
 
 	const treeState = createTreeState({
 		tree: () => tree,
@@ -71,7 +94,7 @@
 			return isItemDisabled;
 		},
 		id: () => id,
-		generateCopyId: () => generateCopyId(),
+		copyNode: (node) => copyNode(node),
 		onRenameItem: (args) => onRenameItem(args),
 		onMoveItems: (args) => onMoveItems(args),
 		onCopyPasteItems: (args) => onCopyPasteItems(args),
@@ -80,23 +103,15 @@
 		onAlreadyExistsError: (args) => onAlreadyExistsError?.(args),
 		onCircularReferenceError: (args) => onCircularReferenceError?.(args),
 	});
+
+	export const { rename, copy, paste, remove } = treeState;
 </script>
 
 <div {...rest} bind:this={ref} {id} role="tree" aria-multiselectable="true">
 	{#each treeState.items() as i (i.node.id)}
 		<TreeItemProvider {treeState} item={i}>
 			{#if i.visible()}
-				{@render item({
-					item: i,
-					select: () => selectedIds.add(i.node.id),
-					deselect: () => selectedIds.delete(i.node.id),
-					expand: () => expandedIds.add(i.node.id),
-					collapse: () => expandedIds.delete(i.node.id),
-					rename: (name) => treeState.rename(i, name),
-					copy: (operation) => treeState.copy(i, operation),
-					paste: (position) => treeState.paste(i, position),
-					remove: () => treeState.remove(i),
-				})}
+				{@render item({ item: i })}
 			{/if}
 		</TreeItemProvider>
 	{/each}
