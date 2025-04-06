@@ -192,7 +192,7 @@
 		>
 			{#if openArgs?.type === "item"}
 				{@const item = openArgs.item()}
-				{#if item.editable()}
+				{#if item.editable}
 					<ContextMenuItem onSelect={handleRename}>
 						<PenIcon role="presentation" size={20} />
 						<span>Rename</span>

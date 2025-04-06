@@ -34,8 +34,7 @@
 		"svelte": "^5.20.0"
 	},
 	"dependencies": {
-		"esm-env": "^1.2.2",
-		"svelte-signals": "^0.0.2"
+		"esm-env": "^1.2.2"
 	},
 	"devDependencies": {
 		"@sveltejs/kit": "^2.20.4",

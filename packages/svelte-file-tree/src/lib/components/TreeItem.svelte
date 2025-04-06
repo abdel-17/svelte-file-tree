@@ -3,11 +3,9 @@
 	import { DEV } from "esm-env";
 	import { flushSync, getContext, hasContext, setContext } from "svelte";
 	import type { EventHandler } from "svelte/elements";
-	import { getTreeItemProviderContext } from "../Tree/TreeItemProvider.svelte";
-	import type { TreeItemPosition } from "../Tree/state.svelte.js";
-	import type { TreeItemState } from "../Tree/types.js";
-	import { createDragState } from "./state.svelte.js";
-	import type { TreeItemChildrenSnippetArgs, TreeItemProps } from "./types.js";
+	import { getTreeItemProviderContext } from "./TreeItemProvider.svelte";
+	import { createTreeItemDragState, type TreeItemPosition } from "./state.svelte.js";
+	import type { TreeItemChildrenSnippetArgs, TreeItemProps, TreeItemState } from "./types.js";
 
 	const CONTEXT_KEY = Symbol("TreeItem");
 
@@ -50,7 +48,7 @@
 	}: TreeItemProps = $props();
 
 	const { dropPosition, canDrop, getLatestDropPosition, updateDropPosition, clearDropPosition } =
-		createDragState({
+		createTreeItemDragState({
 			draggedId: treeState.draggedId,
 			item,
 		});
@@ -73,7 +71,7 @@
 			return;
 		}
 
-		if (item().disabled()) {
+		if (item().disabled) {
 			return;
 		}
 
@@ -84,7 +82,7 @@
 					break;
 				}
 
-				if (!item().expanded()) {
+				if (!item().expanded) {
 					treeState.expandedIds().add(node.id);
 					break;
 				}
@@ -95,7 +93,7 @@
 				break;
 			}
 			case "ArrowLeft": {
-				if (item().node.type === "folder" && item().expanded()) {
+				if (item().node.type === "folder" && item().expanded) {
 					treeState.expandedIds().delete(item().node.id);
 					break;
 				}
@@ -270,7 +268,7 @@
 				break;
 			}
 			case "F2": {
-				if (item().editable()) {
+				if (item().editable) {
 					editing = true;
 				}
 				break;
@@ -312,7 +310,7 @@
 	};
 
 	const handleClick: EventHandler<MouseEvent, HTMLElement> = (event) => {
-		if (item().disabled()) {
+		if (item().disabled) {
 			return;
 		}
 
@@ -327,7 +325,7 @@
 	};
 
 	const handleDragStart: EventHandler<DragEvent, HTMLElement> = (event) => {
-		if (item().disabled()) {
+		if (item().disabled) {
 			return;
 		}
 
@@ -402,8 +400,8 @@
 	bind:this={ref}
 	id={treeState.getItemElementId(item().node.id)}
 	role="treeitem"
-	aria-selected={item().selected()}
-	aria-expanded={hasChildren(item()) ? item().expanded() : undefined}
+	aria-selected={item().selected}
+	aria-expanded={hasChildren(item()) ? item().expanded : undefined}
 	aria-level={item().depth + 1}
 	aria-posinset={item().index + 1}
 	aria-setsize={item().parent?.node.children.length ?? treeState.tree().children.length}
