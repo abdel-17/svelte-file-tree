@@ -120,6 +120,11 @@
 			title: "Rename",
 			initialName: target.node.name,
 			onSubmit: async (name) => {
+				if (name === target.node.name) {
+					nameFormDialog?.close();
+					return;
+				}
+
 				const owner = target.parent?.node ?? tree;
 				for (const child of owner.children) {
 					if (child !== target.node && child.name === name) {
