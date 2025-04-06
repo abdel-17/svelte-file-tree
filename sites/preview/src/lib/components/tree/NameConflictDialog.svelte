@@ -3,35 +3,25 @@
 	import type { NameConflictResolution } from "svelte-file-tree";
 	import { fade, fly } from "svelte/transition";
 
-	let open = $state.raw(false);
-	let title = $state.raw("");
-	let description = $state.raw("");
-	let onClose: ((resolution: NameConflictResolution) => void) | undefined;
-
 	type OpenArgs = {
 		title: string;
 		description: string;
-		onClose?: (resolution: NameConflictResolution) => void;
+		onClose: (resolution: NameConflictResolution) => void;
 	};
 
-	export function show(args: OpenArgs): void {
-		if (open) {
+	let openArgs: OpenArgs | undefined = $state.raw();
+
+	export function open(args: OpenArgs): void {
+		if (openArgs !== undefined) {
 			throw new Error("Dialog is already open");
 		}
 
-		open = true;
-		title = args.title;
-		description = args.description;
-		onClose = args.onClose;
+		openArgs = args;
 	}
 
-	function close(resolution: NameConflictResolution): void {
-		onClose?.(resolution);
-
-		open = false;
-		title = "";
-		description = "";
-		onClose = undefined;
+	export function close(resolution: NameConflictResolution): void {
+		openArgs?.onClose(resolution);
+		openArgs = undefined;
 	}
 
 	function handleOpenChange(open: boolean): void {
@@ -41,10 +31,10 @@
 	}
 </script>
 
-<Dialog.Root bind:open={() => open, handleOpenChange}>
+<Dialog.Root bind:open={() => openArgs !== undefined, handleOpenChange}>
 	<Dialog.Portal>
 		<Dialog.Overlay forceMount class="fixed inset-0 z-50 bg-black/50">
-			{#snippet child({ props })}
+			{#snippet child({ props, open })}
 				{#if open}
 					<div {...props} transition:fade={{ duration: 200 }}></div>
 				{/if}
@@ -55,15 +45,15 @@
 			forceMount
 			class="fixed top-0 left-1/2 z-50 w-xs -translate-x-1/2 rounded-b-lg bg-neutral-100 p-4 md:w-md"
 		>
-			{#snippet child({ props })}
+			{#snippet child({ props, open })}
 				{#if open}
 					<div {...props} transition:fly={{ y: "-100%" }}>
 						<Dialog.Title class="text-center text-lg font-semibold tracking-tight">
-							{title}
+							{openArgs?.title}
 						</Dialog.Title>
 
 						<Dialog.Description class="mt-2 text-sm text-gray-700">
-							{description}
+							{openArgs?.description}
 						</Dialog.Description>
 
 						<div class="mt-5 flex justify-end gap-3">

@@ -5,27 +5,24 @@
 
 	const nameId = $props.id();
 
-	let open = $state.raw(false);
-	let name = $state.raw("");
-	let onSubmit: ((name: string) => boolean) | undefined;
-
 	type OpenArgs = {
-		onSubmit?: (name: string) => boolean;
+		onSubmit: (name: string) => void;
 	};
 
-	export function show(args: OpenArgs): void {
-		if (open) {
+	let openArgs: OpenArgs | undefined = $state.raw();
+	let name = $state.raw("");
+
+	export function open(args: OpenArgs): void {
+		if (openArgs !== undefined) {
 			throw new Error("Dialog is already open");
 		}
 
-		open = true;
-		onSubmit = args.onSubmit;
+		openArgs = args;
 	}
 
 	export function close(): void {
-		open = false;
+		openArgs = undefined;
 		name = "";
-		onSubmit = undefined;
 	}
 
 	function handleOpenChange(open: boolean): void {
@@ -35,23 +32,19 @@
 	}
 
 	const handleSubmit: EventHandler<SubmitEvent, HTMLFormElement> = (event) => {
-		event.preventDefault();
-
-		if (onSubmit !== undefined) {
-			const didSubmit = onSubmit(name);
-			if (!didSubmit) {
-				return;
-			}
+		if (openArgs === undefined) {
+			throw new Error("Dialog is closed");
 		}
 
-		close();
+		event.preventDefault();
+		openArgs.onSubmit(name);
 	};
 </script>
 
-<Dialog.Root bind:open={() => open, handleOpenChange}>
+<Dialog.Root bind:open={() => openArgs !== undefined, handleOpenChange}>
 	<Dialog.Portal>
 		<Dialog.Overlay forceMount class="fixed inset-0 z-50 bg-black/50">
-			{#snippet child({ props })}
+			{#snippet child({ props, open })}
 				{#if open}
 					<div {...props} transition:fade={{ duration: 200 }}></div>
 				{/if}
@@ -62,18 +55,18 @@
 			forceMount
 			class="fixed top-1/2 left-1/2 z-50 w-xs -translate-x-1/2 -translate-y-1/2 rounded-lg bg-neutral-100 p-4 md:w-md"
 		>
-			{#snippet child({ props })}
+			{#snippet child({ props, open })}
 				{#if open}
 					<div {...props} transition:scale={{ duration: 200, start: 0.9 }}>
 						<Dialog.Title class="text-center text-2xl font-semibold tracking-tight">
 							New Folder
 						</Dialog.Title>
 
-						<form onsubmit={handleSubmit} class="mt-4">
+						<form class="mt-4" onsubmit={handleSubmit}>
 							<label for={nameId} class="text-sm font-medium">Name</label>
 							<input
-								id={nameId}
 								bind:value={name}
+								id={nameId}
 								required
 								class="mt-1 block h-9 w-full rounded border border-slate-400 bg-white px-3 focus-visible:border-slate-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-600"
 							/>
