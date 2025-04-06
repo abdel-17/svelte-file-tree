@@ -165,6 +165,10 @@
 	const handleFileInputChange: EventHandler<Event, HTMLInputElement> = (event) => {
 		onFilesSelected?.(event.currentTarget.files);
 		onFilesSelected = undefined;
+
+		// Reset the input's "selected files" to prevent it from dispatching
+		// the "cancel" event when the same files are reuploaded.
+		event.currentTarget.value = "";
 	};
 
 	const handleFileInputCancel: EventHandler<Event, HTMLInputElement> = () => {
