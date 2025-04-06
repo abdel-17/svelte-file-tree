@@ -2,8 +2,8 @@
 	import { composeEventHandlers } from "$lib/internal/helpers.js";
 	import type { Action } from "svelte/action";
 	import type { EventHandler } from "svelte/elements";
-	import { getTreeItemProviderContext } from "../Tree/TreeItemProvider.svelte";
-	import { getTreeItemContext } from "../TreeItem/TreeItem.svelte";
+	import { getTreeItemContext } from "./TreeItem.svelte";
+	import { getTreeItemProviderContext } from "./TreeItemProvider.svelte";
 	import type { TreeItemInputProps } from "./types.js";
 
 	const { treeState, item } = getTreeItemProviderContext();

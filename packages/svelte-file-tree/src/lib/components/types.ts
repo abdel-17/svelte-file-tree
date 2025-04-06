@@ -1,6 +1,7 @@
 import type { HTMLDivAttributes, MaybePromise } from "$lib/internal/types.js";
 import type { FileNode, FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
+import type { ClassValue, HTMLInputAttributes } from "svelte/elements";
 import type { SvelteSet } from "svelte/reactivity";
 
 export type ParentFileTreeNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = Extract<
@@ -13,13 +14,13 @@ export type TreeItemState<TNode extends FileNode | FolderNode<TNode> = FileTreeN
 	index: number;
 	parent?: TreeItemState<ParentFileTreeNode<TNode>>;
 	depth: number;
-	selected: () => boolean;
-	expanded: () => boolean;
-	inClipboard: () => boolean;
-	editable: () => boolean;
-	disabled: () => boolean;
-	visible: () => boolean;
-	dragged: () => boolean;
+	selected: boolean;
+	expanded: boolean;
+	inClipboard: boolean;
+	editable: boolean;
+	disabled: boolean;
+	visible: boolean;
+	dragged: boolean;
 };
 
 export type DropPosition = "before" | "after" | "inside";
@@ -98,4 +99,36 @@ export interface TreeProps<TNode extends FileNode | FolderNode<TNode> = FileTree
 	onResolveNameConflict?: (args: ResolveNameConflictArgs) => MaybePromise<NameConflictResolution>;
 	onAlreadyExistsError?: (args: AlreadyExistsErrorArgs) => void;
 	onCircularReferenceError?: (args: CircularReferenceErrorArgs<TNode>) => void;
+}
+
+export type TreeItemChildrenSnippetArgs = {
+	editing: () => boolean;
+	dropPosition: () => DropPosition | undefined;
+};
+
+export interface TreeItemProps
+	extends Omit<
+		HTMLDivAttributes,
+		| "children"
+		| "id"
+		| "role"
+		| "aria-selected"
+		| "aria-expanded"
+		| "aria-level"
+		| "aria-posinset"
+		| "aria-setsize"
+		| "tabindex"
+		| "class"
+		| "style"
+	> {
+	children: Snippet<[args: TreeItemChildrenSnippetArgs]>;
+	editing?: boolean;
+	ref?: HTMLElement | null;
+	class?: ClassValue | ((args: TreeItemChildrenSnippetArgs) => ClassValue | undefined);
+	style?: string | ((args: TreeItemChildrenSnippetArgs) => string | undefined);
+}
+
+export interface TreeItemInputProps extends Omit<HTMLInputAttributes, "children" | "value"> {
+	name?: string;
+	ref?: HTMLInputElement | null;
 }

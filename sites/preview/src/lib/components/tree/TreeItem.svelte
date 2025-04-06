@@ -37,7 +37,7 @@
 			return;
 		}
 
-		if (item.disabled()) {
+		if (item.disabled) {
 			event.preventDefault();
 			return;
 		}
@@ -56,12 +56,12 @@
 			throw new Error("Tree item is not mounted");
 		}
 
-		if (item.disabled()) {
+		if (item.disabled) {
 			event.preventDefault();
 			return;
 		}
 
-		if (item.expanded()) {
+		if (item.expanded) {
 			onCollapse();
 		} else {
 			onExpand();
@@ -84,7 +84,7 @@
 	bind:ref
 	class={({ dropPosition }) => [
 		"relative grid grid-cols-(--grid-cols) gap-x-(--grid-gap) rounded-md p-(--grid-inline-padding) hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300 aria-selected:has-[+[aria-selected='true']]:rounded-b-none aria-selected:[&+[aria-selected='true']]:rounded-t-none",
-		item.dragged() && "opacity-50",
+		item.dragged && "opacity-50",
 		dropPosition() !== undefined &&
 			"before:pointer-events-none before:absolute before:-inset-0 before:rounded-[inherit] before:border-2",
 		dropPosition() === "before" && "before:border-neutral-300 before:border-t-red-500",
@@ -98,11 +98,11 @@
 		style="padding-inline-start: calc(var(--spacing) * {item.depth * 6})"
 	>
 		<button
-			aria-expanded={item.expanded()}
+			aria-expanded={item.expanded}
 			tabindex={-1}
 			class={[
 				"rounded-full transition-transform duration-200 hover:bg-current/8 active:bg-current/12",
-				item.expanded() && "-rotate-90",
+				item.expanded && "-rotate-90",
 				item.node.type === "file" && "invisible",
 			]}
 			onclick={handleToggleClick}
@@ -114,7 +114,7 @@
 		<div class="ps-1 pe-2">
 			{#if item.node.type === "file"}
 				<FileIcon role="presentation" />
-			{:else if item.expanded()}
+			{:else if item.expanded}
 				<FolderOpenIcon role="presentation" class="fill-blue-300" />
 			{:else}
 				<FolderIcon role="presentation" class="fill-blue-300" />

@@ -55,7 +55,7 @@
 			return;
 		}
 
-		if (focusedItem.node.type === "folder" && focusedItem.expanded()) {
+		if (focusedItem.node.type === "folder" && focusedItem.expanded) {
 			return "Inside";
 		}
 

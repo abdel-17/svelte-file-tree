@@ -110,7 +110,7 @@
 <div {...rest} bind:this={ref} {id} role="tree" aria-multiselectable="true">
 	{#each treeState.items() as i (i.node.id)}
 		<TreeItemProvider {treeState} item={i}>
-			{#if i.visible()}
+			{#if i.visible}
 				{@render item({ item: i })}
 			{/if}
 		</TreeItemProvider>

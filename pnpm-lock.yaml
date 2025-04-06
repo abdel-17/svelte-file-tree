@@ -20,9 +20,6 @@ importers:
       esm-env:
         specifier: ^1.2.2
         version: 1.2.2
-      svelte-signals:
-        specifier: ^0.0.2
-        version: 0.0.2(svelte@5.25.6)
     devDependencies:
       '@sveltejs/kit':
         specifier: ^2.20.4
@@ -1658,11 +1655,6 @@ packages:
     peerDependencies:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: '>=5.0.0'
-
-  svelte-signals@0.0.2:
-    resolution: {integrity: sha512-pnTUvgc6cZHGorNn9vozsf0waeVM1RsCm+R4qtbAM0YzLtwPRsZH9p/OBNrXdCbZOs3VoEW4ZTmaN+RAp+uUPA==}
-    peerDependencies:
-      svelte: ^5.0.0
 
   svelte-sonner@0.3.28:
     resolution: {integrity: sha512-K3AmlySeFifF/cKgsYNv5uXqMVNln0NBAacOYgmkQStLa/UoU0LhfAACU6Gr+YYC8bOCHdVmFNoKuDbMEsppJg==}
@@ -3420,10 +3412,6 @@ snapshots:
       typescript: 5.8.2
     transitivePeerDependencies:
       - picomatch
-
-  svelte-signals@0.0.2(svelte@5.25.6):
-    dependencies:
-      svelte: 5.25.6
 
   svelte-sonner@0.3.28(svelte@5.25.6):
     dependencies:

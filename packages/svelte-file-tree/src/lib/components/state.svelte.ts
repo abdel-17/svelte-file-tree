@@ -1,7 +1,6 @@
 import type { MaybePromise } from "$lib/internal/types.js";
 import { FileNode, FolderNode, type FileTree, type FileTreeNode } from "$lib/tree.svelte.js";
 import { DEV } from "esm-env";
-import { createDerived, createRawState } from "svelte-signals";
 import type { SvelteSet } from "svelte/reactivity";
 import type {
 	AlreadyExistsErrorArgs,
@@ -44,7 +43,67 @@ export type TreeItemPosition<TNode extends FileNode | FolderNode<TNode> = FileTr
 	parent?: TreeItemPosition<ParentFileTreeNode<TNode>>;
 };
 
-export function getNearestAncestor<TParent extends { parent?: TParent }>(
+class TreeItemStateImpl<TNode extends FileNode | FolderNode<TNode> = FileTreeNode>
+	implements TreeItemState<TNode>
+{
+	readonly depth: number;
+
+	constructor(
+		readonly node: TNode,
+		readonly index: number,
+		readonly parent: TreeItemState<ParentFileTreeNode<TNode>> | undefined,
+		readonly selectedIds: () => SvelteSet<string>,
+		readonly expandedIds: () => SvelteSet<string>,
+		readonly clipboardIds: () => SvelteSet<string>,
+		readonly isItemEditable: (node: TNode) => boolean,
+		readonly isItemDisabled: (node: TNode) => boolean,
+		readonly draggedId: () => string | undefined,
+	) {
+		if (parent === undefined) {
+			this.depth = 0;
+		} else {
+			this.depth = parent.depth + 1;
+		}
+	}
+
+	readonly selected: boolean = $derived.by(() => this.selectedIds().has(this.node.id));
+
+	readonly expanded: boolean = $derived.by(() => this.expandedIds().has(this.node.id));
+
+	readonly inClipboard: boolean = $derived.by(() => this.clipboardIds().has(this.node.id));
+
+	readonly editable: boolean = $derived.by(() => this.isItemEditable(this.node));
+
+	readonly disabled: boolean = $derived.by(() => {
+		if (this.parent?.disabled === true) {
+			return true;
+		}
+
+		return this.isItemDisabled(this.node);
+	});
+
+	readonly visible: boolean = $derived.by(() => {
+		if (this.parent === undefined) {
+			return true;
+		}
+
+		return this.parent.expanded && this.parent.visible;
+	});
+
+	readonly dragged: boolean = $derived.by(() => {
+		if (this.draggedId() === undefined) {
+			return false;
+		}
+
+		if (this.draggedId() === this.node.id) {
+			return true;
+		}
+
+		return this.selected && this.parent?.dragged !== true;
+	});
+}
+
+function getNearestAncestor<TParent extends { parent?: TParent }>(
 	item: { parent?: TParent },
 	predicate: (ancestor: TParent) => boolean,
 ): TParent | undefined {
@@ -55,12 +114,12 @@ export function getNearestAncestor<TParent extends { parent?: TParent }>(
 	}
 }
 
-function isSelected(item: TreeItemState): boolean {
-	return item.selected();
+function isItemSelected(item: TreeItemState): boolean {
+	return item.selected;
 }
 
-function isInClipboard(item: TreeItemState): boolean {
-	return item.inClipboard();
+function isItemInClipboard(item: TreeItemState): boolean {
+	return item.inClipboard;
 }
 
 export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
@@ -82,73 +141,60 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 	onAlreadyExistsError,
 	onCircularReferenceError,
 }: TreeStateProps<TNode>) {
-	const [tabbableId, setTabbableId] = createRawState<string>();
-	const [draggedId, setDraggedId] = createRawState<string>();
+	let tabbableId: string | undefined = $state.raw();
+	let draggedId: string | undefined = $state.raw();
 
 	function isItemTabbable(itemId: string): boolean {
-		if (tabbableId() === undefined) {
+		if (tabbableId === undefined) {
 			return tree().children[0].id === itemId;
 		}
 
-		return tabbableId() === itemId;
+		return tabbableId === itemId;
 	}
 
-	const items = createDerived(function createItems(
+	function setTabbableId(value: string | undefined): void {
+		tabbableId = value;
+	}
+
+	function getDraggedId(): string | undefined {
+		return draggedId;
+	}
+
+	function setDraggedId(value: string | undefined): void {
+		draggedId = value;
+	}
+
+	const items: Array<TreeItemState<TNode>> = $derived.by(function createItems(
 		result: Array<TreeItemState<TNode>> = [],
 		nodes: Array<TNode> = tree().children,
 		parent?: TreeItemState<ParentFileTreeNode<TNode>>,
-	): Array<TreeItemState<TNode>> {
+	) {
 		for (let i = 0; i < nodes.length; i++) {
 			const node = nodes[i];
-			const selected = createDerived((): boolean => selectedIds().has(node.id));
-			const item: TreeItemState<TNode> = {
+			const item = new TreeItemStateImpl(
 				node,
-				index: i,
+				i,
 				parent,
-				depth: parent === undefined ? 0 : parent.depth + 1,
-				selected,
-				expanded: createDerived(() => expandedIds().has(node.id)),
-				inClipboard: createDerived(() => clipboardIds().has(node.id)),
-				editable: createDerived(() => isItemEditable(node)),
-				disabled: createDerived(() => {
-					if (parent?.disabled() === true) {
-						return true;
-					}
-
-					return isItemDisabled(node);
-				}),
-				visible: createDerived(() => {
-					if (parent === undefined) {
-						return true;
-					}
-
-					return parent.expanded() && parent.visible();
-				}),
-				dragged: createDerived(() => {
-					if (draggedId() === undefined) {
-						return false;
-					}
-
-					if (draggedId() === node.id) {
-						return true;
-					}
-
-					return selected() && parent?.dragged() !== true;
-				}),
-			};
+				selectedIds,
+				expandedIds,
+				clipboardIds,
+				isItemEditable,
+				isItemDisabled,
+				getDraggedId,
+			);
 			result.push(item);
 
 			if (node.type === "folder") {
-				createItems(result, node.children, item as TreeItemState<ParentFileTreeNode<TNode>>);
+				createItems(result, node.children, item as never);
 			}
 		}
 
 		return result;
 	});
 
-	const lookup = createDerived((): Map<string, TreeItemState<TNode>> => {
+	const lookup: Map<string, TreeItemState<TNode>> = $derived.by(() => {
 		const result = new Map<string, TreeItemState<TNode>>();
-		for (const item of items()) {
+		for (const item of items) {
 			result.set(item.node.id, item);
 		}
 		return result;
@@ -193,7 +239,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 			return {
 				node: node.children[0],
 				index: 0,
-				parent: current as TreeItemPosition<ParentFileTreeNode<TNode>>,
+				parent: current as never,
 			};
 		}
 		return getNextNonChildItem(current);
@@ -209,7 +255,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		let node = parent?.node.children[index] ?? tree().children[index];
 		while (node.type === "folder" && expandedIds().has(node.id) && node.children.length !== 0) {
 			parent = {
-				node: node as ParentFileTreeNode<TNode>,
+				node: node as never,
 				index,
 				parent,
 			};
@@ -221,7 +267,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 	}
 
 	function toggleSelection(target: TreeItemState<TNode>): void {
-		if (target.selected()) {
+		if (target.selected) {
 			selectedIds().delete(target.node.id);
 		} else {
 			selectedIds().add(target.node.id);
@@ -245,14 +291,14 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 	function selectUntil(target: TreeItemState<TNode>, element: HTMLElement): void {
 		let lastSelected: TreeItemState<TNode> | undefined;
 		for (const id of selectedIds()) {
-			const current = lookup().get(id);
+			const current = lookup.get(id);
 			if (current !== undefined) {
 				lastSelected = current;
 			}
 		}
 
 		if (lastSelected === undefined) {
-			let current: TreeItemPosition<TNode> | undefined = items()[0];
+			let current: TreeItemPosition<TNode> | undefined = items[0];
 			do {
 				selectedIds().add(current.node.id);
 				if (current.node === target.node) {
@@ -323,11 +369,11 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 
 	async function moveItems(
 		movedIds: Set<string>,
-		isMoved: (item: TreeItemState<TNode>) => boolean,
+		isItemMoved: (item: TreeItemState<TNode>) => boolean,
 		target: TreeItemState<TNode>,
 		position: DropPosition,
 	): Promise<boolean> {
-		if (isMoved(target)) {
+		if (isItemMoved(target)) {
 			// Don't move the target next to or inside itself.
 			onCircularReferenceError({
 				target: target.node,
@@ -336,7 +382,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 			return false;
 		}
 
-		const nearestMovedAncestor = getNearestAncestor(target, isMoved);
+		const nearestMovedAncestor = getNearestAncestor(target, isItemMoved);
 		if (nearestMovedAncestor !== undefined) {
 			// Don't move the ancestor inside itself.
 			onCircularReferenceError({
@@ -362,7 +408,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 					return false;
 				}
 
-				owner = target.node as ParentFileTreeNode<TNode>;
+				owner = target.node as never;
 				break;
 			}
 		}
@@ -376,12 +422,12 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		const movedOwners = new Set<ParentFileTreeNode<TNode> | FileTree<TNode>>();
 		const skippedIds = new Set<string>();
 		for (const id of movedIds) {
-			const current = lookup().get(id);
+			const current = lookup.get(id);
 			if (current === undefined) {
 				continue;
 			}
 
-			if (getNearestAncestor(current, isMoved) !== undefined) {
+			if (getNearestAncestor(current, isItemMoved) !== undefined) {
 				// If an ancestor is moved, its children are moved along with it.
 				continue;
 			}
@@ -476,13 +522,13 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 	}
 
 	async function drop(target: TreeItemState<TNode>, position: DropPosition): Promise<boolean> {
-		const currentDraggedId = draggedId();
+		const currentDraggedId = draggedId;
 		if (currentDraggedId === undefined) {
 			return false;
 		}
 
 		selectedIds().add(currentDraggedId);
-		const didMove = await moveItems(selectedIds(), isSelected, target, position);
+		const didMove = await moveItems(selectedIds(), isItemSelected, target, position);
 
 		if (didMove) {
 			getItemElement(currentDraggedId)?.focus();
@@ -508,7 +554,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 					return false;
 				}
 
-				owner = target.node as ParentFileTreeNode<TNode>;
+				owner = target.node as never;
 				break;
 			}
 		}
@@ -521,12 +567,12 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		const copies: Array<TNode> = [];
 		const originals: Array<TNode> = [];
 		for (const id of clipboardIds()) {
-			const current = lookup().get(id);
+			const current = lookup.get(id);
 			if (current === undefined) {
 				continue;
 			}
 
-			if (getNearestAncestor(current, isInClipboard) !== undefined) {
+			if (getNearestAncestor(current, isItemInClipboard) !== undefined) {
 				// If an ancestor is copied, its children are copied along with it.
 				continue;
 			}
@@ -588,7 +634,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 					break;
 				}
 				case "folder": {
-					position = target.expanded() ? "inside" : "after";
+					position = target.expanded ? "inside" : "after";
 					break;
 				}
 			}
@@ -601,7 +647,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 				break;
 			}
 			case "cut": {
-				didPaste = await moveItems(clipboardIds(), isInClipboard, target, position);
+				didPaste = await moveItems(clipboardIds(), isItemInClipboard, target, position);
 				break;
 			}
 			case undefined: {
@@ -625,12 +671,12 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		const removed: Array<TNode> = [];
 		const removedOwners = new Set<ParentFileTreeNode<TNode> | FileTree<TNode>>();
 		for (const id of selectedIds()) {
-			const current = lookup().get(id);
+			const current = lookup.get(id);
 			if (current === undefined) {
 				continue;
 			}
 
-			if (getNearestAncestor(current, isSelected) !== undefined) {
+			if (getNearestAncestor(current, isItemSelected) !== undefined) {
 				// If an ancestor is removed, its children are removed along with it.
 				continue;
 			}
@@ -639,7 +685,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 			removedOwners.add(current.parent?.node ?? tree());
 		}
 
-		if (getNearestAncestor(target, isSelected) === undefined) {
+		if (getNearestAncestor(target, isItemSelected) === undefined) {
 			removed.push(target.node);
 			removedOwners.add(target.parent?.node ?? tree());
 		}
@@ -713,11 +759,11 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 	}
 
 	function onItemDestroyed(id: string): void {
-		if (tabbableId() === id) {
+		if (tabbableId === id) {
 			setTabbableId(undefined);
 		}
 
-		if (draggedId() === id) {
+		if (draggedId === id) {
 			setDraggedId(undefined);
 		}
 	}
@@ -729,13 +775,13 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		clipboardIds,
 		pasteOperation,
 		id,
-		tabbableId,
+		tabbableId: () => tabbableId,
 		isItemTabbable,
 		setTabbableId,
-		draggedId,
+		draggedId: getDraggedId,
 		setDraggedId,
-		items,
-		lookup,
+		items: () => items,
+		lookup: () => lookup,
 		getItemElementId,
 		getItemElement,
 		getNextItem,
@@ -757,3 +803,80 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 export type TreeState<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = ReturnType<
 	typeof createTreeState<TNode>
 >;
+
+export type TreeItemDragStateProps = {
+	draggedId: () => string | undefined;
+	item: () => TreeItemState;
+};
+
+export function createTreeItemDragState({ draggedId, item }: TreeItemDragStateProps) {
+	let dropPosition: DropPosition | undefined = $state.raw();
+	let updateRequestId: number | undefined;
+
+	const canDrop: boolean = $derived.by(() => {
+		if (draggedId() === undefined) {
+			return false;
+		}
+
+		if (item().disabled) {
+			return false;
+		}
+
+		if (item().selected || getNearestAncestor(item(), isItemSelected) !== undefined) {
+			// If the dragged item is dropped next to or inside a selected item,
+			// it would cause a circular reference.
+			return false;
+		}
+
+		return true;
+	});
+
+	function getLatestDropPosition(rect: DOMRect, clientY: number): DropPosition {
+		switch (item().node.type) {
+			case "file": {
+				const midY = rect.top + rect.height / 2;
+				return clientY < midY ? "before" : "after";
+			}
+			case "folder": {
+				const { top, bottom, height } = rect;
+				if (clientY < top + height / 3) {
+					return "before";
+				}
+				if (clientY < bottom - height / 3) {
+					return "inside";
+				}
+				return "after";
+			}
+		}
+	}
+
+	function updateDropPosition(element: HTMLElement, clientY: number): void {
+		if (updateRequestId !== undefined) {
+			return;
+		}
+
+		updateRequestId = window.requestAnimationFrame(() => {
+			dropPosition = getLatestDropPosition(element.getBoundingClientRect(), clientY);
+			updateRequestId = undefined;
+		});
+	}
+
+	function clearDropPosition(): void {
+		dropPosition = undefined;
+
+		if (updateRequestId !== undefined) {
+			window.cancelAnimationFrame(updateRequestId);
+			updateRequestId = undefined;
+		}
+	}
+
+	return {
+		dropPosition: () => dropPosition,
+		canDrop: () => canDrop,
+		getLatestDropPosition,
+		updateDropPosition,
+		clearDropPosition,
+	};
+}
+
+export type TreeItemDragState = ReturnType<typeof createTreeItemDragState>;
