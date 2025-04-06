@@ -73,7 +73,11 @@
 
 	$effect(() => {
 		return () => {
-			contextMenu?.onItemDestroyed(item);
+			if (contextMenu === null) {
+				throw new Error("Context menu is not mounted");
+			}
+
+			contextMenu.onItemDestroyed(item);
 		};
 	});
 </script>

@@ -19,10 +19,6 @@
 	}
 
 	export function show(args: ShowArgs): void {
-		if (showArgs !== undefined) {
-			throw new Error("Dialog is already open");
-		}
-
 		showArgs = args;
 		name = args.initialName;
 	}

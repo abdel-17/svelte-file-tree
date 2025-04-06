@@ -120,8 +120,12 @@
 			title: "Rename",
 			initialName: target.node.name,
 			onSubmit: async (name) => {
+				if (nameFormDialog === null) {
+					throw new Error("Dialog is not mounted");
+				}
+
 				if (name === target.node.name) {
-					nameFormDialog?.close();
+					nameFormDialog.close();
 					return;
 				}
 
@@ -135,7 +139,7 @@
 
 				const didRename = await onRenameItem({ target, name });
 				if (didRename) {
-					nameFormDialog?.close();
+					nameFormDialog.close();
 				}
 			},
 		});
@@ -185,6 +189,10 @@
 			title: "New Folder",
 			initialName: "",
 			onSubmit: (name) => {
+				if (nameFormDialog === null) {
+					throw new Error("Dialog is not mounted");
+				}
+
 				for (const child of target.children) {
 					if (child.name === name) {
 						showAlreadyExistsToast(name);
@@ -198,7 +206,7 @@
 					children: [],
 				});
 				target.children.push(node);
-				nameFormDialog?.close();
+				nameFormDialog.close();
 			},
 		});
 	}
