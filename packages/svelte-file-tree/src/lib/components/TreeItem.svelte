@@ -1,25 +1,10 @@
 <script lang="ts" module>
 	import { composeEventHandlers, isControlOrMeta } from "$lib/internal/helpers.js";
-	import { DEV } from "esm-env";
-	import { flushSync, getContext, hasContext, setContext } from "svelte";
+	import { flushSync } from "svelte";
 	import type { EventHandler } from "svelte/elements";
 	import { getTreeItemProviderContext } from "./TreeItemProvider.svelte";
 	import { createTreeItemDragState, type TreeItemPosition } from "./state.svelte.js";
 	import type { TreeItemChildrenSnippetArgs, TreeItemProps, TreeItemState } from "./types.js";
-
-	const CONTEXT_KEY = Symbol("TreeItem");
-
-	export type TreeItemContext = {
-		setEditing: (value: boolean) => void;
-	};
-
-	export function getTreeItemContext(): TreeItemContext {
-		if (DEV && !hasContext(CONTEXT_KEY)) {
-			throw new Error("No parent <TreeItem> found");
-		}
-
-		return getContext(CONTEXT_KEY);
-	}
 
 	function hasChildren(item: TreeItemState): boolean {
 		return item.node.type === "folder" && item.node.children.length !== 0;
@@ -31,7 +16,6 @@
 
 	let {
 		children,
-		editing = $bindable(false),
 		ref = $bindable(null),
 		class: className,
 		style,
@@ -53,12 +37,9 @@
 			item,
 		});
 
-	const context: TreeItemContext = {
-		setEditing: (value) => {
-			editing = value;
-		},
-	};
-	setContext(CONTEXT_KEY, context);
+	const childrenArgs: TreeItemChildrenSnippetArgs = $derived({
+		dropPosition: dropPosition(),
+	});
 
 	const handleFocusIn: EventHandler<FocusEvent, HTMLElement> = () => {
 		treeState.setTabbableId(item().node.id);
@@ -139,7 +120,7 @@
 				const itemRect = event.currentTarget.getBoundingClientRect();
 
 				let current: TreeItemPosition = item();
-				let currentElement: HTMLElement = event.currentTarget;
+				let currentElement = event.currentTarget;
 				while (true) {
 					const next = navigate(current);
 					if (next === undefined) {
@@ -267,12 +248,6 @@
 				window.scrollBy(0, rectAfter.top - rectBefore.top);
 				break;
 			}
-			case "F2": {
-				if (item().editable) {
-					editing = true;
-				}
-				break;
-			}
 			case "Delete": {
 				treeState.remove(item());
 				break;
@@ -380,11 +355,6 @@
 
 	const handleDragEnd: EventHandler<DragEvent, HTMLElement> = () => {
 		treeState.setDraggedId(undefined);
-	};
-
-	const childrenArgs: TreeItemChildrenSnippetArgs = {
-		editing: () => editing,
-		dropPosition,
 	};
 
 	$effect(() => {

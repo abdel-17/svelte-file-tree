@@ -1,13 +1,8 @@
 <script lang="ts">
 	import type { FileTreeNode } from "$lib/tree.svelte";
-	import { formatSize } from "$lib/utils";
+	import { formatSize } from "$lib/utils.js";
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
-	import {
-		TreeItem,
-		TreeItemInput,
-		type TreeItemProps,
-		type TreeItemState,
-	} from "svelte-file-tree";
+	import { TreeItem, type TreeItemProps, type TreeItemState } from "svelte-file-tree";
 	import type { EventHandler } from "svelte/elements";
 	import ContextMenu from "./ContextMenu.svelte";
 
@@ -16,6 +11,7 @@
 		contextMenu: ContextMenu | null;
 		onExpand: () => void;
 		onCollapse: () => void;
+		onRename: () => void;
 	}
 
 	let {
@@ -23,10 +19,17 @@
 		contextMenu,
 		onExpand,
 		onCollapse,
-		editing = $bindable(false),
+		onRename,
 		ref = $bindable(null),
 		...rest
 	}: Props = $props();
+
+	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
+		if (event.key === "F2") {
+			onRename();
+			event.preventDefault();
+		}
+	};
 
 	const handleContextMenu: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
 		if (contextMenu === null) {
@@ -42,12 +45,9 @@
 			return;
 		}
 
-		contextMenu.open({
+		contextMenu.show({
 			type: "item",
 			item: () => item,
-			edit: () => {
-				editing = true;
-			},
 		});
 	};
 
@@ -80,17 +80,17 @@
 
 <TreeItem
 	{...rest}
-	bind:editing
 	bind:ref
 	class={({ dropPosition }) => [
 		"relative grid grid-cols-(--grid-cols) gap-x-(--grid-gap) rounded-md p-(--grid-inline-padding) hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300 aria-selected:has-[+[aria-selected='true']]:rounded-b-none aria-selected:[&+[aria-selected='true']]:rounded-t-none",
 		item.dragged && "opacity-50",
-		dropPosition() !== undefined &&
+		dropPosition !== undefined &&
 			"before:pointer-events-none before:absolute before:-inset-0 before:rounded-[inherit] before:border-2",
-		dropPosition() === "before" && "before:border-neutral-300 before:border-t-red-500",
-		dropPosition() === "after" && "before:border-neutral-300 before:border-b-red-500",
-		dropPosition() === "inside" && "before:border-red-500",
+		dropPosition === "before" && "before:border-neutral-300 before:border-t-red-500",
+		dropPosition === "after" && "before:border-neutral-300 before:border-b-red-500",
+		dropPosition === "inside" && "before:border-red-500",
 	]}
+	onkeydown={handleKeyDown}
 	oncontextmenu={handleContextMenu}
 >
 	<div
@@ -121,11 +121,7 @@
 			{/if}
 		</div>
 
-		{#if editing}
-			<TreeItemInput class="border bg-white focus:outline-none" />
-		{:else}
-			<span>{item.node.name}</span>
-		{/if}
+		<span>{item.node.name}</span>
 	</div>
 	<div>{formatSize(item.node.size)}</div>
 	<div>{item.node.kind}</div>
