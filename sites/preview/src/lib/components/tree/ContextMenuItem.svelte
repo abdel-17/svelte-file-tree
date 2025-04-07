@@ -8,7 +8,7 @@
 	{...rest}
 	bind:ref
 	class={[
-		"flex h-10 items-center gap-2 rounded p-3 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200",
+		"flex items-center justify-between gap-2 rounded px-3 py-1.5 text-sm font-medium select-none focus-visible:outline-2 focus-visible:outline-current data-highlighted:bg-gray-200 [&>kbd]:font-sans [&>kbd]:font-normal [&>kbd]:text-gray-700",
 		className,
 	]}
 />
