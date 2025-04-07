@@ -1,14 +1,5 @@
 <script lang="ts">
 	import type { FolderNode, FileTree, FileTreeNode } from "$lib/tree.svelte";
-	import {
-		ClipboardPasteIcon,
-		CopyIcon,
-		PenIcon,
-		PlusIcon,
-		ScissorsIcon,
-		TrashIcon,
-		UploadIcon,
-	} from "@lucide/svelte";
 	import { ContextMenu } from "bits-ui";
 	import type { Snippet } from "svelte";
 	import type { PasteOperation, TreeItemState } from "svelte-file-tree";
@@ -156,54 +147,55 @@
 </script>
 
 <ContextMenu.Root bind:open={open, handleOpenChange}>
-	<ContextMenu.Trigger
-		class="grow overflow-y-auto rounded px-(--tree-inline-padding) py-2"
-		oncontextmenu={handleTriggerContextMenu}
-	>
+	<ContextMenu.Trigger class="grow overflow-y-auto" oncontextmenu={handleTriggerContextMenu}>
 		{@render children()}
 	</ContextMenu.Trigger>
 
 	<ContextMenu.Portal>
 		<ContextMenu.Content
-			class="z-50 w-[200px] rounded-xl border border-gray-300 bg-gray-50 p-2 shadow focus-visible:outline-none"
+			class="z-50 w-60 rounded-md border border-gray-300 bg-gray-50 p-2 shadow focus-visible:outline-none"
 		>
 			{#if showArgs?.type === "item"}
 				{@const item = showArgs.item()}
 				<ContextMenuItem onSelect={() => onRename(item)}>
-					<PenIcon role="presentation" size={20} />
 					<span>Rename</span>
+					<kbd>F2</kbd>
 				</ContextMenuItem>
 
 				<ContextMenuItem onSelect={() => onCopy(item, "copy")}>
-					<CopyIcon role="presentation" size={20} />
 					<span>Copy</span>
+					<kbd>
+						<kdb>⌘</kdb> + <kdb>C</kdb>
+					</kbd>
 				</ContextMenuItem>
 
 				<ContextMenuItem onSelect={() => onCopy(item, "cut")}>
-					<ScissorsIcon role="presentation" size={20} />
 					<span>Cut</span>
+					<kbd>
+						<kdb>⌘</kdb> + <kdb>X</kdb>
+					</kbd>
 				</ContextMenuItem>
 
 				<ContextMenuItem onSelect={() => onPaste(item)}>
-					<ClipboardPasteIcon role="presentation" size={20} />
 					<span>Paste</span>
+					<kbd>
+						<kdb>⌘</kdb> + <kdb>V</kdb>
+					</kbd>
 				</ContextMenuItem>
 
 				<ContextMenuItem onSelect={() => onRemove(item)}>
-					<TrashIcon role="presentation" size={20} />
 					<span>Delete</span>
+					<kbd>⌫</kbd>
 				</ContextMenuItem>
 			{/if}
 
 			{@const isFolder = showArgs?.type === "item" && showArgs.item().node.type === "folder"}
 			{#if showArgs?.type === "tree" || isFolder}
 				<ContextMenuItem onSelect={handleCreateFolder}>
-					<PlusIcon role="presentation" size={20} />
 					<span>New Folder</span>
 				</ContextMenuItem>
 
 				<ContextMenuItem onSelect={handleUploadFiles}>
-					<UploadIcon role="presentation" size={20} />
 					<span>Upload Files</span>
 				</ContextMenuItem>
 			{/if}

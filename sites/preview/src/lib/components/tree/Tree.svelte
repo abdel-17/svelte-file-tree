@@ -212,9 +212,9 @@
 	}
 </script>
 
-<div class="root flex h-svh flex-col">
+<div class="root flex h-full flex-col">
 	<div
-		class="grid grid-cols-(--grid-cols) gap-x-(--grid-gap) border-b border-gray-300 px-[calc(var(--tree-inline-padding)+var(--grid-inline-padding))] py-3 text-sm font-semibold"
+		class="grid grid-cols-(--grid-cols) gap-x-(--grid-gap) border-b border-gray-300 px-[calc(var(--tree-inline-padding)+var(--grid-inline-padding))] py-2 text-sm font-semibold"
 	>
 		<div>Name</div>
 		<div>Size</div>
@@ -240,6 +240,7 @@
 			bind:this={treeComponent}
 			bind:pasteOperation
 			bind:ref
+			class="px-(--tree-inline-padding) py-2"
 			copyNode={(node) => node.copy()}
 			onResolveNameConflict={handleResolveNameConflict}
 			onCircularReferenceError={handleCircularReferenceError}
