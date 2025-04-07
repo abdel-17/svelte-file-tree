@@ -5,7 +5,6 @@
 		Tree,
 		type CircularReferenceErrorArgs,
 		type NameConflictResolution,
-		type PasteOperation,
 		type ResolveNameConflictArgs,
 		type TreeItemState,
 		type TreeProps,
