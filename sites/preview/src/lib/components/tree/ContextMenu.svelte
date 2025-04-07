@@ -18,6 +18,7 @@
 	const {
 		tree,
 		children,
+		onRename,
 		onCopy,
 		onPaste,
 		onRemove,
@@ -26,6 +27,7 @@
 	}: {
 		tree: FileTree;
 		children: Snippet;
+		onRename: (target: TreeItemState<FileTreeNode>) => void;
 		onCopy: (target: TreeItemState<FileTreeNode>, operation: PasteOperation) => void;
 		onPaste: (target: TreeItemState<FileTreeNode>) => void;
 		onRemove: (target: TreeItemState<FileTreeNode>) => void;
@@ -33,36 +35,34 @@
 		onCreateFolder: (target: FolderNode | FileTree) => void;
 	} = $props();
 
-	type OpenArgs =
+	type ShowArgs =
 		| {
 				type: "tree";
 		  }
 		| {
 				type: "item";
 				item: () => TreeItemState<FileTreeNode>;
-				edit: () => void;
 		  };
 
-	let openArgs: OpenArgs | undefined = $state.raw();
-	let trapFocus = $state.raw(true);
-	let preventCloseAutofocus = false;
+	let showArgs: ShowArgs | undefined = $state.raw();
 	let fileInput: HTMLInputElement | null = $state.raw(null);
 	let onFilesSelected: ((files: FileList | null) => void) | undefined;
 
-	export function open(args: OpenArgs): void {
-		// Restore default behavior.
-		trapFocus = true;
-		preventCloseAutofocus = false;
-		openArgs = args;
+	export function open(): boolean {
+		return showArgs !== undefined;
+	}
+
+	export function show(args: ShowArgs): void {
+		showArgs = args;
 	}
 
 	export function close(): void {
-		openArgs = undefined;
+		showArgs = undefined;
 	}
 
 	export function onItemDestroyed(item: TreeItemState<FileTreeNode>): void {
 		// Don't leave the context menu open after the item is destroyed.
-		if (openArgs?.type === "item" && openArgs.item() === item) {
+		if (showArgs?.type === "item" && showArgs.item() === item) {
 			close();
 		}
 	}
@@ -73,49 +73,28 @@
 		}
 	}
 
-	function handleContentCloseAutoFocus(event: Event): void {
-		if (preventCloseAutofocus) {
-			event.preventDefault();
-		}
-	}
-
 	const handleTriggerContextMenu: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
 		if (event.defaultPrevented) {
 			return;
 		}
 
 		if (event.target instanceof Element && event.target.closest("[role='treeitem']") === null) {
-			open({ type: "tree" });
+			show({ type: "tree" });
 		}
 	};
 
-	function handleRename(): void {
-		if (openArgs === undefined) {
-			throw new Error("Context menu is closed");
-		}
-
-		if (openArgs.type === "tree") {
-			throw new Error("Cannot rename the tree");
-		}
-
-		// Disable focus management to allow the input to be focused.
-		trapFocus = false;
-		preventCloseAutofocus = true;
-		openArgs.edit();
-	}
-
 	function handleCreateFolder(): void {
-		if (openArgs === undefined) {
+		if (showArgs === undefined) {
 			throw new Error("Context menu is closed");
 		}
 
-		switch (openArgs.type) {
+		switch (showArgs.type) {
 			case "tree": {
 				onCreateFolder(tree);
 				break;
 			}
 			case "item": {
-				const item = openArgs.item();
+				const item = showArgs.item();
 				if (item.node.type === "file") {
 					throw new Error("Cannot create a folder inside a file");
 				}
@@ -127,7 +106,7 @@
 	}
 
 	function handleUploadFiles(): void {
-		if (openArgs === undefined) {
+		if (showArgs === undefined) {
 			throw new Error("Context menu is closed");
 		}
 
@@ -136,13 +115,13 @@
 		}
 
 		let target: FolderNode | FileTree;
-		switch (openArgs.type) {
+		switch (showArgs.type) {
 			case "tree": {
 				target = tree;
 				break;
 			}
 			case "item": {
-				const item = openArgs.item();
+				const item = showArgs.item();
 				if (item.node.type === "file") {
 					throw new Error("Cannot upload files inside a file");
 				}
@@ -176,7 +155,7 @@
 	};
 </script>
 
-<ContextMenu.Root bind:open={() => openArgs !== undefined, handleOpenChange}>
+<ContextMenu.Root bind:open={open, handleOpenChange}>
 	<ContextMenu.Trigger
 		class="grow overflow-y-auto rounded px-(--tree-inline-padding) py-2"
 		oncontextmenu={handleTriggerContextMenu}
@@ -186,18 +165,14 @@
 
 	<ContextMenu.Portal>
 		<ContextMenu.Content
-			{trapFocus}
 			class="z-50 w-[200px] rounded-xl border border-gray-300 bg-gray-50 p-2 shadow focus-visible:outline-none"
-			onCloseAutoFocus={handleContentCloseAutoFocus}
 		>
-			{#if openArgs?.type === "item"}
-				{@const item = openArgs.item()}
-				{#if item.editable}
-					<ContextMenuItem onSelect={handleRename}>
-						<PenIcon role="presentation" size={20} />
-						<span>Rename</span>
-					</ContextMenuItem>
-				{/if}
+			{#if showArgs?.type === "item"}
+				{@const item = showArgs.item()}
+				<ContextMenuItem onSelect={() => onRename(item)}>
+					<PenIcon role="presentation" size={20} />
+					<span>Rename</span>
+				</ContextMenuItem>
 
 				<ContextMenuItem onSelect={() => onCopy(item, "copy")}>
 					<CopyIcon role="presentation" size={20} />
@@ -220,8 +195,8 @@
 				</ContextMenuItem>
 			{/if}
 
-			{@const isFolder = openArgs?.type === "item" && openArgs.item().node.type === "folder"}
-			{#if openArgs?.type === "tree" || isFolder}
+			{@const isFolder = showArgs?.type === "item" && showArgs.item().node.type === "folder"}
+			{#if showArgs?.type === "tree" || isFolder}
 				<ContextMenuItem onSelect={handleCreateFolder}>
 					<PlusIcon role="presentation" size={20} />
 					<span>New Folder</span>

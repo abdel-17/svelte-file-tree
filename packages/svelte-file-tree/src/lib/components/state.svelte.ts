@@ -3,7 +3,6 @@ import { FileNode, FolderNode, type FileTree, type FileTreeNode } from "$lib/tre
 import { DEV } from "esm-env";
 import type { SvelteSet } from "svelte/reactivity";
 import type {
-	AlreadyExistsErrorArgs,
 	CircularReferenceErrorArgs,
 	CopyPasteItemsArgs,
 	DropPosition,
@@ -12,7 +11,6 @@ import type {
 	ParentFileTreeNode,
 	PasteOperation,
 	RemoveItemsArgs,
-	RenameItemArgs,
 	ResolveNameConflictArgs,
 	TreeItemState,
 } from "./types.js";
@@ -24,16 +22,13 @@ export type TreeStateProps<TNode extends FileNode | FolderNode<TNode> = FileTree
 	clipboardIds: () => SvelteSet<string>;
 	pasteOperation: () => PasteOperation | undefined;
 	setPasteOperation: (value: PasteOperation | undefined) => void;
-	isItemEditable: (node: TNode) => boolean;
 	isItemDisabled: (node: TNode) => boolean;
 	id: () => string;
 	copyNode: (node: TNode) => TNode;
-	onRenameItem: (args: RenameItemArgs<TNode>) => MaybePromise<boolean>;
 	onMoveItems: (args: MoveItemsArgs<TNode>) => MaybePromise<boolean>;
 	onCopyPasteItems: (args: CopyPasteItemsArgs<TNode>) => MaybePromise<boolean>;
 	onRemoveItems: (args: RemoveItemsArgs<TNode>) => MaybePromise<boolean>;
 	onResolveNameConflict: (args: ResolveNameConflictArgs) => MaybePromise<NameConflictResolution>;
-	onAlreadyExistsError: (args: AlreadyExistsErrorArgs) => void;
 	onCircularReferenceError: (args: CircularReferenceErrorArgs<TNode>) => void;
 };
 
@@ -55,7 +50,6 @@ class TreeItemStateImpl<TNode extends FileNode | FolderNode<TNode> = FileTreeNod
 		readonly selectedIds: () => SvelteSet<string>,
 		readonly expandedIds: () => SvelteSet<string>,
 		readonly clipboardIds: () => SvelteSet<string>,
-		readonly isItemEditable: (node: TNode) => boolean,
 		readonly isItemDisabled: (node: TNode) => boolean,
 		readonly draggedId: () => string | undefined,
 	) {
@@ -71,8 +65,6 @@ class TreeItemStateImpl<TNode extends FileNode | FolderNode<TNode> = FileTreeNod
 	readonly expanded: boolean = $derived.by(() => this.expandedIds().has(this.node.id));
 
 	readonly inClipboard: boolean = $derived.by(() => this.clipboardIds().has(this.node.id));
-
-	readonly editable: boolean = $derived.by(() => this.isItemEditable(this.node));
 
 	readonly disabled: boolean = $derived.by(() => {
 		if (this.parent?.disabled === true) {
@@ -129,16 +121,13 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 	clipboardIds,
 	pasteOperation,
 	setPasteOperation,
-	isItemEditable,
 	isItemDisabled,
 	id,
 	copyNode,
-	onRenameItem,
 	onMoveItems,
 	onCopyPasteItems,
 	onRemoveItems,
 	onResolveNameConflict,
-	onAlreadyExistsError,
 	onCircularReferenceError,
 }: TreeStateProps<TNode>) {
 	let tabbableId: string | undefined = $state.raw();
@@ -178,7 +167,6 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 				selectedIds,
 				expandedIds,
 				clipboardIds,
-				isItemEditable,
 				isItemDisabled,
 				getDraggedId,
 			);
@@ -342,29 +330,6 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 	function clearClipboard(): void {
 		clipboardIds().clear();
 		setPasteOperation(undefined);
-	}
-
-	async function rename(target: TreeItemState<TNode>, name: string): Promise<boolean> {
-		if (name.length === 0) {
-			return false;
-		}
-
-		const owner = target.parent?.node ?? tree();
-		for (const child of owner.children) {
-			if (child !== target.node && name === child.name) {
-				onAlreadyExistsError({ name });
-				return false;
-			}
-		}
-
-		if (name === target.node.name) {
-			return true;
-		}
-
-		return await onRenameItem({
-			target: target.node,
-			name,
-		});
 	}
 
 	async function moveItems(
@@ -775,7 +740,6 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		clipboardIds,
 		pasteOperation,
 		id,
-		tabbableId: () => tabbableId,
 		isItemTabbable,
 		setTabbableId,
 		draggedId: getDraggedId,
@@ -791,7 +755,6 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		selectUntil,
 		copy,
 		clearClipboard,
-		rename,
 		drop,
 		paste,
 		remove,

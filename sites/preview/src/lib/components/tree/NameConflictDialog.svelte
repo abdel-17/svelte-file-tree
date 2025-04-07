@@ -3,25 +3,25 @@
 	import type { NameConflictResolution } from "svelte-file-tree";
 	import { fade, fly } from "svelte/transition";
 
-	type OpenArgs = {
+	type ShowArgs = {
 		title: string;
 		description: string;
 		onClose: (resolution: NameConflictResolution) => void;
 	};
 
-	let openArgs: OpenArgs | undefined = $state.raw();
+	let showArgs: ShowArgs | undefined = $state.raw();
 
-	export function open(args: OpenArgs): void {
-		if (openArgs !== undefined) {
-			throw new Error("Dialog is already open");
-		}
+	export function open(): boolean {
+		return showArgs !== undefined;
+	}
 
-		openArgs = args;
+	export function show(args: ShowArgs): void {
+		showArgs = args;
 	}
 
 	export function close(resolution: NameConflictResolution): void {
-		openArgs?.onClose(resolution);
-		openArgs = undefined;
+		showArgs?.onClose(resolution);
+		showArgs = undefined;
 	}
 
 	function handleOpenChange(open: boolean): void {
@@ -31,7 +31,7 @@
 	}
 </script>
 
-<Dialog.Root bind:open={() => openArgs !== undefined, handleOpenChange}>
+<Dialog.Root bind:open={open, handleOpenChange}>
 	<Dialog.Portal>
 		<Dialog.Overlay forceMount class="fixed inset-0 z-50 bg-black/50">
 			{#snippet child({ props, open })}
@@ -49,11 +49,11 @@
 				{#if open}
 					<div {...props} transition:fly={{ y: "-100%" }}>
 						<Dialog.Title class="text-center text-lg font-semibold tracking-tight">
-							{openArgs?.title}
+							{showArgs?.title}
 						</Dialog.Title>
 
 						<Dialog.Description class="mt-2 text-sm text-gray-700">
-							{openArgs?.description}
+							{showArgs?.description}
 						</Dialog.Description>
 
 						<div class="mt-5 flex justify-end gap-3">

@@ -17,7 +17,6 @@
 		defaultClipboardIds,
 		clipboardIds = new SvelteSet(defaultClipboardIds),
 		pasteOperation = $bindable(),
-		isItemEditable = true,
 		isItemDisabled = false,
 		id = defaultId,
 		ref = $bindable(null),
@@ -44,10 +43,6 @@
 				}
 			}
 		},
-		onRenameItem = ({ target, name }) => {
-			target.name = name;
-			return true;
-		},
 		onMoveItems = ({ updates }) => {
 			for (const { target, children } of updates) {
 				target.children = children;
@@ -65,7 +60,6 @@
 			return true;
 		},
 		onResolveNameConflict = () => "cancel",
-		onAlreadyExistsError,
 		onCircularReferenceError,
 		...rest
 	}: TreeProps<TNode> = $props();
@@ -79,13 +73,6 @@
 		setPasteOperation: (value) => {
 			pasteOperation = value;
 		},
-		isItemEditable: (node) => {
-			if (typeof isItemEditable === "function") {
-				return isItemEditable(node);
-			}
-
-			return isItemEditable;
-		},
 		isItemDisabled: (node) => {
 			if (typeof isItemDisabled === "function") {
 				return isItemDisabled(node);
@@ -95,16 +82,14 @@
 		},
 		id: () => id,
 		copyNode: (node) => copyNode(node),
-		onRenameItem: (args) => onRenameItem(args),
 		onMoveItems: (args) => onMoveItems(args),
 		onCopyPasteItems: (args) => onCopyPasteItems(args),
 		onRemoveItems: (args) => onRemoveItems(args),
 		onResolveNameConflict: (args) => onResolveNameConflict(args),
-		onAlreadyExistsError: (args) => onAlreadyExistsError?.(args),
 		onCircularReferenceError: (args) => onCircularReferenceError?.(args),
 	});
 
-	export const { rename, copy, paste, remove } = treeState;
+	export const { copy, paste, remove } = treeState;
 </script>
 
 <div {...rest} bind:this={ref} {id} role="tree" aria-multiselectable="true">

@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { FileNode, FolderNode, type FileTree, type FileTreeNode } from "$lib/tree.svelte";
-	import { formatSize } from "$lib/utils";
+	import { formatSize } from "$lib/utils.js";
 	import {
 		Tree,
-		type AlreadyExistsErrorArgs,
 		type CircularReferenceErrorArgs,
 		type NameConflictResolution,
 		type PasteOperation,
@@ -15,8 +14,13 @@
 	import { SvelteSet } from "svelte/reactivity";
 	import ContextMenu from "./ContextMenu.svelte";
 	import NameConflictDialog from "./NameConflictDialog.svelte";
-	import NewFolderDialog from "./NewFolderDialog.svelte";
+	import NameFormDialog from "./NameFormDialog.svelte";
 	import TreeItem from "./TreeItem.svelte";
+
+	type RenameItemArgs = {
+		target: TreeItemState<FileTreeNode>;
+		name: string;
+	};
 
 	interface Props
 		extends Omit<
@@ -29,10 +33,15 @@
 			| "onCircularReferenceError"
 		> {
 		tree: FileTree;
+		onRenameItem?: (args: RenameItemArgs) => boolean | Promise<boolean>;
 	}
 
 	let {
 		tree,
+		onRenameItem = ({ target, name }) => {
+			target.node.name = name;
+			return true;
+		},
 		defaultSelectedIds,
 		selectedIds = new SvelteSet(defaultSelectedIds),
 		defaultExpandedIds,
@@ -47,7 +56,7 @@
 	let treeComponent: Tree<FileTreeNode> | null = $state.raw(null);
 	let contextMenu: ContextMenu | null = $state.raw(null);
 	let nameConflictDialog: NameConflictDialog | null = $state.raw(null);
-	let newFolderDialog: NewFolderDialog | null = $state.raw(null);
+	let nameFormDialog: NameFormDialog | null = $state.raw(null);
 	let focusedItem: TreeItemState<FileTreeNode> | undefined = $state.raw();
 
 	const pasteDirection: string | undefined = $derived.by(() => {
@@ -83,7 +92,7 @@
 				}
 			}
 
-			nameConflictDialog.open({
+			nameConflictDialog.show({
 				title,
 				description: `An item with the name "${name}" already exists`,
 				onClose: resolve,
@@ -91,15 +100,49 @@
 		});
 	}
 
-	function handleAlreadyExistsError({ name }: AlreadyExistsErrorArgs): void {
-		toast.error(`An item with the name "${name}" already exists`);
-	}
-
 	function handleCircularReferenceError({
 		target,
 		position,
 	}: CircularReferenceErrorArgs<FileTreeNode>): void {
 		toast.error(`Cannot move "${target.name}" ${position} itself`);
+	}
+
+	function showAlreadyExistsToast(name: string): void {
+		toast.error(`An item with the name "${name}" already exists`);
+	}
+
+	function handleRename(target: TreeItemState<FileTreeNode>): void {
+		if (nameFormDialog === null) {
+			throw new Error("Dialog is not mounted");
+		}
+
+		nameFormDialog.show({
+			title: "Rename",
+			initialName: target.node.name,
+			onSubmit: async (name) => {
+				if (nameFormDialog === null) {
+					throw new Error("Dialog is not mounted");
+				}
+
+				if (name === target.node.name) {
+					nameFormDialog.close();
+					return;
+				}
+
+				const owner = target.parent?.node ?? tree;
+				for (const child of owner.children) {
+					if (child !== target.node && child.name === name) {
+						showAlreadyExistsToast(name);
+						return;
+					}
+				}
+
+				const didRename = await onRenameItem({ target, name });
+				if (didRename) {
+					nameFormDialog.close();
+				}
+			},
+		});
 	}
 
 	function handleCopy(target: TreeItemState<FileTreeNode>, operation: PasteOperation): void {
@@ -138,15 +181,21 @@
 	}
 
 	function handleCreateFolder(target: FolderNode | FileTree): void {
-		if (newFolderDialog === null) {
+		if (nameFormDialog === null) {
 			throw new Error("Dialog is not mounted");
 		}
 
-		newFolderDialog.open({
+		nameFormDialog.show({
+			title: "New Folder",
+			initialName: "",
 			onSubmit: (name) => {
+				if (nameFormDialog === null) {
+					throw new Error("Dialog is not mounted");
+				}
+
 				for (const child of target.children) {
 					if (child.name === name) {
-						handleAlreadyExistsError({ name });
+						showAlreadyExistsToast(name);
 						return;
 					}
 				}
@@ -157,7 +206,7 @@
 					children: [],
 				});
 				target.children.push(node);
-				newFolderDialog?.close();
+				nameFormDialog.close();
 			},
 		});
 	}
@@ -175,6 +224,7 @@
 	<ContextMenu
 		{tree}
 		bind:this={contextMenu}
+		onRename={handleRename}
 		onCopy={handleCopy}
 		onPaste={handlePaste}
 		onRemove={handleRemove}
@@ -192,7 +242,6 @@
 			bind:ref
 			copyNode={(node) => node.copy()}
 			onResolveNameConflict={handleResolveNameConflict}
-			onAlreadyExistsError={handleAlreadyExistsError}
 			onCircularReferenceError={handleCircularReferenceError}
 			onfocusout={() => {
 				focusedItem = undefined;
@@ -204,6 +253,7 @@
 					{contextMenu}
 					onExpand={() => expandedIds.add(item.node.id)}
 					onCollapse={() => expandedIds.delete(item.node.id)}
+					onRename={() => handleRename(item)}
 					onfocusin={() => {
 						focusedItem = item;
 					}}
@@ -241,7 +291,7 @@
 </div>
 
 <NameConflictDialog bind:this={nameConflictDialog} />
-<NewFolderDialog bind:this={newFolderDialog} />
+<NameFormDialog bind:this={nameFormDialog} />
 
 <style>
 	.root {

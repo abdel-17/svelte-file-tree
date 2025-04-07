@@ -1,7 +1,7 @@
 import type { HTMLDivAttributes, MaybePromise } from "$lib/internal/types.js";
 import type { FileNode, FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
-import type { ClassValue, HTMLInputAttributes } from "svelte/elements";
+import type { ClassValue } from "svelte/elements";
 import type { SvelteSet } from "svelte/reactivity";
 
 export type ParentFileTreeNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = Extract<
@@ -17,7 +17,6 @@ export type TreeItemState<TNode extends FileNode | FolderNode<TNode> = FileTreeN
 	selected: boolean;
 	expanded: boolean;
 	inClipboard: boolean;
-	editable: boolean;
 	disabled: boolean;
 	visible: boolean;
 	dragged: boolean;
@@ -30,11 +29,6 @@ export type TreeItemSnippetArgs<TNode extends FileNode | FolderNode<TNode> = Fil
 };
 
 export type PasteOperation = "copy" | "cut";
-
-export type RenameItemArgs<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
-	target: TNode;
-	name: string;
-};
 
 export type MoveItemsArgs<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
 	updates: Array<{
@@ -66,10 +60,6 @@ export type ResolveNameConflictArgs = {
 
 export type NameConflictResolution = "skip" | "cancel";
 
-export type AlreadyExistsErrorArgs = {
-	name: string;
-};
-
 export type CircularReferenceErrorArgs<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> =
 	{
 		target: TNode;
@@ -87,23 +77,19 @@ export interface TreeProps<TNode extends FileNode | FolderNode<TNode> = FileTree
 	defaultClipboardIds?: Iterable<string>;
 	clipboardIds?: SvelteSet<string>;
 	pasteOperation?: PasteOperation;
-	isItemEditable?: boolean | ((node: TNode) => boolean);
 	isItemDisabled?: boolean | ((node: TNode) => boolean);
 	id?: string;
 	ref?: HTMLElement | null;
 	copyNode?: (node: TNode) => TNode;
-	onRenameItem?: (args: RenameItemArgs<TNode>) => MaybePromise<boolean>;
 	onMoveItems?: (args: MoveItemsArgs<TNode>) => MaybePromise<boolean>;
 	onCopyPasteItems?: (args: CopyPasteItemsArgs<TNode>) => MaybePromise<boolean>;
 	onRemoveItems?: (args: RemoveItemsArgs<TNode>) => MaybePromise<boolean>;
 	onResolveNameConflict?: (args: ResolveNameConflictArgs) => MaybePromise<NameConflictResolution>;
-	onAlreadyExistsError?: (args: AlreadyExistsErrorArgs) => void;
 	onCircularReferenceError?: (args: CircularReferenceErrorArgs<TNode>) => void;
 }
 
 export type TreeItemChildrenSnippetArgs = {
-	editing: () => boolean;
-	dropPosition: () => DropPosition | undefined;
+	dropPosition: DropPosition | undefined;
 };
 
 export interface TreeItemProps
@@ -122,13 +108,7 @@ export interface TreeItemProps
 		| "style"
 	> {
 	children: Snippet<[args: TreeItemChildrenSnippetArgs]>;
-	editing?: boolean;
 	ref?: HTMLElement | null;
 	class?: ClassValue | ((args: TreeItemChildrenSnippetArgs) => ClassValue | undefined);
 	style?: string | ((args: TreeItemChildrenSnippetArgs) => string | undefined);
-}
-
-export interface TreeItemInputProps extends Omit<HTMLInputAttributes, "children" | "value"> {
-	name?: string;
-	ref?: HTMLInputElement | null;
 }
