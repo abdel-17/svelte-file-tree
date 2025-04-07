@@ -23,4 +23,6 @@
 	);
 </script>
 
-<Tree {tree} />
+<main class="h-svh">
+	<Tree {tree} />
+</main>

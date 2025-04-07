@@ -212,7 +212,7 @@
 	}
 </script>
 
-<div class="root flex h-svh flex-col">
+<div class="root flex h-full flex-col">
 	<div
 		class="grid grid-cols-(--grid-cols) gap-x-(--grid-gap) border-b border-gray-300 px-[calc(var(--tree-inline-padding)+var(--grid-inline-padding))] py-2 text-sm font-semibold"
 	>
