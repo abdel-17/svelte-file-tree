@@ -130,7 +130,7 @@
 
 				const didRename = await onRenameItem({ target, name });
 				if (didRename) {
-					nameFormDialog!.close();
+					nameFormDialog?.close();
 				}
 			},
 		});
