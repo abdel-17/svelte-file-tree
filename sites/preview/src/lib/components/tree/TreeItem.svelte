@@ -46,11 +46,7 @@
 			return;
 		}
 
-		if (contextMenu === null) {
-			throw new Error("Context menu is not mounted");
-		}
-
-		contextMenu.show({
+		contextMenu!.show({
 			type: "item",
 			item: () => item,
 		});
@@ -66,10 +62,6 @@
 	};
 
 	const handleToggleClick: EventHandler<MouseEvent, HTMLButtonElement> = (event) => {
-		if (ref === null) {
-			throw new Error("Tree item is not mounted");
-		}
-
 		if (item.disabled) {
 			return;
 		}
@@ -80,17 +72,13 @@
 			onExpand(item);
 		}
 
-		ref.focus();
+		ref!.focus();
 		event.stopPropagation();
 	};
 
 	$effect(() => {
 		return () => {
-			if (contextMenu === null) {
-				throw new Error("Context menu is not mounted");
-			}
-
-			contextMenu.onItemDestroyed(item);
+			contextMenu!.onItemDestroyed(item);
 		};
 	});
 </script>

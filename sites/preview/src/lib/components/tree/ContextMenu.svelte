@@ -75,17 +75,13 @@
 	};
 
 	function handleCreateFolder(): void {
-		if (showArgs === undefined) {
-			throw new Error("Context menu is closed");
-		}
-
-		switch (showArgs.type) {
+		switch (showArgs!.type) {
 			case "tree": {
 				onCreateFolder(tree);
 				break;
 			}
 			case "item": {
-				const item = showArgs.item();
+				const item = showArgs!.item();
 				if (item.node.type === "file") {
 					throw new Error("Cannot create a folder inside a file");
 				}
@@ -97,22 +93,14 @@
 	}
 
 	function handleUploadFiles(): void {
-		if (showArgs === undefined) {
-			throw new Error("Context menu is closed");
-		}
-
-		if (fileInput === null) {
-			throw new Error("File input is not mounted");
-		}
-
 		let target: FolderNode | FileTree;
-		switch (showArgs.type) {
+		switch (showArgs!.type) {
 			case "tree": {
 				target = tree;
 				break;
 			}
 			case "item": {
-				const item = showArgs.item();
+				const item = showArgs!.item();
 				if (item.node.type === "file") {
 					throw new Error("Cannot upload files inside a file");
 				}
@@ -129,7 +117,7 @@
 
 			onUploadFiles(target, files);
 		};
-		fileInput.click();
+		fileInput!.click();
 	}
 
 	const handleFileInputChange: EventHandler<Event, HTMLInputElement> = (event) => {

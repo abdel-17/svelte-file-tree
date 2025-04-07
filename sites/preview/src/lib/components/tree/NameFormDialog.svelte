@@ -35,11 +35,7 @@
 	}
 
 	const handleSubmit: EventHandler<SubmitEvent, HTMLFormElement> = (event) => {
-		if (showArgs === undefined) {
-			throw new Error("Dialog is closed");
-		}
-
-		showArgs.onSubmit(name);
+		showArgs!.onSubmit(name);
 		event.preventDefault();
 	};
 </script>

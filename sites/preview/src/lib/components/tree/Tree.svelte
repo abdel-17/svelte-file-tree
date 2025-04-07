@@ -80,10 +80,6 @@
 		name,
 	}: ResolveNameConflictArgs): Promise<NameConflictResolution> {
 		return new Promise((resolve) => {
-			if (nameConflictDialog === null) {
-				throw new Error("Dialog is not mounted");
-			}
-
 			let title: string;
 			switch (operation) {
 				case "move": {
@@ -96,7 +92,7 @@
 				}
 			}
 
-			nameConflictDialog.show({
+			nameConflictDialog!.show({
 				title,
 				description: `An item with the name "${name}" already exists`,
 				onClose: resolve,
@@ -116,20 +112,12 @@
 	}
 
 	function handleRename(target: TreeItemState<FileTreeNode>): void {
-		if (nameFormDialog === null) {
-			throw new Error("Dialog is not mounted");
-		}
-
-		nameFormDialog.show({
+		nameFormDialog!.show({
 			title: "Rename",
 			initialName: target.node.name,
 			onSubmit: async (name) => {
-				if (nameFormDialog === null) {
-					throw new Error("Dialog is not mounted");
-				}
-
 				if (name === target.node.name) {
-					nameFormDialog.close();
+					nameFormDialog!.close();
 					return;
 				}
 
@@ -143,34 +131,10 @@
 
 				const didRename = await onRenameItem({ target, name });
 				if (didRename) {
-					nameFormDialog.close();
+					nameFormDialog!.close();
 				}
 			},
 		});
-	}
-
-	function handleCopy(target: TreeItemState<FileTreeNode>, operation: PasteOperation): void {
-		if (treeComponent === null) {
-			throw new Error("Tree is not mounted");
-		}
-
-		treeComponent.copy(target, operation);
-	}
-
-	function handlePaste(target: TreeItemState<FileTreeNode>): void {
-		if (treeComponent === null) {
-			throw new Error("Tree is not mounted");
-		}
-
-		treeComponent.paste(target);
-	}
-
-	function handleRemove(target: TreeItemState<FileTreeNode>): void {
-		if (treeComponent === null) {
-			throw new Error("Tree is not mounted");
-		}
-
-		treeComponent.remove(target);
 	}
 
 	function handleUploadFiles(target: FolderNode | FileTree, files: FileList): void {
@@ -185,18 +149,10 @@
 	}
 
 	function handleCreateFolder(target: FolderNode | FileTree): void {
-		if (nameFormDialog === null) {
-			throw new Error("Dialog is not mounted");
-		}
-
-		nameFormDialog.show({
+		nameFormDialog!.show({
 			title: "New Folder",
 			initialName: "",
 			onSubmit: (name) => {
-				if (nameFormDialog === null) {
-					throw new Error("Dialog is not mounted");
-				}
-
 				for (const child of target.children) {
 					if (child.name === name) {
 						showAlreadyExistsToast(name);
@@ -210,7 +166,7 @@
 					children: [],
 				});
 				target.children.push(node);
-				nameFormDialog.close();
+				nameFormDialog!.close();
 			},
 		});
 	}
@@ -236,11 +192,7 @@
 	};
 
 	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		if (event.defaultPrevented) {
-			return;
-		}
-
-		if (event.dataTransfer === null) {
+		if (event.defaultPrevented || event.dataTransfer === null) {
 			return;
 		}
 
@@ -262,9 +214,9 @@
 		{tree}
 		bind:this={contextMenu}
 		onRename={handleRename}
-		onCopy={handleCopy}
-		onPaste={handlePaste}
-		onRemove={handleRemove}
+		onCopy={(target, operation) => treeComponent!.copy(target, operation)}
+		onPaste={(target) => treeComponent!.paste(target)}
+		onRemove={(target) => treeComponent!.remove(target)}
 		onUploadFiles={handleUploadFiles}
 		onCreateFolder={handleCreateFolder}
 	>
