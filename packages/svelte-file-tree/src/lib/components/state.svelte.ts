@@ -67,7 +67,7 @@ class TreeItemStateImpl<TNode extends FileNode | FolderNode<TNode> = FileTreeNod
 	readonly inClipboard: boolean = $derived.by(() => this.clipboardIds().has(this.node.id));
 
 	readonly disabled: boolean = $derived.by(() => {
-		if (this.parent?.disabled === true) {
+		if (this.parent?.disabled) {
 			return true;
 		}
 
@@ -83,15 +83,15 @@ class TreeItemStateImpl<TNode extends FileNode | FolderNode<TNode> = FileTreeNod
 	});
 
 	readonly dragged: boolean = $derived.by(() => {
+		if (this.parent?.dragged) {
+			return true;
+		}
+
 		if (this.draggedId() === undefined) {
 			return false;
 		}
 
-		if (this.draggedId() === this.node.id) {
-			return true;
-		}
-
-		return this.selected && this.parent?.dragged !== true;
+		return this.draggedId() === this.node.id || this.selected;
 	});
 }
 
