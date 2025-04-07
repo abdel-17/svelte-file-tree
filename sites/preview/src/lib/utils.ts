@@ -1,3 +1,5 @@
+import type { EventHandler } from "svelte/elements";
+
 const sizeFormatter = new Intl.NumberFormat(undefined, {
 	style: "decimal",
 	maximumFractionDigits: 2,
@@ -25,4 +27,21 @@ export function formatSize(size: number): string {
 
 	size /= 1000;
 	return sizeFormatter.format(size) + " TB";
+}
+
+export function composeEventHandlers<TEvent extends Event, TTarget extends EventTarget>(
+	a: EventHandler<TEvent, TTarget> | null | undefined,
+	b: EventHandler<TEvent, TTarget>,
+): EventHandler<TEvent, TTarget> {
+	return (event) => {
+		if (a != null) {
+			a(event);
+
+			if (event.defaultPrevented) {
+				return;
+			}
+		}
+
+		b(event);
+	};
 }

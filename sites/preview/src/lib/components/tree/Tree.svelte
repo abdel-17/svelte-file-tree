@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { FileNode, FolderNode, type FileTree, type FileTreeNode } from "$lib/tree.svelte";
-	import { formatSize } from "$lib/utils.js";
+	import { composeEventHandlers, formatSize } from "$lib/utils.js";
 	import {
 		Tree,
 		type CircularReferenceErrorArgs,
@@ -11,6 +11,7 @@
 		type TreeProps,
 	} from "svelte-file-tree";
 	import { toast } from "svelte-sonner";
+	import type { EventHandler } from "svelte/elements";
 	import { SvelteSet } from "svelte/reactivity";
 	import ContextMenu from "./ContextMenu.svelte";
 	import NameConflictDialog from "./NameConflictDialog.svelte";
@@ -50,6 +51,9 @@
 		clipboardIds = new SvelteSet(defaultClipboardIds),
 		pasteOperation = $bindable(),
 		ref = $bindable(null),
+		onfocusout,
+		ondragover,
+		ondrop,
 		...rest
 	}: Props = $props();
 
@@ -210,6 +214,39 @@
 			},
 		});
 	}
+
+	function handleExpand(target: TreeItemState<FileTreeNode>): void {
+		expandedIds.add(target.node.id);
+	}
+
+	function handleCollapse(target: TreeItemState<FileTreeNode>): void {
+		expandedIds.delete(target.node.id);
+	}
+
+	function handleFocusOut(): void {
+		focusedItem = undefined;
+	}
+
+	function handleFocusInItem(target: TreeItemState<FileTreeNode>): void {
+		focusedItem = target;
+	}
+
+	const handleDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		event.preventDefault();
+	};
+
+	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		if (event.defaultPrevented) {
+			return;
+		}
+
+		if (event.dataTransfer === null) {
+			return;
+		}
+
+		handleUploadFiles(tree, event.dataTransfer.files);
+		event.preventDefault();
+	};
 </script>
 
 <div class="root flex h-full flex-col">
@@ -240,24 +277,23 @@
 			bind:this={treeComponent}
 			bind:pasteOperation
 			bind:ref
-			class="px-(--tree-inline-padding) py-2"
+			class="h-full px-(--tree-inline-padding) py-2"
 			copyNode={(node) => node.copy()}
 			onResolveNameConflict={handleResolveNameConflict}
 			onCircularReferenceError={handleCircularReferenceError}
-			onfocusout={() => {
-				focusedItem = undefined;
-			}}
+			onfocusout={composeEventHandlers(onfocusout, handleFocusOut)}
+			ondragover={composeEventHandlers(ondragover, handleDragOver)}
+			ondrop={composeEventHandlers(ondrop, handleDrop)}
 		>
 			{#snippet item({ item })}
 				<TreeItem
 					{item}
 					{contextMenu}
-					onExpand={() => expandedIds.add(item.node.id)}
-					onCollapse={() => expandedIds.delete(item.node.id)}
-					onRename={() => handleRename(item)}
-					onfocusin={() => {
-						focusedItem = item;
-					}}
+					onExpand={handleExpand}
+					onCollapse={handleCollapse}
+					onRename={handleRename}
+					onUploadFiles={handleUploadFiles}
+					onfocusin={() => handleFocusInItem(item)}
 				/>
 			{/snippet}
 		</Tree>

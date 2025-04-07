@@ -123,7 +123,7 @@
 		}
 
 		onFilesSelected = (files) => {
-			if (files === null || files.length === 0) {
+			if (files === null) {
 				return;
 			}
 

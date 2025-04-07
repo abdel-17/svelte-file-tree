@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { FileTreeNode } from "$lib/tree.svelte";
-	import { formatSize } from "$lib/utils.js";
+	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte";
+	import { composeEventHandlers, formatSize } from "$lib/utils.js";
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { TreeItem, type TreeItemProps, type TreeItemState } from "svelte-file-tree";
 	import type { EventHandler } from "svelte/elements";
@@ -9,9 +9,10 @@
 	interface Props extends Omit<TreeItemProps, "children"> {
 		item: TreeItemState<FileTreeNode>;
 		contextMenu: ContextMenu | null;
-		onExpand: () => void;
-		onCollapse: () => void;
-		onRename: () => void;
+		onExpand: (target: TreeItemState<FileTreeNode>) => void;
+		onCollapse: (target: TreeItemState<FileTreeNode>) => void;
+		onRename: (target: TreeItemState<FileTreeNode>) => void;
+		onUploadFiles: (target: FolderNode, files: FileList) => void;
 	}
 
 	let {
@@ -20,29 +21,33 @@
 		onExpand,
 		onCollapse,
 		onRename,
+		onUploadFiles,
 		ref = $bindable(null),
+		onkeydown,
+		oncontextmenu,
+		ondrop,
 		...rest
 	}: Props = $props();
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
+		if (item.disabled) {
+			return;
+		}
+
 		if (event.key === "F2") {
-			onRename();
+			onRename(item);
 			event.preventDefault();
 		}
 	};
 
 	const handleContextMenu: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
-		if (contextMenu === null) {
-			throw new Error("Context menu is not mounted");
-		}
-
-		if (event.defaultPrevented) {
-			return;
-		}
-
 		if (item.disabled) {
 			event.preventDefault();
 			return;
+		}
+
+		if (contextMenu === null) {
+			throw new Error("Context menu is not mounted");
 		}
 
 		contextMenu.show({
@@ -51,24 +56,32 @@
 		});
 	};
 
+	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		if (event.dataTransfer === null || item.disabled || item.node.type === "file") {
+			return;
+		}
+
+		onUploadFiles(item.node, event.dataTransfer.files);
+		event.preventDefault();
+	};
+
 	const handleToggleClick: EventHandler<MouseEvent, HTMLButtonElement> = (event) => {
 		if (ref === null) {
 			throw new Error("Tree item is not mounted");
 		}
 
 		if (item.disabled) {
-			event.preventDefault();
 			return;
 		}
 
 		if (item.expanded) {
-			onCollapse();
+			onCollapse(item);
 		} else {
-			onExpand();
+			onExpand(item);
 		}
 
-		event.stopPropagation();
 		ref.focus();
+		event.stopPropagation();
 	};
 
 	$effect(() => {
@@ -94,14 +107,16 @@
 		dropPosition === "after" && "before:border-neutral-300 before:border-b-red-500",
 		dropPosition === "inside" && "before:border-red-500",
 	]}
-	onkeydown={handleKeyDown}
-	oncontextmenu={handleContextMenu}
+	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
+	oncontextmenu={composeEventHandlers(oncontextmenu, handleContextMenu)}
+	ondrop={composeEventHandlers(ondrop, handleDrop)}
 >
 	<div
 		class="flex items-center"
 		style="padding-inline-start: calc(var(--spacing) * {item.depth * 6})"
 	>
 		<button
+			type="button"
 			aria-expanded={item.expanded}
 			tabindex={-1}
 			class={[

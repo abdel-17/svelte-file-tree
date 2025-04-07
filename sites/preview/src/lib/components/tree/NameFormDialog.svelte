@@ -39,8 +39,8 @@
 			throw new Error("Dialog is closed");
 		}
 
-		event.preventDefault();
 		showArgs.onSubmit(name);
+		event.preventDefault();
 	};
 </script>
 
