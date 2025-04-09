@@ -1,6 +1,11 @@
 import type { FileTreeNode } from "$lib/tree.svelte.js";
 import type { NameConflictResolution, TreeItemState } from "svelte-file-tree";
 
+export type RenameItemArgs = {
+	target: TreeItemState<FileTreeNode>;
+	name: string;
+};
+
 export type NameConflictDialogState = {
 	title: string;
 	description: string;
@@ -22,7 +27,7 @@ export type TreeContextMenuState =
 			item: () => TreeItemState<FileTreeNode>;
 	  };
 
-export type FileDropTarget =
+export type FileDropState =
 	| {
 			type: "tree";
 	  }
@@ -30,8 +35,3 @@ export type FileDropTarget =
 			type: "item";
 			item: () => TreeItemState<FileTreeNode>;
 	  };
-
-export type RenameItemArgs = {
-	target: TreeItemState<FileTreeNode>;
-	name: string;
-};

@@ -4,12 +4,12 @@
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { TreeItem, type TreeItemProps, type TreeItemState } from "svelte-file-tree";
 	import type { EventHandler } from "svelte/elements";
-	import type { FileDropTarget, TreeContextMenuState } from "./types.js";
+	import type { FileDropState, TreeContextMenuState } from "./types.js";
 
 	interface Props extends Omit<TreeItemProps, "children"> {
 		item: TreeItemState<FileTreeNode>;
 		menuState: TreeContextMenuState | undefined;
-		fileDropTarget: FileDropTarget | undefined;
+		fileDropState: FileDropState | undefined;
 		onExpand: (target: TreeItemState<FileTreeNode>) => void;
 		onCollapse: (target: TreeItemState<FileTreeNode>) => void;
 		onRename: (target: TreeItemState<FileTreeNode>) => void;
@@ -20,7 +20,7 @@
 	let {
 		item,
 		menuState = $bindable(),
-		fileDropTarget = $bindable(),
+		fileDropState = $bindable(),
 		onExpand,
 		onCollapse,
 		onRename,
@@ -35,7 +35,9 @@
 		...rest
 	}: Props = $props();
 
-	const isDropTarget = $derived(fileDropTarget?.type === "item" && fileDropTarget.item() === item);
+	const isFileDropTarget = $derived(
+		fileDropState?.type === "item" && fileDropState.item() === item,
+	);
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 		if (item.disabled) {
@@ -66,7 +68,7 @@
 		}
 
 		if (event.dataTransfer?.types.includes("Files")) {
-			fileDropTarget = {
+			fileDropState = {
 				type: "item",
 				item: () => item,
 			};
@@ -118,10 +120,10 @@
 		{
 			"opacity-50": item.dragged,
 			"before:pointer-events-none before:absolute before:-inset-0 before:rounded-[inherit] before:border-2":
-				dropPosition !== undefined || isDropTarget,
+				dropPosition !== undefined || isFileDropTarget,
 			"before:border-neutral-300 before:border-t-red-500": dropPosition === "before",
 			"before:border-neutral-300 before:border-b-red-500": dropPosition === "after",
-			"before:border-red-500": dropPosition === "inside" || isDropTarget,
+			"before:border-red-500": dropPosition === "inside" || isFileDropTarget,
 		},
 		className,
 	]}

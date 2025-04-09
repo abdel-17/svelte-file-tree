@@ -20,7 +20,7 @@
 	import TreeContextMenu from "./TreeContextMenu.svelte";
 	import TreeItem from "./TreeItem.svelte";
 	import type {
-		FileDropTarget,
+		FileDropState,
 		NameConflictDialogState,
 		NameFormDialogState,
 		RenameItemArgs,
@@ -64,7 +64,7 @@
 	let nameFormDialogState: NameFormDialogState | undefined = $state.raw();
 	let menuState: TreeContextMenuState | undefined = $state.raw();
 	let focusedItemId: string | undefined = $state.raw();
-	let fileDropTarget: FileDropTarget | undefined = $state.raw();
+	let fileDropState: FileDropState | undefined = $state.raw();
 
 	const pasteDirection: string | undefined = $derived.by(() => {
 		if (pasteOperation === undefined || focusedItemId === undefined) {
@@ -210,7 +210,7 @@
 		}
 
 		if (event.dataTransfer?.types.includes("Files")) {
-			fileDropTarget = {
+			fileDropState = {
 				type: "tree",
 			};
 			event.preventDefault();
@@ -223,11 +223,11 @@
 			return;
 		}
 
-		fileDropTarget = undefined;
+		fileDropState = undefined;
 	};
 
 	const handleTriggerDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		fileDropTarget = undefined;
+		fileDropState = undefined;
 
 		if (event.defaultPrevented) {
 			// A tree item handled the event.
@@ -252,8 +252,8 @@
 			focusedItemId = undefined;
 		}
 
-		if (fileDropTarget?.type === "item" && fileDropTarget.item() === target) {
-			fileDropTarget = undefined;
+		if (fileDropState?.type === "item" && fileDropState.item() === target) {
+			fileDropState = undefined;
 		}
 	}
 </script>
@@ -303,7 +303,7 @@
 					<TreeItem
 						{item}
 						bind:menuState
-						bind:fileDropTarget
+						bind:fileDropState
 						onExpand={handleExpand}
 						onCollapse={handleCollapse}
 						onRename={handleRename}
@@ -314,7 +314,7 @@
 				{/snippet}
 			</Tree>
 
-			{#if fileDropTarget !== undefined}
+			{#if fileDropState !== undefined}
 				<div
 					class="absolute start-4 bottom-4 z-50 rounded-lg bg-blue-200 px-6 py-3 shadow"
 					transition:fly={{ x: "-100%" }}
@@ -323,10 +323,10 @@
 					<div class="mt-1 flex items-center justify-center gap-2">
 						<FolderIcon role="presentation" size={16} strokeWidth={3} />
 						<span class="font-semibold">
-							{#if fileDropTarget.type === "tree"}
+							{#if fileDropState.type === "tree"}
 								/
 							{:else}
-								{fileDropTarget.item().node.name}
+								{fileDropState.item().node.name}
 							{/if}
 						</span>
 					</div>
