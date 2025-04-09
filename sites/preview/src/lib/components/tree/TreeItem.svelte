@@ -27,6 +27,7 @@
 		onUploadFiles,
 		onCleanup,
 		ref = $bindable(null),
+		class: className,
 		onkeydown,
 		oncontextmenu,
 		ondragover,
@@ -122,6 +123,7 @@
 			"before:border-neutral-300 before:border-b-red-500": dropPosition === "after",
 			"before:border-red-500": dropPosition === "inside" || isDropTarget,
 		},
+		className,
 	]}
 	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
 	oncontextmenu={composeEventHandlers(oncontextmenu, handleContextMenu)}
