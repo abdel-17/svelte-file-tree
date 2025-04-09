@@ -1,4 +1,4 @@
-import type { FileTreeNode } from "$lib/tree.svelte";
+import type { FileTreeNode } from "$lib/tree.svelte.js";
 import type { NameConflictResolution, TreeItemState } from "svelte-file-tree";
 
 export type NameConflictDialogState = {

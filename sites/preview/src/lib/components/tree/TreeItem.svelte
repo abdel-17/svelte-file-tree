@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte";
+	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 	import { composeEventHandlers, formatSize } from "$lib/utils.js";
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { TreeItem, type TreeItemProps, type TreeItemState } from "svelte-file-tree";
