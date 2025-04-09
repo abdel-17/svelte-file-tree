@@ -2,26 +2,21 @@
 	import { Dialog } from "bits-ui";
 	import type { NameConflictResolution } from "svelte-file-tree";
 	import { fade, fly } from "svelte/transition";
+	import type { NameConflictDialogState } from "./types.js";
 
-	type ShowArgs = {
-		title: string;
-		description: string;
-		onClose: (resolution: NameConflictResolution) => void;
-	};
+	let {
+		state: dialogState = $bindable(),
+	}: {
+		state: NameConflictDialogState | undefined;
+	} = $props();
 
-	let showArgs: ShowArgs | undefined = $state.raw();
-
-	export function open(): boolean {
-		return showArgs !== undefined;
+	function close(resolution: NameConflictResolution): void {
+		dialogState!.onClose(resolution);
+		dialogState = undefined;
 	}
 
-	export function show(args: ShowArgs): void {
-		showArgs = args;
-	}
-
-	export function close(resolution: NameConflictResolution): void {
-		showArgs?.onClose(resolution);
-		showArgs = undefined;
+	function open(): boolean {
+		return dialogState !== undefined;
 	}
 
 	function handleOpenChange(open: boolean): void {
@@ -49,11 +44,11 @@
 				{#if open}
 					<div {...props} transition:fly={{ y: "-100%" }}>
 						<Dialog.Title class="text-center text-lg font-semibold tracking-tight">
-							{showArgs?.title}
+							{dialogState?.title}
 						</Dialog.Title>
 
 						<Dialog.Description class="mt-2 text-sm text-gray-700">
-							{showArgs?.description}
+							{dialogState?.description}
 						</Dialog.Description>
 
 						<div class="mt-5 flex justify-end gap-3">

@@ -2,40 +2,29 @@
 	import { Dialog } from "bits-ui";
 	import type { EventHandler } from "svelte/elements";
 	import { fade, scale } from "svelte/transition";
+	import type { NameFormDialogState } from "./types.js";
 
 	const nameId = $props.id();
+	let {
+		state: dialogState = $bindable(),
+	}: {
+		state: NameFormDialogState | undefined;
+	} = $props();
 
-	type ShowArgs = {
-		title: string;
-		initialName: string;
-		onSubmit: (name: string) => void;
-	};
+	let name = $derived(dialogState?.initialName ?? "");
 
-	let showArgs: ShowArgs | undefined = $state.raw();
-	let name = $state.raw("");
-
-	export function open(): boolean {
-		return showArgs !== undefined;
-	}
-
-	export function show(args: ShowArgs): void {
-		showArgs = args;
-		name = args.initialName;
-	}
-
-	export function close(): void {
-		showArgs = undefined;
-		name = "";
+	function open(): boolean {
+		return dialogState !== undefined;
 	}
 
 	function handleOpenChange(open: boolean): void {
 		if (!open) {
-			close();
+			dialogState = undefined;
 		}
 	}
 
 	const handleSubmit: EventHandler<SubmitEvent, HTMLFormElement> = (event) => {
-		showArgs!.onSubmit(name);
+		dialogState!.onSubmit(name);
 		event.preventDefault();
 	};
 </script>
@@ -58,7 +47,7 @@
 				{#if open}
 					<div {...props} transition:scale={{ duration: 200, start: 0.9 }}>
 						<Dialog.Title class="text-center text-2xl font-semibold tracking-tight">
-							{showArgs?.title}
+							{dialogState?.title}
 						</Dialog.Title>
 
 						<form class="mt-2" onsubmit={handleSubmit}>

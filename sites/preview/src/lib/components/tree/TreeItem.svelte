@@ -4,30 +4,37 @@
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { TreeItem, type TreeItemProps, type TreeItemState } from "svelte-file-tree";
 	import type { EventHandler } from "svelte/elements";
-	import ContextMenu from "./ContextMenu.svelte";
+	import type { FileDropTarget, TreeContextMenuState } from "./types.js";
 
 	interface Props extends Omit<TreeItemProps, "children"> {
 		item: TreeItemState<FileTreeNode>;
-		contextMenu: ContextMenu | null;
+		menuState: TreeContextMenuState | undefined;
+		fileDropTarget: FileDropTarget | undefined;
 		onExpand: (target: TreeItemState<FileTreeNode>) => void;
 		onCollapse: (target: TreeItemState<FileTreeNode>) => void;
 		onRename: (target: TreeItemState<FileTreeNode>) => void;
 		onUploadFiles: (target: FolderNode, files: FileList) => void;
+		onCleanup: (target: TreeItemState<FileTreeNode>) => void;
 	}
 
 	let {
 		item,
-		contextMenu,
+		menuState = $bindable(),
+		fileDropTarget = $bindable(),
 		onExpand,
 		onCollapse,
 		onRename,
 		onUploadFiles,
+		onCleanup,
 		ref = $bindable(null),
 		onkeydown,
 		oncontextmenu,
+		ondragover,
 		ondrop,
 		...rest
 	}: Props = $props();
+
+	const isDropTarget = $derived(fileDropTarget?.type === "item" && fileDropTarget.item() === item);
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 		if (item.disabled) {
@@ -46,18 +53,37 @@
 			return;
 		}
 
-		contextMenu!.show({
+		menuState = {
 			type: "item",
 			item: () => item,
-		});
+		};
 	};
 
-	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		if (event.dataTransfer === null || item.disabled || item.node.type === "file") {
+	const handleDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		if (item.disabled || item.node.type === "file") {
 			return;
 		}
 
-		onUploadFiles(item.node, event.dataTransfer.files);
+		if (event.dataTransfer?.types.includes("Files")) {
+			fileDropTarget = {
+				type: "item",
+				item: () => item,
+			};
+			event.preventDefault();
+		}
+	};
+
+	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		if (item.disabled || item.node.type === "file") {
+			return;
+		}
+
+		const files = event.dataTransfer?.files;
+		if (files === undefined || files.length === 0) {
+			return;
+		}
+
+		onUploadFiles(item.node, files);
 		event.preventDefault();
 	};
 
@@ -78,7 +104,7 @@
 
 	$effect(() => {
 		return () => {
-			contextMenu!.onItemDestroyed(item);
+			onCleanup(item);
 		};
 	});
 </script>
@@ -88,15 +114,18 @@
 	bind:ref
 	class={({ dropPosition }) => [
 		"relative grid grid-cols-(--grid-cols) gap-x-(--grid-gap) rounded-md p-(--grid-inline-padding) hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300 aria-selected:has-[+[aria-selected='true']]:rounded-b-none aria-selected:[&+[aria-selected='true']]:rounded-t-none",
-		item.dragged && "opacity-50",
-		dropPosition !== undefined &&
-			"before:pointer-events-none before:absolute before:-inset-0 before:rounded-[inherit] before:border-2",
-		dropPosition === "before" && "before:border-neutral-300 before:border-t-red-500",
-		dropPosition === "after" && "before:border-neutral-300 before:border-b-red-500",
-		dropPosition === "inside" && "before:border-red-500",
+		{
+			"opacity-50": item.dragged,
+			"before:pointer-events-none before:absolute before:-inset-0 before:rounded-[inherit] before:border-2":
+				dropPosition !== undefined || isDropTarget,
+			"before:border-neutral-300 before:border-t-red-500": dropPosition === "before",
+			"before:border-neutral-300 before:border-b-red-500": dropPosition === "after",
+			"before:border-red-500": dropPosition === "inside" || isDropTarget,
+		},
 	]}
 	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
 	oncontextmenu={composeEventHandlers(oncontextmenu, handleContextMenu)}
+	ondragover={composeEventHandlers(ondragover, handleDragOver)}
 	ondrop={composeEventHandlers(ondrop, handleDrop)}
 >
 	<div

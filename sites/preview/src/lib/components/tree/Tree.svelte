@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { FileNode, FolderNode, type FileTree, type FileTreeNode } from "$lib/tree.svelte";
 	import { composeEventHandlers, formatSize } from "$lib/utils.js";
+	import { FolderIcon } from "@lucide/svelte";
+	import { ContextMenu } from "bits-ui";
 	import {
 		Tree,
 		type CircularReferenceErrorArgs,
@@ -12,15 +14,18 @@
 	import { toast } from "svelte-sonner";
 	import type { EventHandler } from "svelte/elements";
 	import { SvelteSet } from "svelte/reactivity";
-	import ContextMenu from "./ContextMenu.svelte";
+	import { fly } from "svelte/transition";
 	import NameConflictDialog from "./NameConflictDialog.svelte";
 	import NameFormDialog from "./NameFormDialog.svelte";
+	import TreeContextMenu from "./TreeContextMenu.svelte";
 	import TreeItem from "./TreeItem.svelte";
-
-	type RenameItemArgs = {
-		target: TreeItemState<FileTreeNode>;
-		name: string;
-	};
+	import type {
+		FileDropTarget,
+		NameConflictDialogState,
+		NameFormDialogState,
+		RenameItemArgs,
+		TreeContextMenuState,
+	} from "./types.js";
 
 	interface Props
 		extends Omit<
@@ -51,23 +56,22 @@
 		pasteOperation = $bindable(),
 		ref = $bindable(null),
 		onfocusout,
-		ondragover,
-		ondrop,
 		...rest
 	}: Props = $props();
 
 	let treeComponent: Tree<FileTreeNode> | null = $state.raw(null);
-	let contextMenu: ContextMenu | null = $state.raw(null);
-	let nameConflictDialog: NameConflictDialog | null = $state.raw(null);
-	let nameFormDialog: NameFormDialog | null = $state.raw(null);
-	let focusedItem: TreeItemState<FileTreeNode> | undefined = $state.raw();
+	let nameConflictDialogState: NameConflictDialogState | undefined = $state.raw();
+	let nameFormDialogState: NameFormDialogState | undefined = $state.raw();
+	let menuState: TreeContextMenuState | undefined = $state.raw();
+	let focusedItemId: string | undefined = $state.raw();
+	let fileDropTarget: FileDropTarget | undefined = $state.raw();
 
 	const pasteDirection: string | undefined = $derived.by(() => {
-		if (pasteOperation === undefined || focusedItem === undefined) {
+		if (pasteOperation === undefined || focusedItemId === undefined) {
 			return;
 		}
 
-		if (focusedItem.node.type === "folder" && focusedItem.expanded) {
+		if (expandedIds.has(focusedItemId)) {
 			return "Inside";
 		}
 
@@ -91,11 +95,11 @@
 				}
 			}
 
-			nameConflictDialog!.show({
+			nameConflictDialogState = {
 				title,
 				description: `An item with the name "${name}" already exists`,
 				onClose: resolve,
-			});
+			};
 		});
 	}
 
@@ -106,17 +110,30 @@
 		toast.error(`Cannot move "${target.name}" ${position} itself`);
 	}
 
+	const handleTriggerContextMenu: EventHandler<Event, HTMLDivElement> = (event) => {
+		if (event.defaultPrevented) {
+			// A tree item handled the event.
+			return;
+		}
+
+		if (event.target instanceof Element && event.target.closest("[role='treeitem']") === null) {
+			menuState = {
+				type: "tree",
+			};
+		}
+	};
+
 	function showAlreadyExistsToast(name: string): void {
 		toast.error(`An item with the name "${name}" already exists`);
 	}
 
 	function handleRename(target: TreeItemState<FileTreeNode>): void {
-		nameFormDialog!.show({
+		nameFormDialogState = {
 			title: "Rename",
 			initialName: target.node.name,
 			onSubmit: async (name) => {
 				if (name === target.node.name) {
-					nameFormDialog!.close();
+					nameFormDialogState = undefined;
 					return;
 				}
 
@@ -130,10 +147,10 @@
 
 				const didRename = await onRenameItem({ target, name });
 				if (didRename) {
-					nameFormDialog?.close();
+					nameFormDialogState = undefined;
 				}
 			},
-		});
+		};
 	}
 
 	function handleUploadFiles(target: FolderNode | FileTree, files: FileList): void {
@@ -148,7 +165,7 @@
 	}
 
 	function handleCreateFolder(target: FolderNode | FileTree): void {
-		nameFormDialog!.show({
+		nameFormDialogState = {
 			title: "New Folder",
 			initialName: "",
 			onSubmit: (name) => {
@@ -165,9 +182,9 @@
 					children: [],
 				});
 				target.children.push(node);
-				nameFormDialog!.close();
+				nameFormDialogState = undefined;
 			},
-		});
+		};
 	}
 
 	function handleExpand(target: TreeItemState<FileTreeNode>): void {
@@ -175,29 +192,70 @@
 	}
 
 	function handleCollapse(target: TreeItemState<FileTreeNode>): void {
-		expandedIds.delete(target.node.id);
+		expandedIds.add(target.node.id);
 	}
 
-	function handleFocusOut(): void {
-		focusedItem = undefined;
+	function handleItemFocusIn(target: TreeItemState<FileTreeNode>): void {
+		focusedItemId = target.node.id;
 	}
 
-	function handleFocusInItem(target: TreeItemState<FileTreeNode>): void {
-		focusedItem = target;
-	}
-
-	const handleDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		event.preventDefault();
+	const handleFocusOut: EventHandler<FocusEvent, HTMLDivElement> = () => {
+		focusedItemId = undefined;
 	};
 
-	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		if (event.defaultPrevented || event.dataTransfer === null) {
+	const handleTriggerDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		if (event.defaultPrevented) {
+			// A tree item handled the event.
 			return;
 		}
 
-		handleUploadFiles(tree, event.dataTransfer.files);
+		if (event.dataTransfer?.types.includes("Files")) {
+			fileDropTarget = {
+				type: "tree",
+			};
+			event.preventDefault();
+		}
+	};
+
+	const handleTriggerDragLeave: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+			// Ignore if the files are dragged to a different element inside the tree.
+			return;
+		}
+
+		fileDropTarget = undefined;
+	};
+
+	const handleTriggerDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		fileDropTarget = undefined;
+
+		if (event.defaultPrevented) {
+			// A tree item handled the event.
+			return;
+		}
+
+		const files = event.dataTransfer?.files;
+		if (files === undefined || files.length === 0) {
+			return;
+		}
+
+		handleUploadFiles(tree, files);
 		event.preventDefault();
 	};
+
+	function handleCleanup(target: TreeItemState<FileTreeNode>): void {
+		if (menuState?.type === "item" && menuState.item() === target) {
+			menuState = undefined;
+		}
+
+		if (focusedItemId === target.node.id) {
+			focusedItemId = undefined;
+		}
+
+		if (fileDropTarget?.type === "item" && fileDropTarget.item() === target) {
+			fileDropTarget = undefined;
+		}
+	}
 </script>
 
 <div class="root flex h-full flex-col">
@@ -209,9 +267,9 @@
 		<div>Kind</div>
 	</div>
 
-	<ContextMenu
+	<TreeContextMenu
 		{tree}
-		bind:this={contextMenu}
+		bind:state={menuState}
 		onRename={handleRename}
 		onCopy={(target, operation) => treeComponent!.copy(target, operation)}
 		onPaste={(target) => treeComponent!.paste(target)}
@@ -219,36 +277,63 @@
 		onUploadFiles={handleUploadFiles}
 		onCreateFolder={handleCreateFolder}
 	>
-		<Tree
-			{...rest}
-			{tree}
-			{selectedIds}
-			{expandedIds}
-			{clipboardIds}
-			bind:this={treeComponent}
-			bind:pasteOperation
-			bind:ref
-			class="h-full px-(--tree-inline-padding) py-2"
-			copyNode={(node) => node.copy()}
-			onResolveNameConflict={handleResolveNameConflict}
-			onCircularReferenceError={handleCircularReferenceError}
-			onfocusout={composeEventHandlers(onfocusout, handleFocusOut)}
-			ondragover={composeEventHandlers(ondragover, handleDragOver)}
-			ondrop={composeEventHandlers(ondrop, handleDrop)}
+		<ContextMenu.Trigger
+			class="relative grow overflow-y-auto"
+			oncontextmenu={handleTriggerContextMenu}
+			ondragover={handleTriggerDragOver}
+			ondragleave={handleTriggerDragLeave}
+			ondrop={handleTriggerDrop}
 		>
-			{#snippet item({ item })}
-				<TreeItem
-					{item}
-					{contextMenu}
-					onExpand={handleExpand}
-					onCollapse={handleCollapse}
-					onRename={handleRename}
-					onUploadFiles={handleUploadFiles}
-					onfocusin={() => handleFocusInItem(item)}
-				/>
-			{/snippet}
-		</Tree>
-	</ContextMenu>
+			<Tree
+				{...rest}
+				{tree}
+				{selectedIds}
+				{expandedIds}
+				{clipboardIds}
+				bind:this={treeComponent}
+				bind:pasteOperation
+				bind:ref
+				class="h-full px-(--tree-inline-padding) py-2"
+				copyNode={(node) => node.copy()}
+				onResolveNameConflict={handleResolveNameConflict}
+				onCircularReferenceError={handleCircularReferenceError}
+				onfocusout={composeEventHandlers(onfocusout, handleFocusOut)}
+			>
+				{#snippet item({ item })}
+					<TreeItem
+						{item}
+						bind:menuState
+						bind:fileDropTarget
+						onExpand={handleExpand}
+						onCollapse={handleCollapse}
+						onRename={handleRename}
+						onUploadFiles={handleUploadFiles}
+						onCleanup={handleCleanup}
+						onfocusin={() => handleItemFocusIn(item)}
+					/>
+				{/snippet}
+			</Tree>
+
+			{#if fileDropTarget !== undefined}
+				<div
+					class="absolute start-4 bottom-4 z-50 rounded-lg bg-blue-200 px-6 py-3 shadow"
+					transition:fly={{ x: "-100%" }}
+				>
+					<div>Drop files to upload them to</div>
+					<div class="mt-1 flex items-center justify-center gap-2">
+						<FolderIcon role="presentation" size={16} strokeWidth={3} />
+						<span class="font-semibold">
+							{#if fileDropTarget.type === "tree"}
+								/
+							{:else}
+								{fileDropTarget.item().node.name}
+							{/if}
+						</span>
+					</div>
+				</div>
+			{/if}
+		</ContextMenu.Trigger>
+	</TreeContextMenu>
 
 	<div class="grid shrink-0 grid-cols-5 place-items-center bg-gray-200 p-2 text-sm">
 		<div>
@@ -278,8 +363,8 @@
 	</div>
 </div>
 
-<NameConflictDialog bind:this={nameConflictDialog} />
-<NameFormDialog bind:this={nameFormDialog} />
+<NameConflictDialog bind:state={nameConflictDialogState} />
+<NameFormDialog bind:state={nameFormDialogState} />
 
 <style>
 	.root {
