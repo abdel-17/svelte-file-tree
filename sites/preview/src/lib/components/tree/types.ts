@@ -1,22 +1,21 @@
-import type { FileTreeNode } from "$lib/tree.svelte.js";
-import type { NameConflictResolution, TreeItemState } from "svelte-file-tree";
+import type { FileTree, FileTreeNode } from "$lib/tree.svelte";
+import * as tree from "svelte-file-tree";
+
+export type TreeItemState = tree.TreeItemState<FileTreeNode>;
 
 export type RenameItemArgs = {
-	target: TreeItemState<FileTreeNode>;
+	target: TreeItemState;
 	name: string;
 };
 
-export type NameConflictDialogState = {
-	title: string;
-	description: string;
-	onClose: (resolution: NameConflictResolution) => void;
-};
-
-export type NameFormDialogState = {
-	title: string;
-	initialName: string;
-	onSubmit: (name: string) => void;
-};
+export interface TreeProps
+	extends Omit<
+		tree.TreeProps<FileTreeNode>,
+		"tree" | "item" | "copyNode" | "onResolveNameConflict" | "onCircularReferenceError"
+	> {
+	tree: FileTree;
+	onRenameItem?: (args: RenameItemArgs) => boolean | Promise<boolean>;
+}
 
 export type TreeContextMenuState =
 	| {
@@ -24,7 +23,7 @@ export type TreeContextMenuState =
 	  }
 	| {
 			type: "item";
-			item: () => TreeItemState<FileTreeNode>;
+			item: () => TreeItemState;
 	  };
 
 export type FileDropState =
@@ -33,5 +32,5 @@ export type FileDropState =
 	  }
 	| {
 			type: "item";
-			item: () => TreeItemState<FileTreeNode>;
+			item: () => TreeItemState;
 	  };

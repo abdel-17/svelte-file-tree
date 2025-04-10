@@ -8,8 +8,6 @@
 		type CircularReferenceErrorArgs,
 		type NameConflictResolution,
 		type ResolveNameConflictArgs,
-		type TreeItemState,
-		type TreeProps,
 	} from "svelte-file-tree";
 	import { toast } from "svelte-sonner";
 	import type { EventHandler } from "svelte/elements";
@@ -19,27 +17,8 @@
 	import NameFormDialog from "./NameFormDialog.svelte";
 	import TreeContextMenu from "./TreeContextMenu.svelte";
 	import TreeItem from "./TreeItem.svelte";
-	import type {
-		FileDropState,
-		NameConflictDialogState,
-		NameFormDialogState,
-		RenameItemArgs,
-		TreeContextMenuState,
-	} from "./types.js";
-
-	interface Props
-		extends Omit<
-			TreeProps<FileTreeNode>,
-			| "tree"
-			| "item"
-			| "copyNode"
-			| "onResolveNameConflict"
-			| "onAlreadyExistsError"
-			| "onCircularReferenceError"
-		> {
-		tree: FileTree;
-		onRenameItem?: (args: RenameItemArgs) => boolean | Promise<boolean>;
-	}
+	import { NameConflictDialogState, NameFormDialogState } from "./state.svelte.js";
+	import type { FileDropState, TreeContextMenuState, TreeItemState, TreeProps } from "./types.js";
 
 	let {
 		tree,
@@ -57,14 +36,15 @@
 		ref = $bindable(null),
 		onfocusout,
 		...rest
-	}: Props = $props();
+	}: TreeProps = $props();
 
 	let treeComponent: Tree<FileTreeNode> | null = $state.raw(null);
-	let nameConflictDialogState: NameConflictDialogState | undefined = $state.raw();
-	let nameFormDialogState: NameFormDialogState | undefined = $state.raw();
 	let menuState: TreeContextMenuState | undefined = $state.raw();
 	let focusedItemId: string | undefined = $state.raw();
 	let fileDropState: FileDropState | undefined = $state.raw();
+
+	const nameConflictDialogState = new NameConflictDialogState();
+	const nameFormDialogState = new NameFormDialogState();
 
 	const pasteDirection: string | undefined = $derived.by(() => {
 		if (pasteOperation === undefined || focusedItemId === undefined) {
@@ -95,11 +75,11 @@
 				}
 			}
 
-			nameConflictDialogState = {
+			nameConflictDialogState.show({
 				title,
 				description: `An item with the name "${name}" already exists`,
 				onClose: resolve,
-			};
+			});
 		});
 	}
 
@@ -127,13 +107,13 @@
 		toast.error(`An item with the name "${name}" already exists`);
 	}
 
-	function handleRename(target: TreeItemState<FileTreeNode>): void {
-		nameFormDialogState = {
+	function handleRename(target: TreeItemState): void {
+		nameFormDialogState.name = target.node.name;
+		nameFormDialogState.show({
 			title: "Rename",
-			initialName: target.node.name,
 			onSubmit: async (name) => {
 				if (name === target.node.name) {
-					nameFormDialogState = undefined;
+					nameFormDialogState.close();
 					return;
 				}
 
@@ -147,10 +127,10 @@
 
 				const didRename = await onRenameItem({ target, name });
 				if (didRename) {
-					nameFormDialogState = undefined;
+					nameFormDialogState.close();
 				}
 			},
-		};
+		});
 	}
 
 	function handleUploadFiles(target: FolderNode | FileTree, files: FileList): void {
@@ -165,9 +145,8 @@
 	}
 
 	function handleCreateFolder(target: FolderNode | FileTree): void {
-		nameFormDialogState = {
+		nameFormDialogState.show({
 			title: "New Folder",
-			initialName: "",
 			onSubmit: (name) => {
 				for (const child of target.children) {
 					if (child.name === name) {
@@ -182,20 +161,20 @@
 					children: [],
 				});
 				target.children.push(node);
-				nameFormDialogState = undefined;
+				nameFormDialogState.close();
 			},
-		};
+		});
 	}
 
-	function handleExpand(target: TreeItemState<FileTreeNode>): void {
+	function handleExpand(target: TreeItemState): void {
 		expandedIds.add(target.node.id);
 	}
 
-	function handleCollapse(target: TreeItemState<FileTreeNode>): void {
-		expandedIds.add(target.node.id);
+	function handleCollapse(target: TreeItemState): void {
+		expandedIds.delete(target.node.id);
 	}
 
-	function handleItemFocusIn(target: TreeItemState<FileTreeNode>): void {
+	function handleItemFocusIn(target: TreeItemState): void {
 		focusedItemId = target.node.id;
 	}
 
@@ -243,7 +222,7 @@
 		event.preventDefault();
 	};
 
-	function handleCleanup(target: TreeItemState<FileTreeNode>): void {
+	function handleCleanup(target: TreeItemState): void {
 		if (menuState?.type === "item" && menuState.item() === target) {
 			menuState = undefined;
 		}
@@ -363,8 +342,20 @@
 	</div>
 </div>
 
-<NameConflictDialog bind:state={nameConflictDialogState} />
-<NameFormDialog bind:state={nameFormDialogState} />
+<NameConflictDialog
+	open={nameConflictDialogState.open}
+	title={nameConflictDialogState.title}
+	description={nameConflictDialogState.description}
+	onClose={(result) => nameConflictDialogState.close(result)}
+/>
+
+<NameFormDialog
+	bind:name={nameFormDialogState.name}
+	open={nameFormDialogState.open}
+	title={nameFormDialogState.title}
+	onSubmit={() => nameFormDialogState.submit()}
+	onClose={() => nameFormDialogState.close()}
+/>
 
 <style>
 	.root {

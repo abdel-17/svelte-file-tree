@@ -1,20 +1,20 @@
 <script lang="ts">
-	import type { FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+	import type { FolderNode } from "$lib/tree.svelte.js";
 	import { composeEventHandlers, formatSize } from "$lib/utils.js";
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
-	import { TreeItem, type TreeItemProps, type TreeItemState } from "svelte-file-tree";
+	import { TreeItem, type TreeItemProps } from "svelte-file-tree";
 	import type { EventHandler } from "svelte/elements";
-	import type { FileDropState, TreeContextMenuState } from "./types.js";
+	import type { FileDropState, TreeContextMenuState, TreeItemState } from "./types.js";
 
 	interface Props extends Omit<TreeItemProps, "children"> {
-		item: TreeItemState<FileTreeNode>;
+		item: TreeItemState;
 		menuState: TreeContextMenuState | undefined;
 		fileDropState: FileDropState | undefined;
-		onExpand: (target: TreeItemState<FileTreeNode>) => void;
-		onCollapse: (target: TreeItemState<FileTreeNode>) => void;
-		onRename: (target: TreeItemState<FileTreeNode>) => void;
+		onExpand: (target: TreeItemState) => void;
+		onCollapse: (target: TreeItemState) => void;
+		onRename: (target: TreeItemState) => void;
 		onUploadFiles: (target: FolderNode, files: FileList) => void;
-		onCleanup: (target: TreeItemState<FileTreeNode>) => void;
+		onCleanup: (target: TreeItemState) => void;
 	}
 
 	let {

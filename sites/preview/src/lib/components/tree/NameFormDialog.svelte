@@ -2,34 +2,35 @@
 	import { Dialog } from "bits-ui";
 	import type { EventHandler } from "svelte/elements";
 	import { fade, scale } from "svelte/transition";
-	import type { NameFormDialogState } from "./types.js";
 
 	const nameId = $props.id();
 	let {
-		state: dialogState = $bindable(),
+		name = $bindable(),
+		open,
+		title,
+		onSubmit,
+		onClose,
 	}: {
-		state: NameFormDialogState | undefined;
+		name: string;
+		open: boolean;
+		title: string;
+		onSubmit: () => void;
+		onClose: () => void;
 	} = $props();
-
-	let name = $derived(dialogState?.initialName ?? "");
-
-	function open(): boolean {
-		return dialogState !== undefined;
-	}
 
 	function handleOpenChange(open: boolean): void {
 		if (!open) {
-			dialogState = undefined;
+			onClose();
 		}
 	}
 
 	const handleSubmit: EventHandler<SubmitEvent, HTMLFormElement> = (event) => {
-		dialogState!.onSubmit(name);
+		onSubmit();
 		event.preventDefault();
 	};
 </script>
 
-<Dialog.Root bind:open={open, handleOpenChange}>
+<Dialog.Root bind:open={() => open, handleOpenChange}>
 	<Dialog.Portal>
 		<Dialog.Overlay forceMount class="fixed inset-0 z-50 bg-black/50">
 			{#snippet child({ props, open })}
@@ -47,7 +48,7 @@
 				{#if open}
 					<div {...props} transition:scale={{ duration: 200, start: 0.9 }}>
 						<Dialog.Title class="text-center text-2xl font-semibold tracking-tight">
-							{dialogState?.title}
+							{title}
 						</Dialog.Title>
 
 						<form class="mt-2" onsubmit={handleSubmit}>
