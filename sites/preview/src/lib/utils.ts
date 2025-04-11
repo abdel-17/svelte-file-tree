@@ -5,7 +5,7 @@ const sizeFormatter = new Intl.NumberFormat(undefined, {
 	maximumFractionDigits: 2,
 });
 
-export function formatSize(size: number): string {
+export function formatSize(size: number) {
 	if (size < 1000) {
 		return sizeFormatter.format(size) + " B";
 	}
@@ -29,11 +29,11 @@ export function formatSize(size: number): string {
 	return sizeFormatter.format(size) + " TB";
 }
 
-export function composeEventHandlers<TEvent extends Event, TTarget extends EventTarget>(
-	a: EventHandler<TEvent, TTarget> | null | undefined,
-	b: EventHandler<TEvent, TTarget>,
-): EventHandler<TEvent, TTarget> {
-	return (event) => {
+export function composeEventHandlers<TEvent extends Event>(
+	a: ((event: TEvent) => void) | null | undefined,
+	b: (event: TEvent) => void,
+) {
+	return (event: TEvent) => {
 		if (a != null) {
 			a(event);
 

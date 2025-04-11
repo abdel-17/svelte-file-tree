@@ -75,7 +75,7 @@
 		ref: () => fileInput,
 	});
 
-	const pasteDirection: string | undefined = $derived.by(() => {
+	const pasteDirection = $derived.by(() => {
 		if (pasteOperation === undefined || focusedItemId === undefined) {
 			return;
 		}
@@ -87,11 +87,11 @@
 		return "After";
 	});
 
-	function showAlreadyExistsToast(name: string): void {
+	function showAlreadyExistsToast(name: string) {
 		toast.error(`An item with the name "${name}" already exists`);
 	}
 
-	function handleRename(target: TreeItemState): void {
+	function handleRename(target: TreeItemState) {
 		nameFormDialogState.show({
 			title: "Rename",
 			name: target.node.name,
@@ -117,7 +117,7 @@
 		});
 	}
 
-	async function handleUploadFiles({ target, files }: UploadFilesArgs): Promise<void> {
+	async function handleUploadFiles({ target, files }: UploadFilesArgs) {
 		for (const child of target.children) {
 			for (const file of files) {
 				if (child.name === file.name) {
@@ -178,11 +178,8 @@
 		}
 	};
 
-	function handleResolveNameConflict({
-		operation,
-		name,
-	}: ResolveNameConflictArgs): Promise<NameConflictResolution> {
-		return new Promise((resolve) => {
+	function handleResolveNameConflict({ operation, name }: ResolveNameConflictArgs) {
+		return new Promise<NameConflictResolution>((resolve) => {
 			let title: string;
 			switch (operation) {
 				case "move": {
@@ -206,19 +203,19 @@
 	function handleCircularReferenceError({
 		target,
 		position,
-	}: CircularReferenceErrorArgs<FileTreeNode>): void {
+	}: CircularReferenceErrorArgs<FileTreeNode>) {
 		toast.error(`Cannot move "${target.name}" ${position} itself`);
 	}
 
-	function handleExpand(target: TreeItemState): void {
+	function handleExpand(target: TreeItemState) {
 		expandedIds.add(target.node.id);
 	}
 
-	function handleCollapse(target: TreeItemState): void {
+	function handleCollapse(target: TreeItemState) {
 		expandedIds.delete(target.node.id);
 	}
 
-	function handleItemFocusIn(target: TreeItemState): void {
+	function handleItemFocusIn(target: TreeItemState) {
 		focusedItemId = target.node.id;
 	}
 
@@ -269,7 +266,7 @@
 		event.preventDefault();
 	};
 
-	function handleCleanup(target: TreeItemState): void {
+	function handleCleanup(target: TreeItemState) {
 		if (focusedItemId === target.node.id) {
 			focusedItemId = undefined;
 		}
@@ -411,8 +408,8 @@
 	type="file"
 	multiple
 	class="hidden"
-	onchange={fileInputState.onChange}
-	oncancel={fileInputState.onCancel}
+	onchange={fileInputState.onchange}
+	oncancel={fileInputState.oncancel}
 />
 
 <style>

@@ -9,31 +9,29 @@ export function createNameConflictDialogState() {
 	let description = $state.raw("");
 	let onClose: ((result: NameConflictResolution) => void) | undefined;
 
-	function show(args: {
+	type ShowArgs = {
 		title: string;
 		description: string;
 		onClose: (result: NameConflictResolution) => void;
-	}): void {
-		open = true;
-		title = args.title;
-		description = args.description;
-		onClose = args.onClose;
-	}
-
-	function close(result: NameConflictResolution): void {
-		open = false;
-		title = "";
-		description = "";
-		onClose!(result);
-		onClose = undefined;
-	}
+	};
 
 	return {
 		open: () => open,
 		title: () => title,
 		description: () => description,
-		show,
-		close,
+		show: (args: ShowArgs) => {
+			open = true;
+			title = args.title;
+			description = args.description;
+			onClose = args.onClose;
+		},
+		close: (result: NameConflictResolution) => {
+			open = false;
+			title = "";
+			description = "";
+			onClose!(result);
+			onClose = undefined;
+		},
 	};
 }
 
@@ -43,36 +41,32 @@ export function createNameFormDialogState() {
 	let title = $state.raw("");
 	let onSubmit: ((name: string) => void) | undefined;
 
-	function setName(value: string): void {
-		name = value;
-	}
-
-	function show(args: { title: string; onSubmit: (name: string) => void; name?: string }): void {
-		name = args.name ?? "";
-		open = true;
-		title = args.title;
-		onSubmit = args.onSubmit;
-	}
-
-	function submit(): void {
-		onSubmit!(name);
-	}
-
-	function close(): void {
-		name = "";
-		open = false;
-		title = "";
-		onSubmit = undefined;
-	}
+	type ShowArgs = {
+		title: string;
+		onSubmit: (name: string) => void;
+		name?: string;
+	};
 
 	return {
 		name: () => name,
-		setName,
+		setName: (value: string) => {
+			name = value;
+		},
 		open: () => open,
 		title: () => title,
-		show,
-		submit,
-		close,
+		show: (args: ShowArgs) => {
+			name = args.name ?? "";
+			open = true;
+			title = args.title;
+			onSubmit = args.onSubmit;
+		},
+		submit: () => onSubmit!(name),
+		close: () => {
+			name = "";
+			open = false;
+			title = "";
+			onSubmit = undefined;
+		},
 	};
 }
 
@@ -105,11 +99,7 @@ export function createContextMenuState({
 }) {
 	let target: TreeContextMenuTarget | undefined = $state.raw();
 
-	function setTarget(value: TreeContextMenuTarget): void {
-		target = value;
-	}
-
-	function item(): TreeItemState {
+	function item() {
 		switch (target!.type) {
 			case "tree": {
 				throw new Error("Expected an item");
@@ -120,7 +110,7 @@ export function createContextMenuState({
 		}
 	}
 
-	function folderOrTree(): FolderNode | FileTree {
+	function folderOrTree() {
 		switch (target!.type) {
 			case "tree": {
 				return target!.tree();
@@ -135,61 +125,32 @@ export function createContextMenuState({
 		}
 	}
 
-	function rename(): void {
-		onRename(item());
-	}
-
-	function copy(): void {
-		onCopy(item());
-	}
-
-	function cut(): void {
-		onCut(item());
-	}
-
-	function paste(): void {
-		onPaste(item());
-	}
-
-	function remove(): void {
-		onRemove(item());
-	}
-
-	function createFolder(): void {
-		onCreateFolder(folderOrTree());
-	}
-
-	function uploadFiles(): void {
-		onUploadFiles(folderOrTree());
-	}
-
-	function close(): void {
-		target = undefined;
-	}
-
 	return {
 		target: () => target,
-		setTarget,
-		rename,
-		copy,
-		cut,
-		paste,
-		remove,
-		createFolder,
-		uploadFiles,
-		close,
+		setTarget: (value: TreeContextMenuTarget) => {
+			target = value;
+		},
+		rename: () => onRename(item()),
+		copy: () => onCopy(item()),
+		cut: () => onCut(item()),
+		paste: () => onPaste(item()),
+		remove: () => onRemove(item()),
+		createFolder: () => onCreateFolder(folderOrTree()),
+		uploadFiles: () => onUploadFiles(folderOrTree()),
+		close: () => {
+			target = undefined;
+		},
 	};
 }
 
 export function createFileInputState({ ref }: { ref: () => HTMLInputElement | null }) {
 	let onPick: ((files: FileList) => void) | undefined;
 
-	function showPicker(args: { onPick: (files: FileList) => void }): void {
-		onPick = args.onPick;
-		ref()!.click();
-	}
+	type ShowPickerArgs = {
+		onPick: (files: FileList) => void;
+	};
 
-	const onChange: EventHandler<Event, HTMLInputElement> = (event) => {
+	const onchange: EventHandler<Event, HTMLInputElement> = (event) => {
 		const { files } = event.currentTarget;
 		if (files !== null && files.length !== 0) {
 			onPick!(files);
@@ -199,13 +160,16 @@ export function createFileInputState({ ref }: { ref: () => HTMLInputElement | nu
 		event.currentTarget.value = "";
 	};
 
-	const onCancel: EventHandler<Event, HTMLInputElement> = () => {
+	const oncancel: EventHandler<Event, HTMLInputElement> = () => {
 		onPick = undefined;
 	};
 
 	return {
-		showPicker,
-		onChange,
-		onCancel,
+		showPicker: (args: ShowPickerArgs) => {
+			onPick = args.onPick;
+			ref()!.click();
+		},
+		onchange,
+		oncancel,
 	};
 }

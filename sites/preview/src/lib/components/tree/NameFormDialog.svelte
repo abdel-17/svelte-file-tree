@@ -18,7 +18,7 @@
 		onClose: () => void;
 	} = $props();
 
-	function handleOpenChange(open: boolean): void {
+	function handleOpenChange(open: boolean) {
 		if (!open) {
 			onClose();
 		}

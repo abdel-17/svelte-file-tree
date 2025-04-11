@@ -9,11 +9,11 @@ export function isControlOrMeta(event: KeyboardEvent | MouseEvent): boolean {
 	return event.ctrlKey;
 }
 
-export function composeEventHandlers<TEvent extends Event, TTarget extends EventTarget>(
-	a: EventHandler<TEvent, TTarget> | null | undefined,
-	b: EventHandler<TEvent, TTarget>,
-): EventHandler<TEvent, TTarget> {
-	return (event) => {
+export function composeEventHandlers<TEvent extends Event>(
+	a: ((event: TEvent) => void) | null | undefined,
+	b: (event: TEvent) => void,
+) {
+	return (event: TEvent) => {
 		if (a != null) {
 			a(event);
 

@@ -1,6 +1,6 @@
 import * as tree from "svelte-file-tree";
 
-function getTotalSize(nodes: Array<FileTreeNode>): number {
+function getTotalSize(nodes: Array<FileTreeNode>) {
 	let size = 0;
 	for (const node of nodes) {
 		size += node.size;
@@ -24,7 +24,7 @@ export class FileNode extends tree.FileNode {
 		this.size = props.size;
 	}
 
-	readonly kind: string = $derived.by(() => {
+	readonly kind = $derived.by(() => {
 		const { name } = this;
 		const dotIndex = name.lastIndexOf(".");
 		if (dotIndex === -1) {
@@ -225,7 +225,7 @@ export class FileNode extends tree.FileNode {
 		}
 	});
 
-	copy(): FileNode {
+	copy() {
 		return new FileNode({
 			id: crypto.randomUUID(),
 			name: this.name,

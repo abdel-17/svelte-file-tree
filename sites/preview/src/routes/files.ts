@@ -1,14 +1,14 @@
-export type FileData =
-	| {
-			name: string;
-			children: Array<FileData>;
-	  }
-	| {
-			name: string;
-			size: number;
-	  };
+export type FileData = {
+	name: string;
+	size: number;
+};
 
-export const files: Array<FileData> = [
+export type FolderData = {
+	name: string;
+	children: Array<FileData | FolderData>;
+};
+
+export const files: Array<FileData | FolderData> = [
 	{
 		name: "Applications",
 		children: [

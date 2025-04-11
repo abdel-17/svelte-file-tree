@@ -28,11 +28,11 @@
 		onClose: () => void;
 	} = $props();
 
-	function open(): boolean {
+	function open() {
 		return target !== undefined;
 	}
 
-	function handleOpenChange(open: boolean): void {
+	function handleOpenChange(open: boolean) {
 		if (!open) {
 			onClose();
 		}
