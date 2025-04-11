@@ -1,29 +1,29 @@
 <script lang="ts">
-	import type { FolderNode } from "$lib/tree.svelte.js";
 	import { composeEventHandlers, formatSize } from "$lib/utils.js";
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { TreeItem, type TreeItemProps } from "svelte-file-tree";
 	import type { EventHandler } from "svelte/elements";
-	import type { FileDropState, TreeContextMenuState, TreeItemState } from "./types.js";
+	import type { TreeContextMenuTarget } from "./state.svelte.js";
+	import type { FileDropState, TreeItemState, UploadFilesArgs } from "./types.js";
 
 	interface Props extends Omit<TreeItemProps, "children"> {
 		item: TreeItemState;
-		menuState: TreeContextMenuState | undefined;
 		fileDropState: FileDropState | undefined;
 		onExpand: (target: TreeItemState) => void;
 		onCollapse: (target: TreeItemState) => void;
 		onRename: (target: TreeItemState) => void;
-		onUploadFiles: (target: FolderNode, files: FileList) => void;
+		onContextMenuTargetChange: (value: TreeContextMenuTarget) => void;
+		onUploadFiles: (args: UploadFilesArgs) => void;
 		onCleanup: (target: TreeItemState) => void;
 	}
 
 	let {
 		item,
-		menuState = $bindable(),
 		fileDropState = $bindable(),
 		onExpand,
 		onCollapse,
 		onRename,
+		onContextMenuTargetChange,
 		onUploadFiles,
 		onCleanup,
 		ref = $bindable(null),
@@ -56,10 +56,10 @@
 			return;
 		}
 
-		menuState = {
+		onContextMenuTargetChange({
 			type: "item",
 			item: () => item,
-		};
+		});
 	};
 
 	const handleDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
@@ -86,7 +86,10 @@
 			return;
 		}
 
-		onUploadFiles(item.node, files);
+		onUploadFiles({
+			target: item.node,
+			files,
+		});
 		event.preventDefault();
 	};
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { FileNode, FolderNode, type FileTree, type FileTreeNode } from "$lib/tree.svelte.js";
+	import { FileNode, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
 	import { composeEventHandlers, formatSize } from "$lib/utils.js";
 	import { FolderIcon } from "@lucide/svelte";
 	import { ContextMenu } from "bits-ui";
@@ -17,13 +17,38 @@
 	import NameFormDialog from "./NameFormDialog.svelte";
 	import TreeContextMenu from "./TreeContextMenu.svelte";
 	import TreeItem from "./TreeItem.svelte";
-	import { NameConflictDialogState, NameFormDialogState } from "./state.svelte.js";
-	import type { FileDropState, TreeContextMenuState, TreeItemState, TreeProps } from "./types.js";
+	import {
+		createContextMenuState,
+		createFileInputState,
+		createNameConflictDialogState,
+		createNameFormDialogState,
+	} from "./state.svelte.js";
+	import type { FileDropState, TreeItemState, TreeProps, UploadFilesArgs } from "./types.js";
 
 	let {
 		tree,
 		onRenameItem = ({ target, name }) => {
 			target.node.name = name;
+			return true;
+		},
+		onCreateFolder = ({ target, name }) => {
+			const folder = new FolderNode({
+				id: crypto.randomUUID(),
+				name,
+				children: [],
+			});
+			target.children.push(folder);
+			return true;
+		},
+		onUploadFiles = ({ target, files }) => {
+			for (const file of files) {
+				const node = new FileNode({
+					id: crypto.randomUUID(),
+					name: file.name,
+					size: file.size,
+				});
+				target.children.push(node);
+			}
 			return true;
 		},
 		defaultSelectedIds,
@@ -39,12 +64,16 @@
 	}: TreeProps = $props();
 
 	let treeComponent: Tree<FileTreeNode> | null = $state.raw(null);
-	let menuState: TreeContextMenuState | undefined = $state.raw();
+	let fileInput: HTMLInputElement | null = $state.raw(null);
+
 	let focusedItemId: string | undefined = $state.raw();
 	let fileDropState: FileDropState | undefined = $state.raw();
 
-	const nameConflictDialogState = new NameConflictDialogState();
-	const nameFormDialogState = new NameFormDialogState();
+	const nameConflictDialogState = createNameConflictDialogState();
+	const nameFormDialogState = createNameFormDialogState();
+	const fileInputState = createFileInputState({
+		ref: () => fileInput,
+	});
 
 	const pasteDirection: string | undefined = $derived.by(() => {
 		if (pasteOperation === undefined || focusedItemId === undefined) {
@@ -57,6 +86,97 @@
 
 		return "After";
 	});
+
+	function showAlreadyExistsToast(name: string): void {
+		toast.error(`An item with the name "${name}" already exists`);
+	}
+
+	function handleRename(target: TreeItemState): void {
+		nameFormDialogState.show({
+			title: "Rename",
+			name: target.node.name,
+			onSubmit: async (name) => {
+				if (name === target.node.name) {
+					nameFormDialogState.close();
+					return;
+				}
+
+				const owner = target.parent?.node ?? tree;
+				for (const child of owner.children) {
+					if (child !== target.node && child.name === name) {
+						showAlreadyExistsToast(name);
+						return;
+					}
+				}
+
+				const didRename = await onRenameItem({ target, name });
+				if (didRename) {
+					nameFormDialogState.close();
+				}
+			},
+		});
+	}
+
+	async function handleUploadFiles({ target, files }: UploadFilesArgs): Promise<void> {
+		for (const child of target.children) {
+			for (const file of files) {
+				if (child.name === file.name) {
+					showAlreadyExistsToast(file.name);
+					return;
+				}
+			}
+		}
+
+		const didUpload = await onUploadFiles({ target, files });
+		if (didUpload) {
+			// TODO: show toast after upload is done
+		}
+	}
+
+	const contextMenuState = createContextMenuState({
+		onRename: handleRename,
+		onCopy: (target) => treeComponent!.copy(target, "copy"),
+		onCut: (target) => treeComponent!.copy(target, "cut"),
+		onPaste: (target) => treeComponent!.paste(target),
+		onRemove: (target) => treeComponent!.remove(target),
+		onCreateFolder: (target) => {
+			nameFormDialogState.show({
+				title: "New Folder",
+				onSubmit: async (name) => {
+					for (const child of target.children) {
+						if (child.name === name) {
+							showAlreadyExistsToast(name);
+							return;
+						}
+					}
+
+					const didCreate = await onCreateFolder({ target, name });
+					if (didCreate) {
+						nameFormDialogState.close();
+					}
+				},
+			});
+		},
+		onUploadFiles: (target) => {
+			fileInputState.showPicker({
+				onPick: (files) => handleUploadFiles({ target, files }),
+			});
+		},
+	});
+
+	const handleTriggerContextMenu: EventHandler<Event, HTMLDivElement> = (event) => {
+		if (event.defaultPrevented) {
+			// A tree item handled the event.
+			return;
+		}
+
+		if (event.target instanceof Element && event.target.closest("[role='treeitem']") === null) {
+			contextMenuState.setTarget({
+				type: "tree",
+				tree: () => tree,
+			});
+		}
+	};
 
 	function handleResolveNameConflict({
 		operation,
@@ -88,82 +208,6 @@
 		position,
 	}: CircularReferenceErrorArgs<FileTreeNode>): void {
 		toast.error(`Cannot move "${target.name}" ${position} itself`);
-	}
-
-	const handleTriggerContextMenu: EventHandler<Event, HTMLDivElement> = (event) => {
-		if (event.defaultPrevented) {
-			// A tree item handled the event.
-			return;
-		}
-
-		if (event.target instanceof Element && event.target.closest("[role='treeitem']") === null) {
-			menuState = {
-				type: "tree",
-			};
-		}
-	};
-
-	function showAlreadyExistsToast(name: string): void {
-		toast.error(`An item with the name "${name}" already exists`);
-	}
-
-	function handleRename(target: TreeItemState): void {
-		nameFormDialogState.name = target.node.name;
-		nameFormDialogState.show({
-			title: "Rename",
-			onSubmit: async (name) => {
-				if (name === target.node.name) {
-					nameFormDialogState.close();
-					return;
-				}
-
-				const owner = target.parent?.node ?? tree;
-				for (const child of owner.children) {
-					if (child !== target.node && child.name === name) {
-						showAlreadyExistsToast(name);
-						return;
-					}
-				}
-
-				const didRename = await onRenameItem({ target, name });
-				if (didRename) {
-					nameFormDialogState.close();
-				}
-			},
-		});
-	}
-
-	function handleUploadFiles(target: FolderNode | FileTree, files: FileList): void {
-		for (const file of files) {
-			const node = new FileNode({
-				id: crypto.randomUUID(),
-				name: file.name,
-				size: file.size,
-			});
-			target.children.push(node);
-		}
-	}
-
-	function handleCreateFolder(target: FolderNode | FileTree): void {
-		nameFormDialogState.show({
-			title: "New Folder",
-			onSubmit: (name) => {
-				for (const child of target.children) {
-					if (child.name === name) {
-						showAlreadyExistsToast(name);
-						return;
-					}
-				}
-
-				const node = new FolderNode({
-					id: crypto.randomUUID(),
-					name,
-					children: [],
-				});
-				target.children.push(node);
-				nameFormDialogState.close();
-			},
-		});
 	}
 
 	function handleExpand(target: TreeItemState): void {
@@ -218,21 +262,25 @@
 			return;
 		}
 
-		handleUploadFiles(tree, files);
+		handleUploadFiles({
+			target: tree,
+			files,
+		});
 		event.preventDefault();
 	};
 
 	function handleCleanup(target: TreeItemState): void {
-		if (menuState?.type === "item" && menuState.item() === target) {
-			menuState = undefined;
-		}
-
 		if (focusedItemId === target.node.id) {
 			focusedItemId = undefined;
 		}
 
 		if (fileDropState?.type === "item" && fileDropState.item() === target) {
 			fileDropState = undefined;
+		}
+
+		const menuTarget = contextMenuState.target();
+		if (menuTarget?.type === "item" && menuTarget.item() === target) {
+			contextMenuState.close();
 		}
 	}
 </script>
@@ -247,14 +295,15 @@
 	</div>
 
 	<TreeContextMenu
-		{tree}
-		bind:state={menuState}
-		onRename={handleRename}
-		onCopy={(target, operation) => treeComponent!.copy(target, operation)}
-		onPaste={(target) => treeComponent!.paste(target)}
-		onRemove={(target) => treeComponent!.remove(target)}
-		onUploadFiles={handleUploadFiles}
-		onCreateFolder={handleCreateFolder}
+		target={contextMenuState.target()}
+		onRename={contextMenuState.rename}
+		onCopy={contextMenuState.copy}
+		onCut={contextMenuState.cut}
+		onPaste={contextMenuState.paste}
+		onRemove={contextMenuState.remove}
+		onCreateFolder={contextMenuState.createFolder}
+		onUploadFiles={contextMenuState.uploadFiles}
+		onClose={contextMenuState.close}
 	>
 		<ContextMenu.Trigger
 			class="relative grow overflow-y-auto"
@@ -281,11 +330,11 @@
 				{#snippet item({ item })}
 					<TreeItem
 						{item}
-						bind:menuState
 						bind:fileDropState
 						onExpand={handleExpand}
 						onCollapse={handleCollapse}
 						onRename={handleRename}
+						onContextMenuTargetChange={contextMenuState.setTarget}
 						onUploadFiles={handleUploadFiles}
 						onCleanup={handleCleanup}
 						onfocusin={() => handleItemFocusIn(item)}
@@ -343,18 +392,27 @@
 </div>
 
 <NameConflictDialog
-	open={nameConflictDialogState.open}
-	title={nameConflictDialogState.title}
-	description={nameConflictDialogState.description}
-	onClose={(result) => nameConflictDialogState.close(result)}
+	open={nameConflictDialogState.open()}
+	title={nameConflictDialogState.title()}
+	description={nameConflictDialogState.description()}
+	onClose={nameConflictDialogState.close}
 />
 
 <NameFormDialog
-	bind:name={nameFormDialogState.name}
-	open={nameFormDialogState.open}
-	title={nameFormDialogState.title}
-	onSubmit={() => nameFormDialogState.submit()}
-	onClose={() => nameFormDialogState.close()}
+	bind:name={nameFormDialogState.name, nameFormDialogState.setName}
+	open={nameFormDialogState.open()}
+	title={nameFormDialogState.title()}
+	onSubmit={nameFormDialogState.submit}
+	onClose={nameFormDialogState.close}
+/>
+
+<input
+	bind:this={fileInput}
+	type="file"
+	multiple
+	class="hidden"
+	onchange={fileInputState.onChange}
+	oncancel={fileInputState.onCancel}
 />
 
 <style>
