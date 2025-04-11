@@ -1,83 +1,116 @@
 <script lang="ts">
-	import type { FileTreeNode } from "$lib/tree.svelte";
-	import { formatSize } from "$lib/utils.js";
+	import { composeEventHandlers, formatSize } from "$lib/utils.js";
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
-	import { TreeItem, type TreeItemProps, type TreeItemState } from "svelte-file-tree";
+	import { TreeItem, type TreeItemProps } from "svelte-file-tree";
 	import type { EventHandler } from "svelte/elements";
-	import ContextMenu from "./ContextMenu.svelte";
+	import type { TreeContextMenuTarget } from "./state.svelte.js";
+	import type { FileDropState, TreeItemState, UploadFilesArgs } from "./types.js";
 
 	interface Props extends Omit<TreeItemProps, "children"> {
-		item: TreeItemState<FileTreeNode>;
-		contextMenu: ContextMenu | null;
-		onExpand: () => void;
-		onCollapse: () => void;
-		onRename: () => void;
+		item: TreeItemState;
+		fileDropState: FileDropState | undefined;
+		onExpand: (target: TreeItemState) => void;
+		onCollapse: (target: TreeItemState) => void;
+		onRename: (target: TreeItemState) => void;
+		onContextMenuTargetChange: (value: TreeContextMenuTarget) => void;
+		onUploadFiles: (args: UploadFilesArgs) => void;
+		onCleanup: (target: TreeItemState) => void;
 	}
 
 	let {
 		item,
-		contextMenu,
+		fileDropState = $bindable(),
 		onExpand,
 		onCollapse,
 		onRename,
+		onContextMenuTargetChange,
+		onUploadFiles,
+		onCleanup,
 		ref = $bindable(null),
+		class: className,
+		onkeydown,
+		oncontextmenu,
+		ondragover,
+		ondrop,
 		...rest
 	}: Props = $props();
 
+	const isFileDropTarget = $derived(
+		fileDropState?.type === "item" && fileDropState.item() === item,
+	);
+
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
+		if (item.disabled) {
+			return;
+		}
+
 		if (event.key === "F2") {
-			onRename();
+			onRename(item);
 			event.preventDefault();
 		}
 	};
 
 	const handleContextMenu: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
-		if (contextMenu === null) {
-			throw new Error("Context menu is not mounted");
-		}
-
-		if (event.defaultPrevented) {
-			return;
-		}
-
 		if (item.disabled) {
 			event.preventDefault();
 			return;
 		}
 
-		contextMenu.show({
+		onContextMenuTargetChange({
 			type: "item",
 			item: () => item,
 		});
 	};
 
-	const handleToggleClick: EventHandler<MouseEvent, HTMLButtonElement> = (event) => {
-		if (ref === null) {
-			throw new Error("Tree item is not mounted");
+	const handleDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		if (item.disabled || item.node.type === "file") {
+			return;
 		}
 
-		if (item.disabled) {
+		if (event.dataTransfer?.types.includes("Files")) {
+			fileDropState = {
+				type: "item",
+				item: () => item,
+			};
 			event.preventDefault();
+		}
+	};
+
+	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		if (item.disabled || item.node.type === "file") {
+			return;
+		}
+
+		const files = event.dataTransfer?.files;
+		if (files === undefined || files.length === 0) {
+			return;
+		}
+
+		onUploadFiles({
+			target: item.node,
+			files,
+		});
+		event.preventDefault();
+	};
+
+	const handleToggleClick: EventHandler<MouseEvent, HTMLButtonElement> = (event) => {
+		if (item.disabled) {
 			return;
 		}
 
 		if (item.expanded) {
-			onCollapse();
+			onCollapse(item);
 		} else {
-			onExpand();
+			onExpand(item);
 		}
 
+		ref!.focus();
 		event.stopPropagation();
-		ref.focus();
 	};
 
 	$effect(() => {
 		return () => {
-			if (contextMenu === null) {
-				throw new Error("Context menu is not mounted");
-			}
-
-			contextMenu.onItemDestroyed(item);
+			onCleanup(item);
 		};
 	});
 </script>
@@ -87,21 +120,27 @@
 	bind:ref
 	class={({ dropPosition }) => [
 		"relative grid grid-cols-(--grid-cols) gap-x-(--grid-gap) rounded-md p-(--grid-inline-padding) hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300 aria-selected:has-[+[aria-selected='true']]:rounded-b-none aria-selected:[&+[aria-selected='true']]:rounded-t-none",
-		item.dragged && "opacity-50",
-		dropPosition !== undefined &&
-			"before:pointer-events-none before:absolute before:-inset-0 before:rounded-[inherit] before:border-2",
-		dropPosition === "before" && "before:border-neutral-300 before:border-t-red-500",
-		dropPosition === "after" && "before:border-neutral-300 before:border-b-red-500",
-		dropPosition === "inside" && "before:border-red-500",
+		{
+			"opacity-50": item.dragged,
+			"before:pointer-events-none before:absolute before:-inset-0 before:rounded-[inherit] before:border-2":
+				dropPosition !== undefined || isFileDropTarget,
+			"before:border-neutral-300 before:border-t-red-500": dropPosition === "before",
+			"before:border-neutral-300 before:border-b-red-500": dropPosition === "after",
+			"before:border-red-500": dropPosition === "inside" || isFileDropTarget,
+		},
+		className,
 	]}
-	onkeydown={handleKeyDown}
-	oncontextmenu={handleContextMenu}
+	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
+	oncontextmenu={composeEventHandlers(oncontextmenu, handleContextMenu)}
+	ondragover={composeEventHandlers(ondragover, handleDragOver)}
+	ondrop={composeEventHandlers(ondrop, handleDrop)}
 >
 	<div
 		class="flex items-center"
 		style="padding-inline-start: calc(var(--spacing) * {item.depth * 6})"
 	>
 		<button
+			type="button"
 			aria-expanded={item.expanded}
 			tabindex={-1}
 			class={[

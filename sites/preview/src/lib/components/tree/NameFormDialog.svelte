@@ -4,47 +4,33 @@
 	import { fade, scale } from "svelte/transition";
 
 	const nameId = $props.id();
-
-	type ShowArgs = {
+	let {
+		name = $bindable(),
+		open,
+		title,
+		onSubmit,
+		onClose,
+	}: {
+		name: string;
+		open: boolean;
 		title: string;
-		initialName: string;
-		onSubmit: (name: string) => void;
-	};
-
-	let showArgs: ShowArgs | undefined = $state.raw();
-	let name = $state.raw("");
-
-	export function open(): boolean {
-		return showArgs !== undefined;
-	}
-
-	export function show(args: ShowArgs): void {
-		showArgs = args;
-		name = args.initialName;
-	}
-
-	export function close(): void {
-		showArgs = undefined;
-		name = "";
-	}
+		onSubmit: () => void;
+		onClose: () => void;
+	} = $props();
 
 	function handleOpenChange(open: boolean): void {
 		if (!open) {
-			close();
+			onClose();
 		}
 	}
 
 	const handleSubmit: EventHandler<SubmitEvent, HTMLFormElement> = (event) => {
-		if (showArgs === undefined) {
-			throw new Error("Dialog is closed");
-		}
-
+		onSubmit();
 		event.preventDefault();
-		showArgs.onSubmit(name);
 	};
 </script>
 
-<Dialog.Root bind:open={open, handleOpenChange}>
+<Dialog.Root bind:open={() => open, handleOpenChange}>
 	<Dialog.Portal>
 		<Dialog.Overlay forceMount class="fixed inset-0 z-50 bg-black/50">
 			{#snippet child({ props, open })}
@@ -62,7 +48,7 @@
 				{#if open}
 					<div {...props} transition:scale={{ duration: 200, start: 0.9 }}>
 						<Dialog.Title class="text-center text-2xl font-semibold tracking-tight">
-							{showArgs?.title}
+							{title}
 						</Dialog.Title>
 
 						<form class="mt-2" onsubmit={handleSubmit}>

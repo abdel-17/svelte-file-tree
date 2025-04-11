@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Tree } from "$lib/components/index.js";
+	import { Tree } from "$lib/components/tree/index.js";
 	import { FileNode, FileTree, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
 	import { files } from "./files.js";
 

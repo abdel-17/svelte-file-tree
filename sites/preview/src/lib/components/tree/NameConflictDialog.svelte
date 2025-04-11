@@ -3,35 +3,26 @@
 	import type { NameConflictResolution } from "svelte-file-tree";
 	import { fade, fly } from "svelte/transition";
 
-	type ShowArgs = {
+	const {
+		open,
+		title,
+		description,
+		onClose,
+	}: {
+		open: boolean;
 		title: string;
 		description: string;
-		onClose: (resolution: NameConflictResolution) => void;
-	};
-
-	let showArgs: ShowArgs | undefined = $state.raw();
-
-	export function open(): boolean {
-		return showArgs !== undefined;
-	}
-
-	export function show(args: ShowArgs): void {
-		showArgs = args;
-	}
-
-	export function close(resolution: NameConflictResolution): void {
-		showArgs?.onClose(resolution);
-		showArgs = undefined;
-	}
+		onClose: (result: NameConflictResolution) => void;
+	} = $props();
 
 	function handleOpenChange(open: boolean): void {
 		if (!open) {
-			close("cancel");
+			onClose("cancel");
 		}
 	}
 </script>
 
-<Dialog.Root bind:open={open, handleOpenChange}>
+<Dialog.Root bind:open={() => open, handleOpenChange}>
 	<Dialog.Portal>
 		<Dialog.Overlay forceMount class="fixed inset-0 z-50 bg-black/50">
 			{#snippet child({ props, open })}
@@ -49,24 +40,24 @@
 				{#if open}
 					<div {...props} transition:fly={{ y: "-100%" }}>
 						<Dialog.Title class="text-center text-lg font-semibold tracking-tight">
-							{showArgs?.title}
+							{title}
 						</Dialog.Title>
 
 						<Dialog.Description class="mt-2 text-sm text-gray-700">
-							{showArgs?.description}
+							{description}
 						</Dialog.Description>
 
 						<div class="mt-5 flex justify-end gap-3">
 							<button
 								class="flex h-10 items-center justify-center rounded-lg border border-current px-6 text-sm font-semibold hover:bg-current/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-current/12"
-								onclick={() => close("skip")}
+								onclick={() => onClose("skip")}
 							>
 								Skip
 							</button>
 
 							<button
 								class="flex h-10 items-center justify-center rounded-lg border border-current px-6 text-sm font-semibold text-red-700 hover:bg-current/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:bg-current/12"
-								onclick={() => close("cancel")}
+								onclick={() => onClose("cancel")}
 							>
 								Cancel
 							</button>
