@@ -18,7 +18,7 @@
 	import TreeItem from "./TreeItem.svelte";
 	import {
 		createContextMenuState,
-		createFileDropState,
+		createFileDropToastState,
 		createFileInputState,
 		createNameConflictDialogState,
 		createNameFormDialogState,
@@ -162,7 +162,7 @@
 		},
 	});
 
-	const fileDropState = createFileDropState({
+	const fileDropToastState = createFileDropToastState({
 		onShow: ({ target, toastId }) => {
 			return toast("Drop files to upload them to:", {
 				description: FileDropToastDescription as any,
@@ -225,32 +225,34 @@
 		focusedItemId = undefined;
 	};
 
+	function isOrInsideTreeItem(target: EventTarget | null) {
+		return target instanceof Element && target.closest("[role='treeitem']") !== null;
+	}
+
 	const handleTriggerContextMenu: EventHandler<Event, HTMLDivElement> = (event) => {
-		if (event.defaultPrevented) {
-			// A tree item handled the event.
+		if (isOrInsideTreeItem(event.target)) {
 			return;
 		}
 
-		if (event.target instanceof Element && event.target.closest("[role='treeitem']") === null) {
-			contextMenuState.setTarget({
-				type: "tree",
-				tree: () => tree,
-			});
-		}
+		contextMenuState.setTarget({
+			type: "tree",
+			tree: () => tree,
+		});
 	};
 
 	const handleTriggerDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		if (event.defaultPrevented) {
-			// A tree item handled the event.
+		if (isOrInsideTreeItem(event.target)) {
 			return;
 		}
 
-		if (event.dataTransfer?.types.includes("Files")) {
-			fileDropState.setTarget({
-				type: "tree",
-			});
-			event.preventDefault();
+		if (!event.dataTransfer?.types.includes("Files")) {
+			return;
 		}
+
+		fileDropToastState.setTarget({
+			type: "tree",
+		});
+		event.preventDefault();
 	};
 
 	const handleTriggerDragLeave: EventHandler<DragEvent, HTMLDivElement> = (event) => {
@@ -259,14 +261,11 @@
 			return;
 		}
 
-		fileDropState.dismiss();
+		fileDropToastState.dismiss();
 	};
 
 	const handleTriggerDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		fileDropState.dismiss();
-
-		if (event.defaultPrevented) {
-			// A tree item handled the event.
+		if (isOrInsideTreeItem(event.target)) {
 			return;
 		}
 
@@ -275,6 +274,7 @@
 			return;
 		}
 
+		fileDropToastState.dismiss();
 		handleUploadFiles({
 			target: tree,
 			files,
@@ -292,9 +292,9 @@
 			contextMenuState.close();
 		}
 
-		const fileDropTarget = fileDropState.target();
-		if (fileDropTarget?.type === "item" && fileDropTarget.item() === target) {
-			fileDropState.dismiss();
+		const fileDropToastTarget = fileDropToastState.target();
+		if (fileDropToastTarget?.type === "item" && fileDropToastTarget.item() === target) {
+			fileDropToastState.dismiss();
 		}
 	}
 </script>
@@ -344,8 +344,9 @@
 				{#snippet item({ item })}
 					<TreeItem
 						{item}
-						fileDropTarget={fileDropState.target()}
-						onFileDropTargetChange={fileDropState.setTarget}
+						fileDropToastTarget={fileDropToastState.target()}
+						onFileDropToastTargetChange={fileDropToastState.setTarget}
+						onDismissFileDropToast={fileDropToastState.dismiss}
 						onExpand={handleExpand}
 						onCollapse={handleCollapse}
 						onRename={handleRename}

@@ -176,7 +176,7 @@ export function createContextMenuState({
 	};
 }
 
-export type FileDropTarget =
+export type FileDropToastTarget =
 	| {
 			type: "tree";
 	  }
@@ -185,27 +185,27 @@ export type FileDropTarget =
 			item: () => TreeItemState;
 	  };
 
-export type FileDropShowArgs = {
-	target: FileDropTarget;
+export type FileDropToastShowArgs = {
+	target: FileDropToastTarget;
 	toastId: string | number | undefined;
 };
 
-export type FileDropDismissArgs = {
+export type FileDropToastDismissArgs = {
 	toastId: string | number;
 };
 
-export type FileDropStateProps = {
-	onShow: (args: FileDropShowArgs) => string | number;
-	onDismiss: (args: FileDropDismissArgs) => void;
+export type FileDropToastStateProps = {
+	onShow: (args: FileDropToastShowArgs) => string | number;
+	onDismiss: (args: FileDropToastDismissArgs) => void;
 };
 
-export function createFileDropState({ onShow, onDismiss }: FileDropStateProps) {
-	let target: FileDropTarget | undefined = $state.raw();
+export function createFileDropToastState({ onShow, onDismiss }: FileDropToastStateProps) {
+	let target: FileDropToastTarget | undefined = $state.raw();
 	let toastId: string | number | undefined;
 
 	return {
 		target: () => target,
-		setTarget: (value: FileDropTarget) => {
+		setTarget: (value: FileDropToastTarget) => {
 			target = value;
 			toastId = onShow({ target, toastId });
 		},
