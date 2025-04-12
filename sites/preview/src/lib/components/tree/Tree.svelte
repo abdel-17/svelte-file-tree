@@ -164,14 +164,14 @@
 
 	const fileDropState = createFileDropState({
 		onShow: ({ target, toastId }) => {
-			return toast("Drop files to upload them to", {
+			return toast("Drop files to upload them to:", {
 				description: FileDropToastDescription as any,
 				componentProps: {
 					description: target.type === "tree" ? "/" : target.item().node.name,
 				},
 				classes: {
 					toast: "pointer-events-none !bg-blue-100",
-					title: "!font-normal !text-sm",
+					title: "!text-sm !font-semibold",
 				},
 				id: toastId,
 				duration: Number.POSITIVE_INFINITY,
