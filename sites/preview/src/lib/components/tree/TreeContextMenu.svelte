@@ -2,7 +2,7 @@
 	import { ContextMenu } from "bits-ui";
 	import type { Snippet } from "svelte";
 	import TreeContextMenuItem from "./TreeContextMenuItem.svelte";
-	import type { TreeContextMenuTarget } from "./state.svelte.js";
+	import type { ContextMenuTarget } from "./state.svelte.js";
 
 	const {
 		target,
@@ -16,7 +16,7 @@
 		onUploadFiles,
 		onClose,
 	}: {
-		target: TreeContextMenuTarget | undefined;
+		target: ContextMenuTarget | undefined;
 		children: Snippet;
 		onRename: () => void;
 		onCopy: () => void;
