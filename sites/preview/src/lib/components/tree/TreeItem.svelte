@@ -3,23 +3,25 @@
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { TreeItem, type TreeItemProps } from "svelte-file-tree";
 	import type { EventHandler } from "svelte/elements";
-	import type { TreeContextMenuTarget } from "./state.svelte.js";
-	import type { FileDropState, TreeItemState, UploadFilesArgs } from "./types.js";
+	import type { ContextMenuTarget, FileDropTarget } from "./state.svelte.js";
+	import type { TreeItemState, UploadFilesArgs } from "./types.js";
 
 	interface Props extends Omit<TreeItemProps, "children"> {
 		item: TreeItemState;
-		fileDropState: FileDropState | undefined;
+		fileDropTarget: FileDropTarget | undefined;
+		onFileDropTargetChange: (value: FileDropTarget) => void;
 		onExpand: (target: TreeItemState) => void;
 		onCollapse: (target: TreeItemState) => void;
 		onRename: (target: TreeItemState) => void;
-		onContextMenuTargetChange: (value: TreeContextMenuTarget) => void;
+		onContextMenuTargetChange: (value: ContextMenuTarget) => void;
 		onUploadFiles: (args: UploadFilesArgs) => void;
 		onCleanup: (target: TreeItemState) => void;
 	}
 
 	let {
 		item,
-		fileDropState = $bindable(),
+		fileDropTarget,
+		onFileDropTargetChange,
 		onExpand,
 		onCollapse,
 		onRename,
@@ -36,7 +38,7 @@
 	}: Props = $props();
 
 	const isFileDropTarget = $derived(
-		fileDropState?.type === "item" && fileDropState.item() === item,
+		fileDropTarget?.type === "item" && fileDropTarget.item() === item,
 	);
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
@@ -68,10 +70,10 @@
 		}
 
 		if (event.dataTransfer?.types.includes("Files")) {
-			fileDropState = {
+			onFileDropTargetChange({
 				type: "item",
 				item: () => item,
-			};
+			});
 			event.preventDefault();
 		}
 	};
