@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { FileNode, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
+	import { FileNode, FileTree, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
 	import { composeEventHandlers, formatSize } from "$lib/utils.js";
 	import { ContextMenu } from "bits-ui";
 	import {
@@ -115,7 +115,7 @@
 		});
 	}
 
-	async function handleUploadFiles({ target, files }: UploadFilesArgs) {
+	function handleUploadFiles({ target, files }: UploadFilesArgs) {
 		for (const child of target.children) {
 			for (const file of files) {
 				if (child.name === file.name) {
@@ -125,10 +125,21 @@
 			}
 		}
 
-		const didUpload = await onUploadFiles({ target, files });
-		if (didUpload) {
-			// TODO: show toast after upload is done
-		}
+		const uploadPromise = Promise.resolve(onUploadFiles({ target, files }));
+		const name = target instanceof FileTree ? "/" : target.name;
+		toast.promise(uploadPromise, {
+			loading: `Uploading ${files.length} file(s) to ${name}`,
+			success: (didUpload) => {
+				if (!didUpload) {
+					return "Failed to upload files";
+				}
+
+				return `Uploaded ${files.length} file(s) to ${name}`;
+			},
+			error: (error) => {
+				throw error;
+			},
+		});
 	}
 
 	const contextMenuState = createContextMenuState({
