@@ -1,5 +1,3 @@
-import type { EventHandler } from "svelte/elements";
-
 const sizeFormatter = new Intl.NumberFormat(undefined, {
 	style: "decimal",
 	maximumFractionDigits: 2,

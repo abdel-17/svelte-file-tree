@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { FileNode, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
+	import { FileNode, FileTree, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
 	import { composeEventHandlers, formatSize } from "$lib/utils.js";
-	import { FolderIcon } from "@lucide/svelte";
 	import { ContextMenu } from "bits-ui";
 	import {
 		Tree,
@@ -12,18 +11,19 @@
 	import { toast } from "svelte-sonner";
 	import type { EventHandler } from "svelte/elements";
 	import { SvelteSet } from "svelte/reactivity";
-	import { fly } from "svelte/transition";
+	import FileDropToastDescription from "./FileDropToastDescription.svelte";
 	import NameConflictDialog from "./NameConflictDialog.svelte";
 	import NameFormDialog from "./NameFormDialog.svelte";
 	import TreeContextMenu from "./TreeContextMenu.svelte";
 	import TreeItem from "./TreeItem.svelte";
 	import {
 		createContextMenuState,
+		createFileDropToastState,
 		createFileInputState,
 		createNameConflictDialogState,
 		createNameFormDialogState,
 	} from "./state.svelte.js";
-	import type { FileDropState, TreeItemState, TreeProps, UploadFilesArgs } from "./types.js";
+	import type { TreeItemState, TreeProps, UploadFilesArgs } from "./types.js";
 
 	let {
 		tree,
@@ -67,14 +67,6 @@
 	let fileInput: HTMLInputElement | null = $state.raw(null);
 
 	let focusedItemId: string | undefined = $state.raw();
-	let fileDropState: FileDropState | undefined = $state.raw();
-
-	const nameConflictDialogState = createNameConflictDialogState();
-	const nameFormDialogState = createNameFormDialogState();
-	const fileInputState = createFileInputState({
-		ref: () => fileInput,
-	});
-
 	const pasteDirection = $derived.by(() => {
 		if (pasteOperation === undefined || focusedItemId === undefined) {
 			return;
@@ -85,6 +77,12 @@
 		}
 
 		return "After";
+	});
+
+	const nameConflictDialogState = createNameConflictDialogState();
+	const nameFormDialogState = createNameFormDialogState();
+	const fileInputState = createFileInputState({
+		ref: () => fileInput,
 	});
 
 	function showAlreadyExistsToast(name: string) {
@@ -117,7 +115,7 @@
 		});
 	}
 
-	async function handleUploadFiles({ target, files }: UploadFilesArgs) {
+	function handleUploadFiles({ target, files }: UploadFilesArgs) {
 		for (const child of target.children) {
 			for (const file of files) {
 				if (child.name === file.name) {
@@ -127,10 +125,21 @@
 			}
 		}
 
-		const didUpload = await onUploadFiles({ target, files });
-		if (didUpload) {
-			// TODO: show toast after upload is done
-		}
+		const uploadPromise = Promise.resolve(onUploadFiles({ target, files }));
+		const name = target instanceof FileTree ? "/" : target.name;
+		toast.promise(uploadPromise, {
+			loading: `Uploading ${files.length} file(s) to ${name}`,
+			success: (didUpload) => {
+				if (!didUpload) {
+					return "Failed to upload files";
+				}
+
+				return `Uploaded ${files.length} file(s) to ${name}`;
+			},
+			error: (error) => {
+				throw error;
+			},
+		});
 	}
 
 	const contextMenuState = createContextMenuState({
@@ -164,19 +173,23 @@
 		},
 	});
 
-	const handleTriggerContextMenu: EventHandler<Event, HTMLDivElement> = (event) => {
-		if (event.defaultPrevented) {
-			// A tree item handled the event.
-			return;
-		}
-
-		if (event.target instanceof Element && event.target.closest("[role='treeitem']") === null) {
-			contextMenuState.setTarget({
-				type: "tree",
-				tree: () => tree,
+	const fileDropToastState = createFileDropToastState({
+		onShow: ({ target, toastId }) => {
+			return toast("Drop files to upload them to:", {
+				description: FileDropToastDescription as any,
+				componentProps: {
+					description: target.type === "tree" ? "/" : target.item().node.name,
+				},
+				classes: {
+					toast: "pointer-events-none !bg-blue-100",
+					title: "!text-sm !font-semibold",
+				},
+				id: toastId,
+				duration: Number.POSITIVE_INFINITY,
 			});
-		}
-	};
+		},
+		onDismiss: ({ toastId }) => toast.dismiss(toastId),
+	});
 
 	function handleResolveNameConflict({ operation, name }: ResolveNameConflictArgs) {
 		return new Promise<NameConflictResolution>((resolve) => {
@@ -223,18 +236,34 @@
 		focusedItemId = undefined;
 	};
 
-	const handleTriggerDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		if (event.defaultPrevented) {
-			// A tree item handled the event.
+	function isOrInsideTreeItem(target: EventTarget | null) {
+		return target instanceof Element && target.closest("[role='treeitem']") !== null;
+	}
+
+	const handleTriggerContextMenu: EventHandler<Event, HTMLDivElement> = (event) => {
+		if (isOrInsideTreeItem(event.target)) {
 			return;
 		}
 
-		if (event.dataTransfer?.types.includes("Files")) {
-			fileDropState = {
-				type: "tree",
-			};
-			event.preventDefault();
+		contextMenuState.setTarget({
+			type: "tree",
+			tree: () => tree,
+		});
+	};
+
+	const handleTriggerDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		if (isOrInsideTreeItem(event.target)) {
+			return;
 		}
+
+		if (!event.dataTransfer?.types.includes("Files")) {
+			return;
+		}
+
+		fileDropToastState.setTarget({
+			type: "tree",
+		});
+		event.preventDefault();
 	};
 
 	const handleTriggerDragLeave: EventHandler<DragEvent, HTMLDivElement> = (event) => {
@@ -243,14 +272,11 @@
 			return;
 		}
 
-		fileDropState = undefined;
+		fileDropToastState.dismiss();
 	};
 
 	const handleTriggerDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		fileDropState = undefined;
-
-		if (event.defaultPrevented) {
-			// A tree item handled the event.
+		if (isOrInsideTreeItem(event.target)) {
 			return;
 		}
 
@@ -259,6 +285,7 @@
 			return;
 		}
 
+		fileDropToastState.dismiss();
 		handleUploadFiles({
 			target: tree,
 			files,
@@ -271,13 +298,14 @@
 			focusedItemId = undefined;
 		}
 
-		if (fileDropState?.type === "item" && fileDropState.item() === target) {
-			fileDropState = undefined;
-		}
-
 		const menuTarget = contextMenuState.target();
 		if (menuTarget?.type === "item" && menuTarget.item() === target) {
 			contextMenuState.close();
+		}
+
+		const fileDropToastTarget = fileDropToastState.target();
+		if (fileDropToastTarget?.type === "item" && fileDropToastTarget.item() === target) {
+			fileDropToastState.dismiss();
 		}
 	}
 </script>
@@ -327,7 +355,9 @@
 				{#snippet item({ item })}
 					<TreeItem
 						{item}
-						bind:fileDropState
+						fileDropToastTarget={fileDropToastState.target()}
+						onFileDropToastTargetChange={fileDropToastState.setTarget}
+						onDismissFileDropToast={fileDropToastState.dismiss}
 						onExpand={handleExpand}
 						onCollapse={handleCollapse}
 						onRename={handleRename}
@@ -338,25 +368,6 @@
 					/>
 				{/snippet}
 			</Tree>
-
-			{#if fileDropState !== undefined}
-				<div
-					class="absolute start-4 bottom-4 z-50 rounded-lg bg-blue-200 px-6 py-3 shadow"
-					transition:fly={{ x: "-100%" }}
-				>
-					<div>Drop files to upload them to</div>
-					<div class="mt-1 flex items-center justify-center gap-2">
-						<FolderIcon role="presentation" size={16} strokeWidth={3} />
-						<span class="font-semibold">
-							{#if fileDropState.type === "tree"}
-								/
-							{:else}
-								{fileDropState.item().node.name}
-							{/if}
-						</span>
-					</div>
-				</div>
-			{/if}
 		</ContextMenu.Trigger>
 	</TreeContextMenu>
 

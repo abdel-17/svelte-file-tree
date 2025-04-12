@@ -1,7 +1,13 @@
 import { FileTree, type FolderNode } from "$lib/tree.svelte";
 import type { NameConflictResolution } from "svelte-file-tree";
-import type { TreeItemState } from "./types.js";
 import type { EventHandler } from "svelte/elements";
+import type { TreeItemState } from "./types.js";
+
+export type NameConflictDialogShowArgs = {
+	title: string;
+	description: string;
+	onClose: (result: NameConflictResolution) => void;
+};
 
 export function createNameConflictDialogState() {
 	let open = $state.raw(false);
@@ -9,43 +15,37 @@ export function createNameConflictDialogState() {
 	let description = $state.raw("");
 	let onClose: ((result: NameConflictResolution) => void) | undefined;
 
-	type ShowArgs = {
-		title: string;
-		description: string;
-		onClose: (result: NameConflictResolution) => void;
-	};
-
 	return {
 		open: () => open,
 		title: () => title,
 		description: () => description,
-		show: (args: ShowArgs) => {
+		show: (args: NameConflictDialogShowArgs) => {
 			open = true;
 			title = args.title;
 			description = args.description;
 			onClose = args.onClose;
 		},
 		close: (result: NameConflictResolution) => {
+			onClose!(result);
 			open = false;
 			title = "";
 			description = "";
-			onClose!(result);
 			onClose = undefined;
 		},
 	};
 }
+
+export type NameFormDialogShowArgs = {
+	title: string;
+	onSubmit: (name: string) => void;
+	name?: string;
+};
 
 export function createNameFormDialogState() {
 	let name = $state.raw("");
 	let open = $state.raw(false);
 	let title = $state.raw("");
 	let onSubmit: ((name: string) => void) | undefined;
-
-	type ShowArgs = {
-		title: string;
-		onSubmit: (name: string) => void;
-		name?: string;
-	};
 
 	return {
 		name: () => name,
@@ -54,7 +54,7 @@ export function createNameFormDialogState() {
 		},
 		open: () => open,
 		title: () => title,
-		show: (args: ShowArgs) => {
+		show: (args: NameFormDialogShowArgs) => {
 			name = args.name ?? "";
 			open = true;
 			title = args.title;
@@ -70,7 +70,38 @@ export function createNameFormDialogState() {
 	};
 }
 
-export type TreeContextMenuTarget =
+export type FileInputShowPickerArgs = {
+	onPick: (files: FileList) => void;
+};
+
+export function createFileInputState({ ref }: { ref: () => HTMLInputElement | null }) {
+	let onPick: ((files: FileList) => void) | undefined;
+
+	const onchange: EventHandler<Event, HTMLInputElement> = (event) => {
+		const { files } = event.currentTarget;
+		if (files !== null && files.length !== 0) {
+			onPick!(files);
+		}
+
+		onPick = undefined;
+		event.currentTarget.value = "";
+	};
+
+	const oncancel: EventHandler<Event, HTMLInputElement> = () => {
+		onPick = undefined;
+	};
+
+	return {
+		showPicker: (args: FileInputShowPickerArgs) => {
+			onPick = args.onPick;
+			ref()!.click();
+		},
+		onchange,
+		oncancel,
+	};
+}
+
+export type ContextMenuTarget =
 	| {
 			type: "tree";
 			tree: () => FileTree;
@@ -80,6 +111,16 @@ export type TreeContextMenuTarget =
 			item: () => TreeItemState;
 	  };
 
+export type ContextMenuStateProps = {
+	onRename: (target: TreeItemState) => void;
+	onCopy: (target: TreeItemState) => void;
+	onCut: (target: TreeItemState) => void;
+	onPaste: (target: TreeItemState) => void;
+	onRemove: (target: TreeItemState) => void;
+	onCreateFolder: (target: FolderNode | FileTree) => void;
+	onUploadFiles: (target: FolderNode | FileTree) => void;
+};
+
 export function createContextMenuState({
 	onRename,
 	onCopy,
@@ -88,16 +129,8 @@ export function createContextMenuState({
 	onRemove,
 	onUploadFiles,
 	onCreateFolder,
-}: {
-	onRename: (target: TreeItemState) => void;
-	onCopy: (target: TreeItemState) => void;
-	onCut: (target: TreeItemState) => void;
-	onPaste: (target: TreeItemState) => void;
-	onRemove: (target: TreeItemState) => void;
-	onCreateFolder: (target: FolderNode | FileTree) => void;
-	onUploadFiles: (target: FolderNode | FileTree) => void;
-}) {
-	let target: TreeContextMenuTarget | undefined = $state.raw();
+}: ContextMenuStateProps) {
+	let target: ContextMenuTarget | undefined = $state.raw();
 
 	function item() {
 		switch (target!.type) {
@@ -127,7 +160,7 @@ export function createContextMenuState({
 
 	return {
 		target: () => target,
-		setTarget: (value: TreeContextMenuTarget) => {
+		setTarget: (value: ContextMenuTarget) => {
 			target = value;
 		},
 		rename: () => onRename(item()),
@@ -143,33 +176,47 @@ export function createContextMenuState({
 	};
 }
 
-export function createFileInputState({ ref }: { ref: () => HTMLInputElement | null }) {
-	let onPick: ((files: FileList) => void) | undefined;
+export type FileDropToastTarget =
+	| {
+			type: "tree";
+	  }
+	| {
+			type: "item";
+			item: () => TreeItemState;
+	  };
 
-	type ShowPickerArgs = {
-		onPick: (files: FileList) => void;
-	};
+export type FileDropToastShowArgs = {
+	target: FileDropToastTarget;
+	toastId: string | number | undefined;
+};
 
-	const onchange: EventHandler<Event, HTMLInputElement> = (event) => {
-		const { files } = event.currentTarget;
-		if (files !== null && files.length !== 0) {
-			onPick!(files);
-		}
+export type FileDropToastDismissArgs = {
+	toastId: string | number;
+};
 
-		onPick = undefined;
-		event.currentTarget.value = "";
-	};
+export type FileDropToastStateProps = {
+	onShow: (args: FileDropToastShowArgs) => string | number;
+	onDismiss: (args: FileDropToastDismissArgs) => void;
+};
 
-	const oncancel: EventHandler<Event, HTMLInputElement> = () => {
-		onPick = undefined;
-	};
+export function createFileDropToastState({ onShow, onDismiss }: FileDropToastStateProps) {
+	let target: FileDropToastTarget | undefined = $state.raw();
+	let toastId: string | number | undefined;
 
 	return {
-		showPicker: (args: ShowPickerArgs) => {
-			onPick = args.onPick;
-			ref()!.click();
+		target: () => target,
+		setTarget: (value: FileDropToastTarget) => {
+			target = value;
+			toastId = onShow({ target, toastId });
 		},
-		onchange,
-		oncancel,
+		dismiss: () => {
+			if (toastId === undefined) {
+				return;
+			}
+
+			onDismiss({ toastId });
+			target = undefined;
+			toastId = undefined;
+		},
 	};
 }

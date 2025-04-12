@@ -3,23 +3,27 @@
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { TreeItem, type TreeItemProps } from "svelte-file-tree";
 	import type { EventHandler } from "svelte/elements";
-	import type { TreeContextMenuTarget } from "./state.svelte.js";
-	import type { FileDropState, TreeItemState, UploadFilesArgs } from "./types.js";
+	import type { ContextMenuTarget, FileDropToastTarget } from "./state.svelte.js";
+	import type { TreeItemState, UploadFilesArgs } from "./types.js";
 
 	interface Props extends Omit<TreeItemProps, "children"> {
 		item: TreeItemState;
-		fileDropState: FileDropState | undefined;
+		fileDropToastTarget: FileDropToastTarget | undefined;
+		onFileDropToastTargetChange: (value: FileDropToastTarget) => void;
+		onDismissFileDropToast: () => void;
 		onExpand: (target: TreeItemState) => void;
 		onCollapse: (target: TreeItemState) => void;
 		onRename: (target: TreeItemState) => void;
-		onContextMenuTargetChange: (value: TreeContextMenuTarget) => void;
+		onContextMenuTargetChange: (value: ContextMenuTarget) => void;
 		onUploadFiles: (args: UploadFilesArgs) => void;
 		onCleanup: (target: TreeItemState) => void;
 	}
 
 	let {
 		item,
-		fileDropState = $bindable(),
+		fileDropToastTarget,
+		onFileDropToastTargetChange,
+		onDismissFileDropToast,
 		onExpand,
 		onCollapse,
 		onRename,
@@ -35,8 +39,8 @@
 		...rest
 	}: Props = $props();
 
-	const isFileDropTarget = $derived(
-		fileDropState?.type === "item" && fileDropState.item() === item,
+	const isFileDropToastTarget = $derived(
+		fileDropToastTarget?.type === "item" && fileDropToastTarget.item() === item,
 	);
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
@@ -63,26 +67,33 @@
 	};
 
 	const handleDragOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		if (item.disabled || item.node.type === "file") {
+		if (!event.dataTransfer?.types.includes("Files")) {
 			return;
 		}
 
-		if (event.dataTransfer?.types.includes("Files")) {
-			fileDropState = {
-				type: "item",
-				item: () => item,
-			};
-			event.preventDefault();
+		event.preventDefault();
+
+		if (item.disabled || item.node.type === "file") {
+			onDismissFileDropToast();
+			return;
 		}
+
+		onFileDropToastTargetChange({
+			type: "item",
+			item: () => item,
+		});
 	};
 
 	const handleDrop: EventHandler<DragEvent, HTMLDivElement> = (event) => {
-		if (item.disabled || item.node.type === "file") {
+		const files = event.dataTransfer?.files;
+		if (files === undefined || files.length === 0) {
 			return;
 		}
 
-		const files = event.dataTransfer?.files;
-		if (files === undefined || files.length === 0) {
+		onDismissFileDropToast();
+		event.preventDefault();
+
+		if (item.disabled || item.node.type === "file") {
 			return;
 		}
 
@@ -90,7 +101,6 @@
 			target: item.node,
 			files,
 		});
-		event.preventDefault();
 	};
 
 	const handleToggleClick: EventHandler<MouseEvent, HTMLButtonElement> = (event) => {
@@ -123,10 +133,10 @@
 		{
 			"opacity-50": item.dragged,
 			"before:pointer-events-none before:absolute before:-inset-0 before:rounded-[inherit] before:border-2":
-				dropPosition !== undefined || isFileDropTarget,
+				dropPosition !== undefined || isFileDropToastTarget,
 			"before:border-neutral-300 before:border-t-red-500": dropPosition === "before",
 			"before:border-neutral-300 before:border-b-red-500": dropPosition === "after",
-			"before:border-red-500": dropPosition === "inside" || isFileDropTarget,
+			"before:border-red-500": dropPosition === "inside" || isFileDropToastTarget,
 		},
 		className,
 	]}

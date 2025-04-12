@@ -28,12 +28,3 @@ export interface TreeProps
 	onCreateFolder?: (args: CreateFolderArgs) => boolean | Promise<boolean>;
 	onUploadFiles?: (args: UploadFilesArgs) => boolean | Promise<boolean>;
 }
-
-export type FileDropState =
-	| {
-			type: "tree";
-	  }
-	| {
-			type: "item";
-			item: () => TreeItemState;
-	  };
