@@ -1,4 +1,4 @@
-import type { FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte";
+import type { FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
 import * as tree from "svelte-file-tree";
 
 export type TreeItemState = tree.TreeItemState<FileTreeNode>;
