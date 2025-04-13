@@ -1,4 +1,4 @@
-import { FileTree, type FolderNode } from "$lib/tree.svelte.js";
+import type { FileTree, FolderNode } from "$lib/tree.svelte.js";
 import type { NameConflictResolution } from "svelte-file-tree";
 import type { EventHandler } from "svelte/elements";
 import type { TreeItemState } from "./types.js";
