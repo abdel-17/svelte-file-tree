@@ -8,7 +8,7 @@ function getTotalSize(nodes: Array<FileTreeNode>) {
 	return size;
 }
 
-export class FileTree extends tree.FileTree<FileNode | FolderNode> {
+export class FileTree extends tree.FileTree<FileTreeNode> {
 	readonly size = $derived(getTotalSize(this.children));
 }
 
@@ -236,7 +236,7 @@ export class FileNode extends tree.FileNode {
 
 export type FolderNodeProps = tree.FolderNodeProps;
 
-export class FolderNode extends tree.FolderNode<FileNode | FolderNode> {
+export class FolderNode extends tree.FolderNode<FileTreeNode> {
 	readonly size = $derived(getTotalSize(this.children));
 
 	readonly kind = "Folder";
