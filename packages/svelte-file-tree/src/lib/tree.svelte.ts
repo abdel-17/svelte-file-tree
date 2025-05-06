@@ -1,7 +1,11 @@
 function getTotalCount(nodes: Array<FileTreeNode>): number {
 	let count = 0;
 	for (const node of nodes) {
-		count += node.count;
+		count++;
+
+		if (node.type === "folder") {
+			count += node.count;
+		}
 	}
 	return count;
 }
@@ -31,8 +35,6 @@ export class FileNode {
 	}
 
 	readonly type = "file";
-
-	readonly count = 1;
 }
 
 export type FolderNodeProps<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
@@ -54,7 +56,7 @@ export class FolderNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNod
 
 	readonly type = "folder";
 
-	readonly count = $derived(1 + getTotalCount(this.children));
+	readonly count = $derived(getTotalCount(this.children));
 }
 
 export type FileTreeNode = FileNode | FolderNode<FileTreeNode>;
