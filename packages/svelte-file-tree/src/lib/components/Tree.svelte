@@ -1,5 +1,12 @@
-<script lang="ts" generics="TNode extends FileNode | FolderNode<TNode> = FileTreeNode">
-	import { FileNode, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
+<script
+	lang="ts"
+	generics="
+		TFile extends FileNode = FileNode,
+		TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+		TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>,
+	"
+>
+	import { FileNode, FileTree, FolderNode, type DefaultTFolder } from "$lib/tree.svelte.js";
 	import { DEV } from "esm-env";
 	import { SvelteSet } from "svelte/reactivity";
 	import TreeItemProvider from "./TreeItemProvider.svelte";
@@ -20,7 +27,7 @@
 		isItemDisabled = false,
 		id = defaultId,
 		ref = $bindable(null),
-		copyNode = function copyNode(node): TNode {
+		copyNode = function copyNode(node): TFile | TFolder {
 			if (DEV && node.constructor !== FileNode && node.constructor !== FolderNode) {
 				throw new Error(
 					"Cannot copy an object that extends from `FileNode` or `FolderNode`. Pass a `copyNode` prop to specify how the object should be copied.",
@@ -32,14 +39,14 @@
 					return new FileNode({
 						id: crypto.randomUUID(),
 						name: node.name,
-					}) as TNode;
+					}) as TFile;
 				}
 				case "folder": {
 					return new FolderNode({
 						id: crypto.randomUUID(),
 						name: node.name,
 						children: node.children.map(copyNode),
-					}) as TNode;
+					}) as TFolder;
 				}
 			}
 		},
@@ -62,9 +69,9 @@
 		onResolveNameConflict = () => "cancel",
 		onCircularReferenceError,
 		...rest
-	}: TreeProps<TNode> = $props();
+	}: TreeProps<TFile, TFolder, TTree> = $props();
 
-	const treeState = createTreeState({
+	const treeState = createTreeState<TFile, TFolder, TTree>({
 		tree: () => tree,
 		selectedIds: () => selectedIds,
 		expandedIds: () => expandedIds,

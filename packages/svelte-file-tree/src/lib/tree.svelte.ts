@@ -1,4 +1,4 @@
-function getTotalCount(nodes: Array<FileTreeNode>): number {
+function getTotalCount(nodes: Array<FileNode | FolderNode>) {
 	let count = 0;
 	for (const node of nodes) {
 		count++;
@@ -10,10 +10,13 @@ function getTotalCount(nodes: Array<FileTreeNode>): number {
 	return count;
 }
 
-export class FileTree<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> {
-	children: Array<TNode> = $state([]);
+export class FileTree<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+> {
+	children: Array<TFile | TFolder> = $state([]);
 
-	constructor(children: Array<TNode>) {
+	constructor(children: Array<TFile | TFolder>) {
 		this.children = children;
 	}
 
@@ -27,7 +30,7 @@ export type FileNodeProps = {
 
 export class FileNode {
 	readonly id: string;
-	name: string = $state.raw("");
+	name = $state.raw("");
 
 	constructor({ id, name }: FileNodeProps) {
 		this.id = id;
@@ -37,18 +40,24 @@ export class FileNode {
 	readonly type = "file";
 }
 
-export type FolderNodeProps<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
+export type FolderNodeProps<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+> = {
 	id: string;
 	name: string;
-	children: Array<TNode>;
+	children: Array<TFile | TFolder>;
 };
 
-export class FolderNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> {
+export class FolderNode<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+> {
 	readonly id: string;
-	name: string = $state.raw("");
-	children: Array<TNode> = $state([]);
+	name = $state.raw("");
+	children: Array<TFile | TFolder> = $state([]);
 
-	constructor({ id, name, children }: FolderNodeProps<TNode>) {
+	constructor({ id, name, children }: FolderNodeProps<TFile, TFolder>) {
 		this.id = id;
 		this.name = name;
 		this.children = children;
@@ -59,4 +68,4 @@ export class FolderNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNod
 	readonly count = $derived(getTotalCount(this.children));
 }
 
-export type FileTreeNode = FileNode | FolderNode<FileTreeNode>;
+export type DefaultTFolder<TFile extends FileNode> = FolderNode<TFile, FolderNode<TFile>>;

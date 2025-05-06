@@ -1,5 +1,5 @@
 import type { MaybePromise } from "$lib/internal/types.js";
-import { FileNode, FolderNode, type FileTree, type FileTreeNode } from "$lib/tree.svelte.js";
+import type { FileNode, FolderNode, DefaultTFolder, FileTree } from "$lib/tree.svelte.js";
 import { DEV } from "esm-env";
 import type { SvelteSet } from "svelte/reactivity";
 import type {
@@ -8,65 +8,47 @@ import type {
 	DropPosition,
 	MoveItemsArgs,
 	NameConflictResolution,
-	ParentFileTreeNode,
 	PasteOperation,
 	RemoveItemsArgs,
 	ResolveNameConflictArgs,
 	TreeItemState,
 } from "./types.js";
 
-export type TreeStateProps<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
-	tree: () => FileTree<TNode>;
-	selectedIds: () => SvelteSet<string>;
-	expandedIds: () => SvelteSet<string>;
-	clipboardIds: () => SvelteSet<string>;
-	pasteOperation: () => PasteOperation | undefined;
-	setPasteOperation: (value: PasteOperation | undefined) => void;
-	isItemDisabled: (node: TNode) => boolean;
-	id: () => string;
-	copyNode: (node: TNode) => TNode;
-	onMoveItems: (args: MoveItemsArgs<TNode>) => MaybePromise<boolean>;
-	onCopyPasteItems: (args: CopyPasteItemsArgs<TNode>) => MaybePromise<boolean>;
-	onRemoveItems: (args: RemoveItemsArgs<TNode>) => MaybePromise<boolean>;
-	onResolveNameConflict: (args: ResolveNameConflictArgs) => MaybePromise<NameConflictResolution>;
-	onCircularReferenceError: (args: CircularReferenceErrorArgs<TNode>) => void;
-};
-
-export type TreeItemPosition<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
+export type TreeItemPosition<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+	TNode extends TFile | TFolder = TFile | TFolder,
+> = {
 	node: TNode;
 	index: number;
-	parent?: TreeItemPosition<ParentFileTreeNode<TNode>>;
+	parent?: TreeItemPosition<TFile, TFolder, TFolder>;
 };
 
-class TreeItemStateImpl<TNode extends FileNode | FolderNode<TNode> = FileTreeNode>
-	implements TreeItemState<TNode>
+class TreeItemStateImpl<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+	TNode extends TFile | TFolder = TFile | TFolder,
+> implements TreeItemState<TFile, TFolder, TNode>
 {
-	readonly depth: number;
-
 	constructor(
 		readonly node: TNode,
 		readonly index: number,
-		readonly parent: TreeItemState<ParentFileTreeNode<TNode>> | undefined,
+		readonly parent: TreeItemState<TFile, TFolder, TFolder> | undefined,
+		readonly depth: number,
 		readonly selectedIds: () => SvelteSet<string>,
 		readonly expandedIds: () => SvelteSet<string>,
 		readonly clipboardIds: () => SvelteSet<string>,
-		readonly isItemDisabled: (node: TNode) => boolean,
+		readonly isItemDisabled: (node: TFile | TFolder) => boolean,
 		readonly draggedId: () => string | undefined,
-	) {
-		if (parent === undefined) {
-			this.depth = 0;
-		} else {
-			this.depth = parent.depth + 1;
-		}
-	}
+	) {}
 
-	readonly selected: boolean = $derived.by(() => this.selectedIds().has(this.node.id));
+	readonly selected = $derived.by(() => this.selectedIds().has(this.node.id));
 
-	readonly expanded: boolean = $derived.by(() => this.expandedIds().has(this.node.id));
+	readonly expanded = $derived.by(() => this.expandedIds().has(this.node.id));
 
-	readonly inClipboard: boolean = $derived.by(() => this.clipboardIds().has(this.node.id));
+	readonly inClipboard = $derived.by(() => this.clipboardIds().has(this.node.id));
 
-	readonly disabled: boolean = $derived.by(() => {
+	readonly disabled = $derived.by(() => {
 		if (this.parent?.disabled) {
 			return true;
 		}
@@ -74,7 +56,7 @@ class TreeItemStateImpl<TNode extends FileNode | FolderNode<TNode> = FileTreeNod
 		return this.isItemDisabled(this.node);
 	});
 
-	readonly visible: boolean = $derived.by(() => {
+	readonly visible = $derived.by(() => {
 		if (this.parent === undefined) {
 			return true;
 		}
@@ -82,7 +64,7 @@ class TreeItemStateImpl<TNode extends FileNode | FolderNode<TNode> = FileTreeNod
 		return this.parent.expanded && this.parent.visible;
 	});
 
-	readonly dragged: boolean = $derived.by(() => {
+	readonly dragged = $derived.by(() => {
 		if (this.parent?.dragged) {
 			return true;
 		}
@@ -98,7 +80,7 @@ class TreeItemStateImpl<TNode extends FileNode | FolderNode<TNode> = FileTreeNod
 function getNearestAncestor<TParent extends { parent?: TParent }>(
 	item: { parent?: TParent },
 	predicate: (ancestor: TParent) => boolean,
-): TParent | undefined {
+) {
 	for (let ancestor = item.parent; ancestor !== undefined; ancestor = ancestor.parent) {
 		if (predicate(ancestor)) {
 			return ancestor;
@@ -106,15 +88,40 @@ function getNearestAncestor<TParent extends { parent?: TParent }>(
 	}
 }
 
-function isItemSelected(item: TreeItemState): boolean {
+function isItemSelected(item: TreeItemState) {
 	return item.selected;
 }
 
-function isItemInClipboard(item: TreeItemState): boolean {
+function isItemInClipboard(item: TreeItemState) {
 	return item.inClipboard;
 }
 
-export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
+export type TreeStateProps<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>,
+> = {
+	tree: () => TTree;
+	selectedIds: () => SvelteSet<string>;
+	expandedIds: () => SvelteSet<string>;
+	clipboardIds: () => SvelteSet<string>;
+	pasteOperation: () => PasteOperation | undefined;
+	setPasteOperation: (value: PasteOperation | undefined) => void;
+	isItemDisabled: (node: TFile | TFolder) => boolean;
+	id: () => string;
+	copyNode: (node: TFile | TFolder) => TFile | TFolder;
+	onMoveItems: (args: MoveItemsArgs<TFile, TFolder, TTree>) => MaybePromise<boolean>;
+	onCopyPasteItems: (args: CopyPasteItemsArgs<TFile, TFolder, TTree>) => MaybePromise<boolean>;
+	onRemoveItems: (args: RemoveItemsArgs<TFile, TFolder, TTree>) => MaybePromise<boolean>;
+	onResolveNameConflict: (args: ResolveNameConflictArgs) => MaybePromise<NameConflictResolution>;
+	onCircularReferenceError: (args: CircularReferenceErrorArgs<TFile, TFolder>) => void;
+};
+
+export function createTreeState<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>,
+>({
 	tree,
 	selectedIds,
 	expandedIds,
@@ -129,11 +136,11 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 	onRemoveItems,
 	onResolveNameConflict,
 	onCircularReferenceError,
-}: TreeStateProps<TNode>) {
+}: TreeStateProps<TFile, TFolder, TTree>) {
 	let tabbableId: string | undefined = $state.raw();
 	let draggedId: string | undefined = $state.raw();
 
-	function isItemTabbable(itemId: string): boolean {
+	function isItemTabbable(itemId: string) {
 		if (tabbableId === undefined) {
 			return tree().children[0].id === itemId;
 		}
@@ -141,22 +148,23 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		return tabbableId === itemId;
 	}
 
-	function setTabbableId(value: string | undefined): void {
+	function setTabbableId(value: string | undefined) {
 		tabbableId = value;
 	}
 
-	function getDraggedId(): string | undefined {
+	function getDraggedId() {
 		return draggedId;
 	}
 
-	function setDraggedId(value: string | undefined): void {
+	function setDraggedId(value: string | undefined) {
 		draggedId = value;
 	}
 
-	const items: Array<TreeItemState<TNode>> = $derived.by(function createItems(
-		result: Array<TreeItemState<TNode>> = [],
-		nodes: Array<TNode> = tree().children,
-		parent?: TreeItemState<ParentFileTreeNode<TNode>>,
+	const items = $derived.by(function createItems(
+		nodes = tree().children,
+		parent?: TreeItemState<TFile, TFolder, TFolder>,
+		depth = 0,
+		result: Array<TreeItemState<TFile, TFolder>> = [],
 	) {
 		for (let i = 0; i < nodes.length; i++) {
 			const node = nodes[i];
@@ -164,6 +172,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 				node,
 				i,
 				parent,
+				depth,
 				selectedIds,
 				expandedIds,
 				clipboardIds,
@@ -173,33 +182,42 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 			result.push(item);
 
 			if (node.type === "folder") {
-				createItems(result, node.children, item as never);
+				createItems(
+					node.children,
+					item as TreeItemState<TFile, TFolder, TFolder>,
+					depth + 1,
+					result,
+				);
 			}
 		}
 
 		return result;
 	});
 
-	const lookup: Map<string, TreeItemState<TNode>> = $derived.by(() => {
-		const result = new Map<string, TreeItemState<TNode>>();
+	const lookup = $derived.by(() => {
+		const result = new Map<string, TreeItemState<TFile, TFolder>>();
 		for (const item of items) {
 			result.set(item.node.id, item);
 		}
 		return result;
 	});
 
-	function getItemElementId(itemId: string): string {
+	function getItem(itemId: string) {
+		return lookup.get(itemId);
+	}
+
+	function getItemElementId(itemId: string) {
 		return `${id()}:${itemId}`;
 	}
 
-	function getItemElement(itemId: string): HTMLElement | null {
+	function getItemElement(itemId: string) {
 		const elementId = getItemElementId(itemId);
 		return document.getElementById(elementId);
 	}
 
 	function getNextNonChildItem(
-		current: TreeItemPosition<TNode>,
-	): TreeItemPosition<TNode> | undefined {
+		current: TreeItemPosition<TFile, TFolder>,
+	): TreeItemPosition<TFile, TFolder> | undefined {
 		let { index, parent } = current;
 		while (true) {
 			const siblings = parent?.node.children ?? tree().children;
@@ -221,19 +239,23 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		}
 	}
 
-	function getNextItem(current: TreeItemPosition<TNode>): TreeItemPosition<TNode> | undefined {
+	function getNextItem(
+		current: TreeItemPosition<TFile, TFolder>,
+	): TreeItemPosition<TFile, TFolder> | undefined {
 		const { node } = current;
 		if (node.type === "folder" && expandedIds().has(node.id) && node.children.length !== 0) {
 			return {
 				node: node.children[0],
 				index: 0,
-				parent: current as never,
+				parent: current as TreeItemPosition<TFile, TFolder, TFolder>,
 			};
 		}
 		return getNextNonChildItem(current);
 	}
 
-	function getPreviousItem(current: TreeItemPosition<TNode>): TreeItemPosition<TNode> | undefined {
+	function getPreviousItem(
+		current: TreeItemPosition<TFile, TFolder>,
+	): TreeItemPosition<TFile, TFolder> | undefined {
 		if (current.index === 0) {
 			return current.parent;
 		}
@@ -242,11 +264,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		let index = current.index - 1;
 		let node = parent?.node.children[index] ?? tree().children[index];
 		while (node.type === "folder" && expandedIds().has(node.id) && node.children.length !== 0) {
-			parent = {
-				node: node as never,
-				index,
-				parent,
-			};
+			parent = { node, index, parent };
 			index = node.children.length - 1;
 			node = node.children[index];
 		}
@@ -254,7 +272,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		return { node, index, parent };
 	}
 
-	function toggleSelection(target: TreeItemState<TNode>): void {
+	function toggleSelection(target: TreeItemState<TFile, TFolder>) {
 		if (target.selected) {
 			selectedIds().delete(target.node.id);
 		} else {
@@ -262,7 +280,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		}
 	}
 
-	function _selectAll(nodes: Array<TNode>): void {
+	function _selectAll(nodes: Array<TFile | TFolder>) {
 		for (const node of nodes) {
 			selectedIds().add(node.id);
 
@@ -272,21 +290,21 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		}
 	}
 
-	function selectAll(): void {
+	function selectAll() {
 		_selectAll(tree().children);
 	}
 
-	function selectUntil(target: TreeItemState<TNode>, element: HTMLElement): void {
-		let lastSelected: TreeItemState<TNode> | undefined;
+	function selectUntil(target: TreeItemState<TFile, TFolder>, element: HTMLElement) {
+		let lastSelected: TreeItemPosition<TFile, TFolder> | undefined;
 		for (const id of selectedIds()) {
-			const current = lookup.get(id);
+			const current = getItem(id);
 			if (current !== undefined) {
 				lastSelected = current;
 			}
 		}
 
 		if (lastSelected === undefined) {
-			let current: TreeItemPosition<TNode> | undefined = items[0];
+			let current: TreeItemPosition<TFile, TFolder> | undefined = items[0];
 			do {
 				selectedIds().add(current.node.id);
 				if (current.node === target.node) {
@@ -306,7 +324,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		const following = positionBitmask & Node.DOCUMENT_POSITION_FOLLOWING;
 		const navigate = following !== 0 ? getNextItem : getPreviousItem;
 
-		let current: TreeItemPosition<TNode> | undefined = lastSelected;
+		let current: TreeItemPosition<TFile, TFolder> | undefined = lastSelected;
 		while (current.node !== target.node) {
 			current = navigate(current);
 			if (current === undefined) {
@@ -316,7 +334,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		}
 	}
 
-	function copy(target: TreeItemState<TNode>, operation: PasteOperation): void {
+	function copy(target: TreeItemState<TFile, TFolder>, operation: PasteOperation) {
 		clipboardIds().clear();
 
 		for (const id of selectedIds()) {
@@ -327,17 +345,17 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		setPasteOperation(operation);
 	}
 
-	function clearClipboard(): void {
+	function clearClipboard() {
 		clipboardIds().clear();
 		setPasteOperation(undefined);
 	}
 
 	async function moveItems(
 		movedIds: Set<string>,
-		isItemMoved: (item: TreeItemState<TNode>) => boolean,
-		target: TreeItemState<TNode>,
+		isItemMoved: (item: TreeItemState<TFile, TFolder>) => boolean,
+		target: TreeItemState<TFile, TFolder>,
 		position: DropPosition,
-	): Promise<boolean> {
+	) {
 		if (isItemMoved(target)) {
 			// Don't move the target next to or inside itself.
 			onCircularReferenceError({
@@ -357,7 +375,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 			return false;
 		}
 
-		let owner: ParentFileTreeNode<TNode> | FileTree<TNode>;
+		let owner: TFolder | TTree;
 		switch (position) {
 			case "before":
 			case "after": {
@@ -373,7 +391,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 					return false;
 				}
 
-				owner = target.node as never;
+				owner = target.node;
 				break;
 			}
 		}
@@ -383,8 +401,8 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 			ownerChildrenNames.add(child.name);
 		}
 
-		const moved: Array<TNode> = [];
-		const movedOwners = new Set<ParentFileTreeNode<TNode> | FileTree<TNode>>();
+		const moved: Array<TFile | TFolder> = [];
+		const movedOwners = new Set<TFolder | TTree>();
 		const skippedIds = new Set<string>();
 		for (const id of movedIds) {
 			const current = lookup.get(id);
@@ -424,7 +442,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 			return true;
 		}
 
-		const updates: MoveItemsArgs<TNode>["updates"] = [];
+		const updates: MoveItemsArgs<TFile, TFolder, TTree>["updates"] = [];
 		for (const movedOwner of movedOwners) {
 			if (movedOwner !== owner) {
 				updates.push({
@@ -436,7 +454,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 			}
 		}
 
-		let children: Array<TNode>;
+		let children: Array<TFile | TFolder>;
 		switch (position) {
 			case "before": {
 				children = [];
@@ -486,7 +504,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		});
 	}
 
-	async function drop(target: TreeItemState<TNode>, position: DropPosition): Promise<boolean> {
+	async function drop(target: TreeItemState<TFile, TFolder>, position: DropPosition) {
 		const currentDraggedId = draggedId;
 		if (currentDraggedId === undefined) {
 			return false;
@@ -502,8 +520,8 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		return didMove;
 	}
 
-	async function copyPaste(target: TreeItemState<TNode>, position: DropPosition): Promise<boolean> {
-		let owner: ParentFileTreeNode<TNode> | FileTree<TNode>;
+	async function copyPaste(target: TreeItemState<TFile, TFolder>, position: DropPosition) {
+		let owner: TFolder | TTree;
 		switch (position) {
 			case "before":
 			case "after": {
@@ -519,7 +537,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 					return false;
 				}
 
-				owner = target.node as never;
+				owner = target.node;
 				break;
 			}
 		}
@@ -529,8 +547,8 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 			ownerChildrenNames.add(child.name);
 		}
 
-		const copies: Array<TNode> = [];
-		const originals: Array<TNode> = [];
+		const copies: Array<TFile | TFolder> = [];
+		const originals: Array<TFile | TFolder> = [];
 		for (const id of clipboardIds()) {
 			const current = lookup.get(id);
 			if (current === undefined) {
@@ -591,7 +609,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		});
 	}
 
-	async function paste(target: TreeItemState<TNode>, position?: DropPosition): Promise<boolean> {
+	async function paste(target: TreeItemState<TFile, TFolder>, position?: DropPosition) {
 		if (position === undefined) {
 			switch (target.node.type) {
 				case "file": {
@@ -632,9 +650,9 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		return didPaste;
 	}
 
-	async function remove(target: TreeItemState<TNode>): Promise<boolean> {
-		const removed: Array<TNode> = [];
-		const removedOwners = new Set<ParentFileTreeNode<TNode> | FileTree<TNode>>();
+	async function remove(target: TreeItemState<TFile, TFolder>) {
+		const removed: Array<TFile | TFolder> = [];
+		const removedOwners = new Set<TFolder | TTree>();
 		for (const id of selectedIds()) {
 			const current = lookup.get(id);
 			if (current === undefined) {
@@ -658,18 +676,14 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		let focusTarget = getNextNonChildItem(target) ?? getPreviousItem(target);
 		while (focusTarget !== undefined) {
 			// Move to the highest selected ancestor as all its children will be removed.
-			for (
-				let ancestor: TreeItemPosition<TNode> | undefined = focusTarget.parent;
-				ancestor !== undefined;
-				ancestor = ancestor.parent
-			) {
+			for (let ancestor = focusTarget.parent; ancestor !== undefined; ancestor = ancestor.parent) {
 				if (selectedIds().has(ancestor.node.id)) {
 					focusTarget = ancestor;
 				}
 			}
 
 			// Focus the nearest remaining item after this item.
-			let nearestUnselected: TreeItemPosition<TNode> | undefined = focusTarget;
+			let nearestUnselected: TreeItemPosition<TFile, TFolder> | undefined = focusTarget;
 			while (nearestUnselected !== undefined && selectedIds().has(nearestUnselected.node.id)) {
 				// The current item will be removed, so we shouldn't traverse its children.
 				nearestUnselected = getNextNonChildItem(nearestUnselected);
@@ -691,7 +705,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 			focusTarget = nearestUnselected;
 		}
 
-		const updates: RemoveItemsArgs<TNode>["updates"] = [];
+		const updates: RemoveItemsArgs<TFile, TFolder, TTree>["updates"] = [];
 		for (const removedOwner of removedOwners) {
 			updates.push({
 				target: removedOwner,
@@ -713,7 +727,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		return didRemove;
 	}
 
-	function onItemRemoved(id: string): void {
+	function onItemRemoved(id: string) {
 		selectedIds().delete(id);
 		expandedIds().delete(id);
 		clipboardIds().delete(id);
@@ -723,7 +737,7 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 		}
 	}
 
-	function onItemDestroyed(id: string): void {
+	function onItemDestroyed(id: string) {
 		if (tabbableId === id) {
 			setTabbableId(undefined);
 		}
@@ -763,9 +777,11 @@ export function createTreeState<TNode extends FileNode | FolderNode<TNode>>({
 	};
 }
 
-export type TreeState<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = ReturnType<
-	typeof createTreeState<TNode>
->;
+export type TreeState<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>,
+> = ReturnType<typeof createTreeState<TFile, TFolder, TTree>>;
 
 export type TreeItemDragStateProps = {
 	draggedId: () => string | undefined;
@@ -776,7 +792,7 @@ export function createTreeItemDragState({ draggedId, item }: TreeItemDragStatePr
 	let dropPosition: DropPosition | undefined = $state.raw();
 	let updateRequestId: number | undefined;
 
-	const canDrop: boolean = $derived.by(() => {
+	const canDrop = $derived.by(() => {
 		if (draggedId() === undefined) {
 			return false;
 		}
@@ -813,7 +829,7 @@ export function createTreeItemDragState({ draggedId, item }: TreeItemDragStatePr
 		}
 	}
 
-	function updateDropPosition(element: HTMLElement, clientY: number): void {
+	function updateDropPosition(element: HTMLElement, clientY: number) {
 		if (updateRequestId !== undefined) {
 			return;
 		}
@@ -824,7 +840,7 @@ export function createTreeItemDragState({ draggedId, item }: TreeItemDragStatePr
 		});
 	}
 
-	function clearDropPosition(): void {
+	function clearDropPosition() {
 		dropPosition = undefined;
 
 		if (updateRequestId !== undefined) {

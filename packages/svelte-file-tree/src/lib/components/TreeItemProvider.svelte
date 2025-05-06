@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import type { FileNode, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+	import type { DefaultTFolder, FileNode, FileTree, FolderNode } from "$lib/tree.svelte.js";
 	import { DEV } from "esm-env";
 	import { getContext, hasContext, setContext, type Snippet } from "svelte";
 	import type { TreeState } from "./state.svelte.js";
@@ -7,9 +7,13 @@
 
 	const CONTEXT_KEY = Symbol("TreeItemProvider");
 
-	export type TreeItemProviderContext<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
-		treeState: TreeState<TNode>;
-		item: () => TreeItemState<TNode>;
+	export type TreeItemProviderContext<
+		TFile extends FileNode = FileNode,
+		TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+		TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>,
+	> = {
+		treeState: TreeState<TFile, TFolder, TTree>;
+		item: () => TreeItemState<TFile, TFolder>;
 	};
 
 	export function getTreeItemProviderContext(): TreeItemProviderContext {
@@ -21,18 +25,25 @@
 	}
 </script>
 
-<script lang="ts" generics="TNode extends FileNode | FolderNode<TNode> = FileTreeNode">
+<script
+	lang="ts"
+	generics="
+		TFile extends FileNode = FileNode,
+		TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
+		TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>,
+	"
+>
 	const {
 		treeState,
 		item,
 		children,
 	}: {
-		treeState: TreeState<TNode>;
-		item: TreeItemState<TNode>;
+		treeState: TreeState<TFile, TFolder, TTree>;
+		item: TreeItemState<TFile, TFolder>;
 		children: Snippet;
 	} = $props();
 
-	const context: TreeItemProviderContext<TNode> = {
+	const context: TreeItemProviderContext<TFile, TFolder, TTree> = {
 		treeState,
 		item: () => item,
 	};

@@ -6,7 +6,7 @@
 	import { createTreeItemDragState, type TreeItemPosition } from "./state.svelte.js";
 	import type { TreeItemChildrenSnippetArgs, TreeItemProps, TreeItemState } from "./types.js";
 
-	function hasChildren(item: TreeItemState): boolean {
+	function hasChildren(item: TreeItemState) {
 		return item.node.type === "folder" && item.node.children.length !== 0;
 	}
 </script>
