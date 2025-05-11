@@ -3,7 +3,6 @@
 	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>, TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>"
 >
 	import { DEV } from "esm-env";
-	import { tick } from "svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import { isControlOrMeta, noop, truePredicate } from "$lib/helpers.js";
 	import {
@@ -321,6 +320,7 @@
 			destinationChildren.push(copy);
 		}
 		onChildrenChange({
+			operation: "insert",
 			target: destination,
 			children: destinationChildren,
 		});
@@ -394,6 +394,7 @@
 		for (const owner of sourceOwners) {
 			owner.children = owner.children.filter((child) => !sourceIds.has(child.id));
 			onChildrenChange({
+				operation: "remove",
 				target: owner,
 				children: owner.children,
 			});
@@ -404,6 +405,7 @@
 			destinationChildren.push(source.node);
 		}
 		onChildrenChange({
+			operation: "insert",
 			target: destination,
 			children: destinationChildren,
 		});
@@ -529,6 +531,7 @@
 		for (const owner of removedOwners) {
 			owner.children = owner.children.filter((child) => !selectedIds.has(child.id));
 			onChildrenChange({
+				operation: "remove",
 				target: owner,
 				children: owner.children,
 			});

@@ -15,7 +15,9 @@
 	{tree}
 	{expandedIds}
 	onChildrenChange={(args) => {
-		args.children.sort((a, b) => a.name.localeCompare(b.name));
+		if (args.operation === "insert") {
+			args.children.sort((a, b) => a.name.localeCompare(b.name));
+		}
 	}}
 	onDropDestinationChange={(args) => {
 		dropDestination = args.dropDestination;

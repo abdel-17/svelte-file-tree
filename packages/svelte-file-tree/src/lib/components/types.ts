@@ -27,6 +27,7 @@ export type OnChildrenChangeArgs<
 	TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>,
 	TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>,
 > = {
+	operation: "insert" | "remove";
 	target: TFolder | TTree;
 	children: Array<TFile | TFolder>;
 };
