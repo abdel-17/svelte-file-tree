@@ -917,6 +917,8 @@
 				return;
 			}
 
+			onDropDestinationChange({ dropDestination: undefined });
+
 			const sourceItem = getItem(sourceId);
 			if (sourceItem === undefined) {
 				return;
