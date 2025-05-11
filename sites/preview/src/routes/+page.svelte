@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Tree } from "$lib/components/tree/index.js";
+	import Tree from "$lib/components/Tree.svelte";
 	import { FileNode, FileTree, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
 	import { files } from "./files.js";
 
@@ -12,17 +12,17 @@
 					name: file.name,
 					children: file.children.map(transform),
 				});
+			} else {
+				return new FileNode({
+					id,
+					name: file.name,
+					size: file.size,
+				});
 			}
-
-			return new FileNode({
-				id,
-				name: file.name,
-				size: file.size,
-			});
 		}),
 	);
 </script>
 
-<main class="h-svh">
+<main class="p-8">
 	<Tree {tree} />
 </main>
