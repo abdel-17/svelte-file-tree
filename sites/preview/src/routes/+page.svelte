@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Tree from "$lib/components/Tree.svelte";
-	import { FileNode, FileTree, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
+	import { FileNode, FileTree, FolderNode, type FileTreeNode } from "svelte-file-tree";
 	import { files } from "./files.js";
 
 	const tree = new FileTree(
@@ -16,7 +16,6 @@
 				return new FileNode({
 					id,
 					name: file.name,
-					size: file.size,
 				});
 			}
 		}),

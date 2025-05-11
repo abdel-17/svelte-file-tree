@@ -759,15 +759,6 @@
 							expandedIds.add(child.id);
 						}
 					}
-
-					// After the items are expanded, the tree's height changes,
-					// causing this item to move down. Scroll down to preserve
-					// the scroll position relative to this item.
-					const rectBefore = event.currentTarget.getBoundingClientRect();
-					tick().then(() => {
-						const rectAfter = event.currentTarget.getBoundingClientRect();
-						window.scrollBy(0, rectAfter.top - rectBefore.top);
-					});
 					break;
 				}
 				case "Delete": {

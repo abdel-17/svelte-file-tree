@@ -1,35 +1,14 @@
-<script lang="ts" module>
+<script lang="ts">
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { TreeItem } from "svelte-file-tree";
-	import type { FileNode, FolderNode } from "$lib/tree.svelte.js";
 	import type { TreeItemProps } from "./types.js";
 
-	const sizeFormatter = new Intl.NumberFormat(undefined, {
-		style: "decimal",
-		maximumFractionDigits: 2,
-	});
-
-	const sizeUnits = ["B", "KB", "MB", "GB", "TB"];
-
-	function formatSize(size: number) {
-		let unit = 0;
-		while (size >= 1024 && unit < sizeUnits.length - 1) {
-			size /= 1024;
-			unit++;
-		}
-		return `${sizeFormatter.format(size)} ${sizeUnits[unit]}`;
-	}
-</script>
-
-<script lang="ts">
 	const { item, dropDestination, onExpand, onCollapse }: TreeItemProps = $props();
 
 	let dragged = $state.raw(false);
-
-	const TypedTreeItem = TreeItem<FileNode, FolderNode>;
 </script>
 
-<TypedTreeItem
+<TreeItem
 	{item}
 	class={[
 		"relative flex items-center p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300",
@@ -59,7 +38,7 @@
 			},
 		]}
 		onclick={(event) => {
-			event.preventDefault();
+			event.stopPropagation();
 
 			if (item.expanded) {
 				onCollapse();
@@ -72,7 +51,7 @@
 		<ChevronDownIcon role="presentation" size={20} />
 	</button>
 
-	<div class="ps-1 pe-2">
+	<div class="ps-1">
 		{#if item.node.type === "file"}
 			<FileIcon role="presentation" />
 		{:else if item.expanded}
@@ -82,5 +61,5 @@
 		{/if}
 	</div>
 
-	<span>{item.node.name}</span>
-</TypedTreeItem>
+	<div class="grow px-2">{item.node.name}</div>
+</TreeItem>

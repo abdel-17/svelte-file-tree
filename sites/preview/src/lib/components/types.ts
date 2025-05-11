@@ -1,5 +1,4 @@
-import type { TreeItemState } from "svelte-file-tree";
-import type { FileNode, FileTree, FolderNode } from "$lib/tree.svelte";
+import type { FileNode, FileTree, FolderNode, TreeItemState } from "svelte-file-tree";
 
 export interface TreeProps {
 	tree: FileTree;
