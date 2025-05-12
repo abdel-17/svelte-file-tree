@@ -1,6 +1,6 @@
 <script
 	lang="ts"
-	generics="TFile extends FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>"
+	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>"
 >
 	import {
 		draggable,
