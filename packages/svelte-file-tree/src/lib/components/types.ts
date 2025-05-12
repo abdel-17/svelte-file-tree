@@ -53,7 +53,7 @@ export type OnCircularReferenceArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
 > = {
-	source: TreeItemState<TFile, TFolder>;
+	source: TreeItemState<TFile, TFolder, TFolder>;
 	destination: TFolder;
 };
 

@@ -2,7 +2,6 @@
 	import { Tree, type FolderNode } from "svelte-file-tree";
 	import { flip } from "svelte/animate";
 	import { SvelteSet } from "svelte/reactivity";
-	import { isControlOrMeta } from "$lib/helpers.js";
 	import TreeItem from "./TreeItem.svelte";
 	import type { TreeProps } from "./types.js";
 
@@ -10,16 +9,12 @@
 
 	const expandedIds = new SvelteSet<string>();
 	let dropDestination: FolderNode | undefined = $state.raw();
-
-	let tree: Tree | null = $state.raw(null);
 </script>
 
 <div class="flex min-h-svh p-2">
 	<Tree
 		{root}
 		{expandedIds}
-		bind:this={tree}
-		tabindex={0}
 		class={[
 			"relative grow p-6 focus-visible:outline-2 focus-visible:outline-current",
 			{
@@ -34,12 +29,6 @@
 		}}
 		onDropDestinationChange={(args) => {
 			dropDestination = args.dropDestination;
-		}}
-		onkeydown={(event) => {
-			if (event.key === "v" && isControlOrMeta(event)) {
-				event.preventDefault();
-				tree!.paste(root);
-			}
 		}}
 	>
 		{#snippet children({ items })}

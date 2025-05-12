@@ -259,11 +259,7 @@
 		item: TreeItemState<TFile, TFolder>,
 		predicate: (ancestor: TreeItemState<TFile, TFolder, TFolder>) => boolean,
 	) {
-		for (let ancestor = item.parent; ancestor !== undefined; ancestor = ancestor.parent) {
-			if (predicate(ancestor)) {
-				return ancestor;
-			}
-		}
+		return getNearestAncestor(item, predicate) !== undefined;
 	}
 
 	function isItemSelected(item: TreeItemState<TFile, TFolder>) {
@@ -804,38 +800,46 @@
 						break;
 					}
 
-					const dropDestinationItem = getDropDestinationItem(item);
-					if (dropDestinationItem === undefined) {
-						// Pasting at the root level is always allowed.
-						paste(root);
-						break;
+					let pasteDestinationItem: TreeItemState<TFile, TFolder, TFolder> | undefined;
+					switch (item.node.type) {
+						case "file": {
+							pasteDestinationItem = item.parent;
+							break;
+						}
+						case "folder": {
+							if (event.shiftKey) {
+								pasteDestinationItem = item.parent;
+							} else {
+								pasteDestinationItem = item as TreeItemState<TFile, TFolder, TFolder>;
+							}
+							break;
+						}
 					}
 
-					if (clipboard.operation === "cut") {
-						if (dropDestinationItem.inClipboard) {
-							// Pasting an item inside itself is not allowed.
+					if (pasteDestinationItem !== undefined && clipboard.operation === "cut") {
+						if (pasteDestinationItem.inClipboard) {
 							onCircularReference({
-								source: dropDestinationItem,
-								destination: dropDestinationItem.node,
+								source: pasteDestinationItem,
+								destination: pasteDestinationItem.node,
 							});
 							break;
 						}
 
 						const nearestCopiedAncestor = getNearestAncestor(
-							dropDestinationItem,
+							pasteDestinationItem,
 							isItemInClipboard,
 						);
 						if (nearestCopiedAncestor !== undefined) {
-							// Pasting an item inside itself is not allowed.
 							onCircularReference({
 								source: nearestCopiedAncestor,
-								destination: dropDestinationItem.node,
+								destination: pasteDestinationItem.node,
 							});
 							break;
 						}
 					}
 
-					paste(dropDestinationItem.node).then((didPaste) => {
+					const pasteDestination = pasteDestinationItem?.node ?? root;
+					paste(pasteDestination).then((didPaste) => {
 						if (didPaste) {
 							event.currentTarget.focus();
 						}
