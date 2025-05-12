@@ -1,7 +1,7 @@
 import type { ElementDragPayload } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { DEV } from "esm-env";
 import { getContext, hasContext, setContext } from "svelte";
-import type { FileNode, FileTree, FolderNode, TreeItemState } from "$lib/tree.svelte.js";
+import type { DefaultTFolder, FileNode, FolderNode, TreeItemState } from "$lib/tree.svelte.js";
 
 export type TreeItemEvent<TEvent extends Event = Event> = TEvent & {
 	currentTarget: HTMLDivElement;
@@ -9,10 +9,9 @@ export type TreeItemEvent<TEvent extends Event = Event> = TEvent & {
 
 export type TreeContext<
 	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>,
-	TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
 > = {
-	tree: () => TTree;
+	root: () => TFolder;
 	tabbableId: () => string;
 	getItemElementId: (itemId: string) => string;
 	onFocusIn: (target: TreeItemState<TFile, TFolder>, event: TreeItemEvent<FocusEvent>) => void;
@@ -31,9 +30,8 @@ const CONTEXT_KEY = Symbol("TreeContext");
 
 export function getTreeContext<
 	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>,
-	TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>,
->(): TreeContext<TFile, TFolder, TTree> {
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+>(): TreeContext<TFile, TFolder> {
 	if (DEV && !hasContext(CONTEXT_KEY)) {
 		throw new Error("No parent <Tree> found");
 	}
@@ -42,8 +40,7 @@ export function getTreeContext<
 
 export function setTreeContext<
 	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>,
-	TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>,
->(context: TreeContext<TFile, TFolder, TTree>) {
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+>(context: TreeContext<TFile, TFolder>) {
 	setContext(CONTEXT_KEY, context);
 }

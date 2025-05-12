@@ -1,12 +1,12 @@
-import type { FileNode, FileTree, FolderNode, TreeItemState } from "svelte-file-tree";
+import type { FolderNode, TreeItemState } from "svelte-file-tree";
 
 export interface TreeProps {
-	tree: FileTree;
+	root: FolderNode;
 }
 
 export interface TreeItemProps {
-	item: TreeItemState<FileNode, FolderNode>;
-	dropDestination: FolderNode | FileTree | undefined;
+	item: TreeItemState;
+	dropDestination: FolderNode | undefined;
 	onExpand: () => void;
 	onCollapse: () => void;
 }

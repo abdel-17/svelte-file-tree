@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { Tree, type FileTree, type FolderNode } from "svelte-file-tree";
+	import { Tree, type FolderNode } from "svelte-file-tree";
 	import { flip } from "svelte/animate";
 	import { SvelteSet } from "svelte/reactivity";
 	import TreeItem from "./TreeItem.svelte";
 	import type { TreeProps } from "./types.js";
 
-	const { tree }: TreeProps = $props();
+	const { root }: TreeProps = $props();
 
 	const expandedIds = new SvelteSet<string>();
-	let dropDestination: FolderNode | FileTree | undefined = $state.raw();
+	let dropDestination: FolderNode | undefined = $state.raw();
 </script>
 
 <Tree
-	{tree}
+	{root}
 	{expandedIds}
 	onChildrenChange={(args) => {
 		if (args.operation === "insert") {

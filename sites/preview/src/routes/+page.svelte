@@ -1,10 +1,12 @@
 <script lang="ts">
 	import Tree from "$lib/components/Tree.svelte";
-	import { FileNode, FileTree, FolderNode, type FileTreeNode } from "svelte-file-tree";
+	import { FileNode, FolderNode, type FileTreeNode } from "svelte-file-tree";
 	import { files } from "./files.js";
 
-	const tree = new FileTree(
-		files.map(function transform(file): FileTreeNode {
+	const root = new FolderNode({
+		id: crypto.randomUUID(),
+		name: "",
+		children: files.map(function transform(file): FileTreeNode {
 			const id = crypto.randomUUID();
 			if ("children" in file) {
 				return new FolderNode({
@@ -19,9 +21,9 @@
 				});
 			}
 		}),
-	);
+	});
 </script>
 
 <main class="p-8">
-	<Tree {tree} />
+	<Tree {root} />
 </main>

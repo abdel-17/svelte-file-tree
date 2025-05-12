@@ -1,6 +1,6 @@
 <script
 	lang="ts"
-	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>, TTree extends FileTree<TFile, TFolder> = FileTree<TFile, TFolder>"
+	generics="TFile extends FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>"
 >
 	import { DEV } from "esm-env";
 	import { SvelteSet } from "svelte/reactivity";
@@ -9,7 +9,7 @@
 		FileNode,
 		FolderNode,
 		TreeItemState,
-		type FileTree,
+		type DefaultTFolder,
 		type PasteOperation,
 	} from "$lib/tree.svelte.js";
 	import { setTreeContext } from "./context.js";
@@ -17,7 +17,7 @@
 
 	let {
 		children,
-		tree,
+		root,
 		defaultSelectedIds,
 		selectedIds = new SvelteSet(defaultSelectedIds),
 		defaultExpandedIds,
@@ -60,13 +60,13 @@
 		canRemove = truePredicate,
 		onRemove = noop,
 		...rest
-	}: TreeProps<TFile, TFolder, TTree> = $props();
+	}: TreeProps<TFile, TFolder> = $props();
 
 	const uid = $props.id();
 	let tabbableId: string | undefined = $state.raw();
 
 	const items = $derived.by(function createItems(
-		nodes = tree.children,
+		nodes = root.children,
 		parent?: TreeItemState<TFile, TFolder, TFolder>,
 		result: Array<TreeItemState<TFile, TFolder>> = [],
 	) {
@@ -120,7 +120,7 @@
 	function getNextNonChildItem(current: TreeItemPosition): TreeItemPosition | undefined {
 		let { index, parent } = current;
 		while (true) {
-			const siblings = parent?.node.children ?? tree.children;
+			const siblings = parent?.node.children ?? root.children;
 			const nextIndex = index + 1;
 			if (nextIndex !== siblings.length) {
 				return {
@@ -161,7 +161,7 @@
 		}
 
 		index--;
-		node = parent?.node.children[index] ?? tree.children[index];
+		node = parent?.node.children[index] ?? root.children[index];
 		while (node.type === "folder" && expandedIds.has(node.id)) {
 			const children = node.children;
 			if (children.length === 0) {
@@ -265,7 +265,7 @@
 		return item.inClipboard;
 	}
 
-	async function copy(clipboardIds: Set<string>, destination: TFolder | TTree) {
+	async function copy(clipboardIds: Set<string>, destination: TFolder) {
 		const names = new Set<string>();
 		for (const child of destination.children) {
 			names.add(child.name);
@@ -332,7 +332,7 @@
 	async function move(
 		movedIds: Set<string>,
 		isItemMoved: (item: TreeItemState<TFile, TFolder>) => boolean,
-		destination: TFolder | TTree,
+		destination: TFolder,
 	) {
 		const names = new Set<string>();
 		for (const child of destination.children) {
@@ -341,14 +341,14 @@
 
 		const sources: Array<TreeItemState<TFile, TFolder>> = [];
 		const sourceIds = new Set<string>();
-		const sourceOwners = new Set<TFolder | TTree>();
+		const sourceOwners = new Set<TFolder>();
 		for (const id of movedIds) {
 			const current = getItem(id);
 			if (current === undefined) {
 				continue;
 			}
 
-			const currentOwner = current.parent?.node ?? tree;
+			const currentOwner = current.parent?.node ?? root;
 			if (currentOwner === destination) {
 				continue;
 			}
@@ -414,7 +414,7 @@
 		return true;
 	}
 
-	export async function paste(destination: TFolder | TTree) {
+	export async function paste(destination: TFolder) {
 		if (clipboard === undefined) {
 			return false;
 		}
@@ -461,7 +461,7 @@
 
 	export async function remove(target: TreeItemState<TFile, TFolder>) {
 		const removed: Array<TreeItemState<TFile, TFolder>> = [];
-		const removedOwners = new Set<TFolder | TTree>();
+		const removedOwners = new Set<TFolder>();
 		for (const id of selectedIds) {
 			const current = getItem(id);
 			if (current === undefined) {
@@ -475,14 +475,14 @@
 			}
 
 			removed.push(current);
-			removedOwners.add(current.parent?.node ?? tree);
+			removedOwners.add(current.parent?.node ?? root);
 		}
 
 		if (!target.selected) {
 			const nearestDeletedAncestor = getNearestAncestor(target, isItemSelected);
 			if (nearestDeletedAncestor === undefined) {
 				removed.push(target);
-				removedOwners.add(target.parent?.node ?? tree);
+				removedOwners.add(target.parent?.node ?? root);
 			}
 		}
 
@@ -556,9 +556,9 @@
 		}
 	}
 
-	setTreeContext<TFile, TFolder, TTree>({
-		tree: () => tree,
-		tabbableId: () => tabbableId ?? tree.children[0].id,
+	setTreeContext<TFile, TFolder>({
+		root: () => root,
+		tabbableId: () => tabbableId ?? root.children[0].id,
 		getItemElementId,
 		onFocusIn: (target) => {
 			tabbableId = target.node.id;
@@ -682,7 +682,7 @@
 					break;
 				}
 				case "Home": {
-					const first = tree.children[0];
+					const first = root.children[0];
 					if (first === target.node) {
 						break;
 					}
@@ -708,7 +708,7 @@
 					break;
 				}
 				case "End": {
-					let last = tree.children.at(-1)!;
+					let last = root.children.at(-1)!;
 					while (last.type === "folder" && expandedIds.has(last.id)) {
 						const children = last.children;
 						if (children.length === 0) {
@@ -756,7 +756,7 @@
 					break;
 				}
 				case "*": {
-					const owner = target.parent?.node ?? tree;
+					const owner = target.parent?.node ?? root;
 					for (const child of owner.children) {
 						if (child.type === "folder") {
 							expandedIds.add(child.id);
@@ -773,7 +773,7 @@
 						break;
 					}
 
-					selectAll(tree.children);
+					selectAll(root.children);
 					break;
 				}
 				case "c": {
@@ -804,7 +804,7 @@
 					const dropFolder = getDropFolder(target);
 					if (dropFolder === undefined) {
 						// Pasting at the root level is always allowed.
-						paste(tree);
+						paste(root);
 						break;
 					}
 
@@ -899,7 +899,7 @@
 		},
 		onDrag: (target) => {
 			const dropFolder = getDropFolder(target);
-			const dropDestination = dropFolder?.node ?? tree;
+			const dropDestination = dropFolder?.node ?? root;
 			onDropDestinationChange({ dropDestination });
 		},
 		onDragLeave: () => {
@@ -923,7 +923,7 @@
 			}
 
 			const dropFolder = getDropFolder(target);
-			const dropDestination = dropFolder?.node ?? tree;
+			const dropDestination = dropFolder?.node ?? root;
 			const didMove = await move(selectedIds, isItemSelected, dropDestination);
 			if (didMove) {
 				source.element.focus();

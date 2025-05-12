@@ -1,30 +1,5 @@
 import type { SvelteSet } from "svelte/reactivity";
 
-function getTotalCount(nodes: Array<FileTreeNode>) {
-	let count = 0;
-	for (const node of nodes) {
-		count++;
-
-		if (node.type === "folder") {
-			count += node.count;
-		}
-	}
-	return count;
-}
-
-export class FileTree<
-	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>,
-> {
-	children: Array<TFile | TFolder> = $state([]);
-
-	constructor(children: Array<TFile | TFolder>) {
-		this.children = children;
-	}
-
-	readonly count = $derived(getTotalCount(this.children));
-}
-
 export type FileNodeProps = {
 	id: string;
 	name: string;
@@ -42,28 +17,18 @@ export class FileNode {
 	readonly type = "file";
 }
 
-export type FolderNodeProps<
-	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>,
-> = {
+export type FolderNodeProps<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
 	id: string;
 	name: string;
-	children: Array<TFile | TFolder>;
+	children: Array<TNode>;
 };
 
-// Workaround to avoid the TypeScript error:
-// "Type parameter 'TFolder' has a circular default."
-type DefaultTFolder<TFile extends FileNode> = FolderNode<TFile, DefaultTFolder<TFile>>;
-
-export class FolderNode<
-	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile, TFolder> = DefaultTFolder<TFile>,
-> {
+export class FolderNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> {
 	readonly id: string;
 	name = $state.raw("");
-	children: Array<TFile | TFolder> = $state([]);
+	children: Array<TNode> = $state([]);
 
-	constructor(props: FolderNodeProps<TFile, TFolder>) {
+	constructor(props: FolderNodeProps<TNode>) {
 		this.id = props.id;
 		this.name = props.name;
 		this.children = props.children;
@@ -71,10 +36,24 @@ export class FolderNode<
 
 	readonly type = "folder";
 
-	readonly count = $derived(getTotalCount(this.children));
+	readonly count = $derived.by(() => {
+		let result = 0;
+		for (const child of this.children) {
+			result++;
+
+			if (child.type === "folder") {
+				result += child.count;
+			}
+		}
+		return result;
+	});
 }
 
-export type FileTreeNode = FileNode | FolderNode;
+export type FileTreeNode = FileNode | FolderNode<FileTreeNode>;
+
+export type DefaultTFolder<TFile extends FileNode = FileNode> = FolderNode<
+	TFile | DefaultTFolder<TFile>
+>;
 
 export type PasteOperation = "copy" | "cut";
 
@@ -85,7 +64,7 @@ export type TreeClipboard = {
 
 export type TreeItemStateProps<
 	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
 	TNode extends TFile | TFolder = TFile | TFolder,
 > = {
 	node: TNode;
@@ -99,7 +78,7 @@ export type TreeItemStateProps<
 
 export class TreeItemState<
 	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
 	TNode extends TFile | TFolder = TFile | TFolder,
 > {
 	readonly node: TNode;

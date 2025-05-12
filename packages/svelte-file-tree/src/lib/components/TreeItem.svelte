@@ -1,6 +1,6 @@
 <script
 	lang="ts"
-	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile, TFolder> = FolderNode<TFile>"
+	generics="TFile extends FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>"
 >
 	import {
 		draggable,
@@ -8,7 +8,7 @@
 	} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 	import type { EventHandler } from "svelte/elements";
 	import { composeEventHandlers, noop } from "$lib/helpers.js";
-	import type { FileNode, FolderNode } from "$lib/tree.svelte.js";
+	import type { DefaultTFolder, FileNode, FolderNode } from "$lib/tree.svelte.js";
 	import { getTreeContext } from "./context.js";
 	import type { TreeItemProps } from "./types.js";
 
@@ -78,7 +78,7 @@
 		: undefined}
 	aria-level={item.depth + 1}
 	aria-posinset={item.index + 1}
-	aria-setsize={item.parent?.node.children.length ?? context.tree().children.length}
+	aria-setsize={item.parent?.node.children.length ?? context.root().children.length}
 	tabindex={context.tabbableId() === item.node.id ? 0 : -1}
 	onfocusin={composeEventHandlers(onfocusin, handleFocusIn)}
 	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
