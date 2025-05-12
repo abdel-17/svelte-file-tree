@@ -41,7 +41,7 @@
 	$effect(() => {
 		return draggable({
 			element: ref!,
-			getInitialData: () => ({ id: item.node.id }),
+			getInitialData: () => context.getDragData(item),
 			canDrag: () => context.canDrag(item),
 			onDragStart: () => {
 				context.onDragStart(item);
@@ -54,7 +54,7 @@
 	$effect(() => {
 		return dropTargetForElements({
 			element: ref!,
-			getData: () => ({ id: item.node.id }),
+			getData: () => context.getDragData(item),
 			canDrop: ({ source }) => context.canDrop(item, source),
 			onDrag: ({ source }) => context.onDrag(item, source),
 			onDragLeave: ({ source }) => context.onDragLeave(item, source),

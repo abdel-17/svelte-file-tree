@@ -14,16 +14,17 @@ export type TreeContext<
 	root: () => TFolder;
 	tabbableId: () => string;
 	getItemElementId: (itemId: string) => string;
-	onFocusIn: (target: TreeItemState<TFile, TFolder>, event: TreeItemEvent<FocusEvent>) => void;
-	onKeyDown: (target: TreeItemState<TFile, TFolder>, event: TreeItemEvent<KeyboardEvent>) => void;
-	onClick: (target: TreeItemState<TFile, TFolder>, event: TreeItemEvent<MouseEvent>) => void;
-	canDrag: (target: TreeItemState<TFile, TFolder>) => boolean;
-	onDragStart: (target: TreeItemState<TFile, TFolder>) => void;
-	canDrop: (target: TreeItemState<TFile, TFolder>, source: ElementDragPayload) => boolean;
-	onDrag: (target: TreeItemState<TFile, TFolder>, source: ElementDragPayload) => void;
-	onDragLeave: (target: TreeItemState<TFile, TFolder>, source: ElementDragPayload) => void;
-	onDrop: (target: TreeItemState<TFile, TFolder>, source: ElementDragPayload) => void;
-	onDestroyItem: (target: TreeItemState<TFile, TFolder>) => void;
+	onFocusIn: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<FocusEvent>) => void;
+	onKeyDown: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<KeyboardEvent>) => void;
+	onClick: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<MouseEvent>) => void;
+	getDragData: (item: TreeItemState<TFile, TFolder>) => Record<string, unknown>;
+	canDrag: (item: TreeItemState<TFile, TFolder>) => boolean;
+	onDragStart: (item: TreeItemState<TFile, TFolder>) => void;
+	canDrop: (item: TreeItemState<TFile, TFolder>, source: ElementDragPayload) => boolean;
+	onDrag: (item: TreeItemState<TFile, TFolder>, source: ElementDragPayload) => void;
+	onDragLeave: (item: TreeItemState<TFile, TFolder>, source: ElementDragPayload) => void;
+	onDrop: (item: TreeItemState<TFile, TFolder>, source: ElementDragPayload) => void;
+	onDestroyItem: (item: TreeItemState<TFile, TFolder>) => void;
 };
 
 const CONTEXT_KEY = Symbol("TreeContext");

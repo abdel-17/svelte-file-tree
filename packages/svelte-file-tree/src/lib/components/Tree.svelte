@@ -175,7 +175,7 @@
 		return { node, index, parent };
 	}
 
-	function selectUntil(target: TreeItemState<TFile, TFolder>, targetElement: HTMLDivElement) {
+	function selectUntil(item: TreeItemState<TFile, TFolder>, itemElement: HTMLDivElement) {
 		let lastSelected: TreeItemPosition | undefined;
 		for (const id of selectedIds) {
 			const current = getItem(id);
@@ -188,7 +188,7 @@
 			let current: TreeItemPosition | undefined = items[0];
 			do {
 				selectedIds.add(current.node.id);
-				if (current.node === target.node) {
+				if (current.node === item.node) {
 					break;
 				}
 				current = getNextItem(current);
@@ -201,12 +201,12 @@
 			return;
 		}
 
-		const positionBitmask = lastSelectedElement.compareDocumentPosition(targetElement);
+		const positionBitmask = lastSelectedElement.compareDocumentPosition(itemElement);
 		const following = positionBitmask & Node.DOCUMENT_POSITION_FOLLOWING;
 		const navigate = following !== 0 ? getNextItem : getPreviousItem;
 
 		let current: TreeItemPosition | undefined = lastSelected;
-		while (current.node !== target.node) {
+		while (current.node !== item.node) {
 			current = navigate(current);
 			if (current === undefined) {
 				break;
@@ -215,11 +215,11 @@
 		}
 	}
 
-	function toggleSelection(target: TreeItemState<TFile, TFolder>) {
-		if (target.selected) {
-			selectedIds.delete(target.node.id);
+	function toggleSelection(item: TreeItemState<TFile, TFolder>) {
+		if (item.selected) {
+			selectedIds.delete(item.node.id);
 		} else {
-			selectedIds.add(target.node.id);
+			selectedIds.add(item.node.id);
 		}
 	}
 
@@ -233,12 +233,9 @@
 		}
 	}
 
-	export function copyToClipboard(
-		target: TreeItemState<TFile, TFolder>,
-		operation: PasteOperation,
-	) {
+	export function copyToClipboard(item: TreeItemState<TFile, TFolder>, operation: PasteOperation) {
 		const clipboardIds = new Set(selectedIds);
-		clipboardIds.add(target.node.id);
+		clipboardIds.add(item.node.id);
 		clipboard = {
 			ids: clipboardIds,
 			operation,
@@ -247,6 +244,17 @@
 	}
 
 	function getNearestAncestor(
+		item: TreeItemState<TFile, TFolder>,
+		predicate: (ancestor: TreeItemState<TFile, TFolder, TFolder>) => boolean,
+	) {
+		for (let ancestor = item.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+			if (predicate(ancestor)) {
+				return ancestor;
+			}
+		}
+	}
+
+	function hasAncestor(
 		item: TreeItemState<TFile, TFolder>,
 		predicate: (ancestor: TreeItemState<TFile, TFolder, TFolder>) => boolean,
 	) {
@@ -278,8 +286,7 @@
 				continue;
 			}
 
-			const nearestCopiedAncestor = getNearestAncestor(current, isItemInClipboard);
-			if (nearestCopiedAncestor !== undefined) {
+			if (hasAncestor(current, isItemInClipboard)) {
 				// If an ancestor is copied, its children are copied along with it.
 				continue;
 			}
@@ -353,8 +360,7 @@
 				continue;
 			}
 
-			const nearestMovedAncestor = getNearestAncestor(current, isItemMoved);
-			if (nearestMovedAncestor !== undefined) {
+			if (hasAncestor(current, isItemMoved)) {
 				// If an ancestor is moved, its children are moved along with it.
 				continue;
 			}
@@ -459,7 +465,7 @@
 		}
 	}
 
-	export async function remove(target: TreeItemState<TFile, TFolder>) {
+	export async function remove(item: TreeItemState<TFile, TFolder>) {
 		const removed: Array<TreeItemState<TFile, TFolder>> = [];
 		const removedOwners = new Set<TFolder>();
 		for (const id of selectedIds) {
@@ -468,8 +474,7 @@
 				continue;
 			}
 
-			const nearestRemovedAncestor = getNearestAncestor(current, isItemSelected);
-			if (nearestRemovedAncestor !== undefined) {
+			if (hasAncestor(current, isItemSelected)) {
 				// If an ancestor is removed, its children are removed along with it.
 				continue;
 			}
@@ -478,12 +483,9 @@
 			removedOwners.add(current.parent?.node ?? root);
 		}
 
-		if (!target.selected) {
-			const nearestDeletedAncestor = getNearestAncestor(target, isItemSelected);
-			if (nearestDeletedAncestor === undefined) {
-				removed.push(target);
-				removedOwners.add(target.parent?.node ?? root);
-			}
+		if (!item.selected && !hasAncestor(item, isItemSelected)) {
+			removed.push(item);
+			removedOwners.add(item.parent?.node ?? root);
 		}
 
 		const canRemoveResult = await canRemove({ removed });
@@ -491,7 +493,7 @@
 			return false;
 		}
 
-		let focusTarget = getNextNonChildItem(target) ?? getPreviousItem(target);
+		let focusTarget = getNextNonChildItem(item) ?? getPreviousItem(item);
 		while (focusTarget !== undefined) {
 			// Move to the highest selected ancestor as all its children will be removed.
 			for (
@@ -545,13 +547,13 @@
 		return true;
 	}
 
-	function getDropFolder(target: TreeItemState<TFile, TFolder>) {
-		switch (target.node.type) {
+	function getDropDestinationItem(item: TreeItemState<TFile, TFolder>) {
+		switch (item.node.type) {
 			case "file": {
-				return target.parent;
+				return item.parent;
 			}
 			case "folder": {
-				return target as TreeItemState<TFile, TFolder, TFolder>;
+				return item as TreeItemState<TFile, TFolder, TFolder>;
 			}
 		}
 	}
@@ -560,28 +562,28 @@
 		root: () => root,
 		tabbableId: () => tabbableId ?? root.children[0].id,
 		getItemElementId,
-		onFocusIn: (target) => {
-			tabbableId = target.node.id;
+		onFocusIn: (item) => {
+			tabbableId = item.node.id;
 		},
-		onKeyDown: (target, event) => {
+		onKeyDown: (item, event) => {
 			if (event.target !== event.currentTarget) {
 				// Don't handle keydown events that bubble up from child elements
 				// because it can cause unexpected behavior with child inputs.
 				return;
 			}
 
-			if (target.disabled) {
+			if (item.disabled) {
 				return;
 			}
 
 			switch (event.key) {
 				case "ArrowRight": {
-					const node = target.node;
+					const node = item.node;
 					if (node.type === "file") {
 						break;
 					}
 
-					if (!target.expanded) {
+					if (!item.expanded) {
 						expandedIds.add(node.id);
 						break;
 					}
@@ -593,13 +595,13 @@
 					break;
 				}
 				case "ArrowLeft": {
-					const node = target.node;
-					if (node.type === "folder" && target.expanded) {
+					const node = item.node;
+					if (node.type === "folder" && item.expanded) {
 						expandedIds.delete(node.id);
 						break;
 					}
 
-					const parent = target.parent;
+					const parent = item.parent;
 					if (parent !== undefined) {
 						getItemElement(parent.node.id)?.focus();
 					}
@@ -608,7 +610,7 @@
 				case "ArrowDown":
 				case "ArrowUp": {
 					const down = event.key === "ArrowDown";
-					const next = down ? getNextItem(target) : getPreviousItem(target);
+					const next = down ? getNextItem(item) : getPreviousItem(item);
 					if (next === undefined) {
 						break;
 					}
@@ -620,7 +622,7 @@
 					}
 
 					if (event.shiftKey) {
-						selectedIds.add(target.node.id).add(nextId);
+						selectedIds.add(item.node.id).add(nextId);
 					} else if (!isControlOrMeta(event)) {
 						selectedIds.clear();
 						selectedIds.add(nextId);
@@ -639,11 +641,11 @@
 						ref!.clientHeight,
 						document.documentElement.clientHeight,
 					);
-					const targetElement = event.currentTarget;
-					const targetRect = targetElement.getBoundingClientRect();
+					const itemElement = event.currentTarget;
+					const itemRect = itemElement.getBoundingClientRect();
 
-					let current: TreeItemPosition = target;
-					let currentElement: HTMLElement = targetElement;
+					let current: TreeItemPosition = item;
+					let currentElement: HTMLElement = itemElement;
 					while (true) {
 						const next = navigate(current);
 						if (next === undefined) {
@@ -656,7 +658,7 @@
 						}
 
 						const nextRect = nextElement.getBoundingClientRect();
-						const distance = Math.abs(nextRect.top - targetRect.top);
+						const distance = Math.abs(nextRect.top - itemRect.top);
 						if (distance > maxScrollDistance) {
 							break;
 						}
@@ -669,7 +671,7 @@
 						currentElement = nextElement;
 					}
 
-					if (current === target) {
+					if (current === item) {
 						break;
 					}
 
@@ -683,7 +685,7 @@
 				}
 				case "Home": {
 					const first = root.children[0];
-					if (first === target.node) {
+					if (first === item.node) {
 						break;
 					}
 
@@ -694,7 +696,7 @@
 					}
 
 					if (event.shiftKey && isControlOrMeta(event)) {
-						let current: TreeItemPosition | undefined = target;
+						let current: TreeItemPosition | undefined = item;
 						do {
 							selectedIds.add(current.node.id);
 							current = getPreviousItem(current);
@@ -717,7 +719,7 @@
 						last = children.at(-1)!;
 					}
 
-					if (last === target.node) {
+					if (last === item.node) {
 						break;
 					}
 
@@ -728,7 +730,7 @@
 					}
 
 					if (event.shiftKey && isControlOrMeta(event)) {
-						let current: TreeItemPosition | undefined = target;
+						let current: TreeItemPosition | undefined = item;
 						do {
 							selectedIds.add(current.node.id);
 							current = getNextItem(current);
@@ -743,9 +745,9 @@
 				}
 				case " ": {
 					if (event.shiftKey) {
-						selectUntil(target, event.currentTarget);
+						selectUntil(item, event.currentTarget);
 					} else {
-						toggleSelection(target);
+						toggleSelection(item);
 					}
 					break;
 				}
@@ -756,7 +758,7 @@
 					break;
 				}
 				case "*": {
-					const owner = target.parent?.node ?? root;
+					const owner = item.parent?.node ?? root;
 					for (const child of owner.children) {
 						if (child.type === "folder") {
 							expandedIds.add(child.id);
@@ -765,7 +767,7 @@
 					break;
 				}
 				case "Delete": {
-					remove(target);
+					remove(item);
 					break;
 				}
 				case "a": {
@@ -781,7 +783,7 @@
 						break;
 					}
 
-					copyToClipboard(target, "copy");
+					copyToClipboard(item, "copy");
 					break;
 				}
 				case "x": {
@@ -789,7 +791,7 @@
 						break;
 					}
 
-					copyToClipboard(target, "cut");
+					copyToClipboard(item, "cut");
 					break;
 				}
 				case "v": {
@@ -801,35 +803,38 @@
 						break;
 					}
 
-					const dropFolder = getDropFolder(target);
-					if (dropFolder === undefined) {
+					const dropDestinationItem = getDropDestinationItem(item);
+					if (dropDestinationItem === undefined) {
 						// Pasting at the root level is always allowed.
 						paste(root);
 						break;
 					}
 
 					if (clipboard.operation === "cut") {
-						if (dropFolder.inClipboard) {
+						if (dropDestinationItem.inClipboard) {
 							// Pasting an item inside itself is not allowed.
 							onCircularReference({
-								source: dropFolder,
-								destination: dropFolder.node,
+								source: dropDestinationItem,
+								destination: dropDestinationItem.node,
 							});
 							break;
 						}
 
-						const nearestCopiedAncestor = getNearestAncestor(dropFolder, isItemInClipboard);
+						const nearestCopiedAncestor = getNearestAncestor(
+							dropDestinationItem,
+							isItemInClipboard,
+						);
 						if (nearestCopiedAncestor !== undefined) {
 							// Pasting an item inside itself is not allowed.
 							onCircularReference({
-								source: dropFolder,
-								destination: dropFolder.node,
+								source: nearestCopiedAncestor,
+								destination: dropDestinationItem.node,
 							});
 							break;
 						}
 					}
 
-					paste(dropFolder.node).then((didPaste) => {
+					paste(dropDestinationItem.node).then((didPaste) => {
 						if (didPaste) {
 							event.currentTarget.focus();
 						}
@@ -843,29 +848,30 @@
 
 			event.preventDefault();
 		},
-		onClick: (target, event) => {
-			if (target.disabled) {
+		onClick: (item, event) => {
+			if (item.disabled) {
 				return;
 			}
 
 			if (isControlOrMeta(event)) {
-				toggleSelection(target);
+				toggleSelection(item);
 			} else if (event.shiftKey) {
-				selectUntil(target, event.currentTarget);
+				selectUntil(item, event.currentTarget);
 			} else {
 				selectedIds.clear();
-				selectedIds.add(target.node.id);
+				selectedIds.add(item.node.id);
 			}
 		},
-		canDrag: (target) => !target.disabled,
-		onDragStart: (target) => {
-			if (!target.selected) {
+		getDragData: (item) => ({ id: item.node.id }),
+		canDrag: (item) => !item.disabled,
+		onDragStart: (item) => {
+			if (!item.selected) {
 				selectedIds.clear();
-				selectedIds.add(target.node.id);
+				selectedIds.add(item.node.id);
 			}
 		},
-		canDrop: (target, source) => {
-			if (target.disabled) {
+		canDrop: (item, source) => {
+			if (item.disabled) {
 				return false;
 			}
 
@@ -874,38 +880,37 @@
 				return false;
 			}
 
-			if (target.node.id === sourceId) {
+			if (item.node.id === sourceId) {
 				// Dropping an item on itself is not allowed.
 				return false;
 			}
 
-			const dropFolder = getDropFolder(target);
-			if (dropFolder === undefined) {
+			const dropDestinationItem = getDropDestinationItem(item);
+			if (dropDestinationItem === undefined) {
 				// Dropping at the root level is always allowed.
 				return true;
 			}
 
-			if (dropFolder.selected || dropFolder.node.id === sourceId) {
+			if (dropDestinationItem.selected || dropDestinationItem.node.id === sourceId) {
 				// Moving an item inside itself is not allowed.
 				return false;
 			}
 
 			// Moving an item inside itself is not allowed.
-			const nearestMovedAncestor = getNearestAncestor(
-				dropFolder,
+			return !hasAncestor(
+				dropDestinationItem,
 				(ancestor) => ancestor.selected || ancestor.node.id === sourceId,
 			);
-			return nearestMovedAncestor === undefined;
 		},
-		onDrag: (target) => {
-			const dropFolder = getDropFolder(target);
-			const dropDestination = dropFolder?.node ?? root;
+		onDrag: (item) => {
+			const dropDestinationItem = getDropDestinationItem(item);
+			const dropDestination = dropDestinationItem?.node ?? root;
 			onDropDestinationChange({ dropDestination });
 		},
 		onDragLeave: () => {
 			onDropDestinationChange({ dropDestination: undefined });
 		},
-		onDrop: async (target, source) => {
+		onDrop: async (item, source) => {
 			const sourceId = source.data.id;
 			if (typeof sourceId !== "string") {
 				return;
@@ -922,15 +927,15 @@
 				selectedIds.add(sourceId);
 			}
 
-			const dropFolder = getDropFolder(target);
-			const dropDestination = dropFolder?.node ?? root;
+			const dropDestinationItem = getDropDestinationItem(item);
+			const dropDestination = dropDestinationItem?.node ?? root;
 			const didMove = await move(selectedIds, isItemSelected, dropDestination);
 			if (didMove) {
 				source.element.focus();
 			}
 		},
-		onDestroyItem: (target) => {
-			if (tabbableId === target.node.id) {
+		onDestroyItem: (item) => {
+			if (tabbableId === item.node.id) {
 				tabbableId = undefined;
 			}
 		},
