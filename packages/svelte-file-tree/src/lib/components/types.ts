@@ -1,3 +1,4 @@
+import type { Input as DragInput } from "@atlaskit/pragmatic-drag-and-drop/types";
 import type { Snippet } from "svelte";
 import type { HTMLAttributes } from "svelte/elements";
 import type { SvelteSet } from "svelte/reactivity";
@@ -8,6 +9,8 @@ import type {
 	TreeClipboard,
 	TreeItemState,
 } from "$lib/tree.svelte.js";
+
+export type { DragInput };
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -109,6 +112,16 @@ export interface TreeProps<
 	onRemove?: (args: OnRemoveArgs<TFile, TFolder>) => void;
 }
 
+export type DragSource = {
+	id: string;
+	element: HTMLElement;
+};
+
+export type DragEventArgs = {
+	input: DragInput;
+	source: DragSource;
+};
+
 export interface TreeItemProps<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
@@ -126,6 +139,10 @@ export interface TreeItemProps<
 	children: Snippet;
 	item: TreeItemState<TFile, TFolder>;
 	ref?: HTMLElement | null;
-	onDragStart?: () => void;
-	onDrop?: () => void;
+	onDragStart?: (args: DragEventArgs) => void;
+	onDragEnd?: (args: DragEventArgs) => void;
+	onDragEnter?: (args: DragEventArgs) => void;
+	onDragOver?: (args: DragEventArgs) => void;
+	onDragLeave?: (args: DragEventArgs) => void;
+	onDrop?: (args: DragEventArgs) => void;
 }

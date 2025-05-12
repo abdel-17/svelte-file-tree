@@ -19,6 +19,10 @@
 		item,
 		ref = $bindable(null),
 		onDragStart = noop,
+		onDragEnd = noop,
+		onDragEnter = noop,
+		onDragOver = noop,
+		onDragLeave = noop,
 		onDrop = noop,
 		onfocusin,
 		onkeydown,
@@ -45,9 +49,23 @@
 			canDrag: (args) => context.canDrag(item, args),
 			onDragStart: (args) => {
 				context.onDragStart(item, args);
-				onDragStart();
+				onDragStart({
+					input: args.location.current.input,
+					source: {
+						id: item.node.id,
+						element: args.source.element,
+					},
+				});
 			},
-			onDrop: () => onDrop(),
+			onDrop: (args) => {
+				onDragEnd({
+					input: args.location.current.input,
+					source: {
+						id: item.node.id,
+						element: args.source.element,
+					},
+				});
+			},
 		});
 	});
 
@@ -62,6 +80,66 @@
 					configurable: true,
 				});
 				return canDrop;
+			},
+			onDragEnter: (args) => {
+				const source = args.source;
+				const sourceId = source.data.id;
+				if (typeof sourceId !== "string") {
+					return;
+				}
+
+				onDragEnter({
+					input: args.location.current.input,
+					source: {
+						id: sourceId,
+						element: source.element,
+					},
+				});
+			},
+			onDrag: (args) => {
+				const source = args.source;
+				const sourceId = source.data.id;
+				if (typeof sourceId !== "string") {
+					return;
+				}
+
+				onDragOver({
+					input: args.location.current.input,
+					source: {
+						id: sourceId,
+						element: source.element,
+					},
+				});
+			},
+			onDragLeave: (args) => {
+				const source = args.source;
+				const sourceId = source.data.id;
+				if (typeof sourceId !== "string") {
+					return;
+				}
+
+				onDragLeave({
+					input: args.location.current.input,
+					source: {
+						id: sourceId,
+						element: source.element,
+					},
+				});
+			},
+			onDrop: (args) => {
+				const source = args.source;
+				const sourceId = source.data.id;
+				if (typeof sourceId !== "string") {
+					return;
+				}
+
+				onDrop({
+					input: args.location.current.input,
+					source: {
+						id: sourceId,
+						element: source.element,
+					},
+				});
 			},
 		});
 	});

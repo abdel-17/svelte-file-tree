@@ -22,7 +22,7 @@
 	onDragStart={() => {
 		dragged = true;
 	}}
-	onDrop={() => {
+	onDragEnd={() => {
 		dragged = false;
 	}}
 >
