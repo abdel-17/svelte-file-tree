@@ -2,6 +2,7 @@
 	lang="ts"
 	generics="TFile extends FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>"
 >
+	import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 	import { DEV } from "esm-env";
 	import { SvelteSet } from "svelte/reactivity";
 	import { isControlOrMeta, noop, truePredicate } from "$lib/helpers.js";
@@ -862,7 +863,6 @@
 				selectedIds.add(item.node.id);
 			}
 		},
-		getDragData: (item) => ({ id: item.node.id }),
 		canDrag: (item) => !item.disabled,
 		onDragStart: (item) => {
 			if (!item.selected) {
@@ -870,11 +870,12 @@
 				selectedIds.add(item.node.id);
 			}
 		},
-		canDrop: (item, source) => {
+		canDrop: (item, args) => {
 			if (item.disabled) {
 				return false;
 			}
 
+			const source = args.source;
 			const sourceId = source.data.id;
 			if (typeof sourceId !== "string") {
 				return false;
@@ -902,43 +903,99 @@
 				(ancestor) => ancestor.selected || ancestor.node.id === sourceId,
 			);
 		},
-		onDrag: (item) => {
-			const dropDestinationItem = getDropDestinationItem(item);
-			const dropDestination = dropDestinationItem?.node ?? root;
-			onDropDestinationChange({ dropDestination });
-		},
-		onDragLeave: () => {
-			onDropDestinationChange({ dropDestination: undefined });
-		},
-		onDrop: async (item, source) => {
-			const sourceId = source.data.id;
-			if (typeof sourceId !== "string") {
-				return;
-			}
-
-			onDropDestinationChange({ dropDestination: undefined });
-
-			const sourceItem = getItem(sourceId);
-			if (sourceItem === undefined) {
-				return;
-			}
-
-			if (!sourceItem.selected) {
-				selectedIds.add(sourceId);
-			}
-
-			const dropDestinationItem = getDropDestinationItem(item);
-			const dropDestination = dropDestinationItem?.node ?? root;
-			const didMove = await move(selectedIds, isItemSelected, dropDestination);
-			if (didMove) {
-				source.element.focus();
-			}
-		},
 		onDestroyItem: (item) => {
 			if (tabbableId === item.node.id) {
 				tabbableId = undefined;
 			}
 		},
+	});
+
+	$effect(() => {
+		return dropTargetForElements({
+			element: ref!,
+			canDrop: (args) => {
+				const input = args.input;
+				if ("__canDrop" in input && input.__canDrop === false) {
+					return false;
+				}
+				return true;
+			},
+			onDrag: (args) => {
+				const dropTargets = args.location.current.dropTargets;
+				if (dropTargets.length === 0) {
+					return;
+				}
+
+				const dropTarget = dropTargets[0];
+				if (dropTarget.element === args.self.element) {
+					onDropDestinationChange({ dropDestination: root });
+				} else {
+					const dropTargetId = dropTarget.data.id;
+					if (typeof dropTargetId !== "string") {
+						return;
+					}
+
+					const dropTargetItem = getItem(dropTargetId);
+					if (dropTargetItem === undefined) {
+						return;
+					}
+
+					const dropDestinationItem = getDropDestinationItem(dropTargetItem);
+					const dropDestination = dropDestinationItem?.node ?? root;
+					onDropDestinationChange({ dropDestination });
+				}
+			},
+			onDragLeave: () => {
+				onDropDestinationChange({ dropDestination: undefined });
+			},
+			onDrop: async (args) => {
+				onDropDestinationChange({ dropDestination: undefined });
+
+				const source = args.source;
+				const sourceId = source.data.id;
+				if (typeof sourceId !== "string") {
+					return;
+				}
+
+				const sourceItem = getItem(sourceId);
+				if (sourceItem === undefined) {
+					return;
+				}
+
+				const dropTargets = args.location.current.dropTargets;
+				if (dropTargets.length === 0) {
+					return;
+				}
+
+				let dropDestination: TFolder;
+				const dropTarget = dropTargets[0];
+				if (dropTarget.element === args.self.element) {
+					dropDestination = root;
+				} else {
+					const dropTargetId = dropTarget.data.id;
+					if (typeof dropTargetId !== "string") {
+						return;
+					}
+
+					const dropTargetItem = getItem(dropTargetId);
+					if (dropTargetItem === undefined) {
+						return;
+					}
+
+					const dropDestinationItem = getDropDestinationItem(dropTargetItem);
+					dropDestination = dropDestinationItem?.node ?? root;
+				}
+
+				if (!sourceItem.selected) {
+					selectedIds.add(sourceId);
+				}
+
+				const didMove = await move(selectedIds, isItemSelected, dropDestination);
+				if (didMove) {
+					source.element.focus();
+				}
+			},
+		});
 	});
 </script>
 

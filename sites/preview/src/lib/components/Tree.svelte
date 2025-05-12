@@ -14,6 +14,13 @@
 <Tree
 	{root}
 	{expandedIds}
+	class={[
+		"min-h-svh p-8",
+		{
+			"before:pointer-events-none before:absolute before:inset-2 before:border-2 before:border-red-500":
+				dropDestination === root,
+		},
+	]}
 	onChildrenChange={(args) => {
 		if (args.operation === "insert") {
 			args.children.sort((a, b) => a.name.localeCompare(b.name));

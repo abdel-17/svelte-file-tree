@@ -24,6 +24,4 @@
 	});
 </script>
 
-<main class="p-8">
-	<Tree {root} />
-</main>
+<Tree {root} />

@@ -41,10 +41,10 @@
 	$effect(() => {
 		return draggable({
 			element: ref!,
-			getInitialData: () => context.getDragData(item),
-			canDrag: () => context.canDrag(item),
-			onDragStart: () => {
-				context.onDragStart(item);
+			getInitialData: () => ({ id: item.node.id }),
+			canDrag: (args) => context.canDrag(item, args),
+			onDragStart: (args) => {
+				context.onDragStart(item, args);
 				onDragStart();
 			},
 			onDrop: () => onDrop(),
@@ -54,11 +54,15 @@
 	$effect(() => {
 		return dropTargetForElements({
 			element: ref!,
-			getData: () => context.getDragData(item),
-			canDrop: ({ source }) => context.canDrop(item, source),
-			onDrag: ({ source }) => context.onDrag(item, source),
-			onDragLeave: ({ source }) => context.onDragLeave(item, source),
-			onDrop: ({ source }) => context.onDrop(item, source),
+			getData: () => ({ id: item.node.id }),
+			canDrop: (args) => {
+				const canDrop = context.canDrop(item, args);
+				Object.defineProperty(args.input, "__canDrop", {
+					value: canDrop,
+					configurable: true,
+				});
+				return canDrop;
+			},
 		});
 	});
 
