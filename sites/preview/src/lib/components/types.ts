@@ -9,4 +9,5 @@ export interface TreeItemProps {
 	dropDestination: FolderNode | undefined;
 	onExpand: () => void;
 	onCollapse: () => void;
+	onRename: (name: string) => boolean;
 }
