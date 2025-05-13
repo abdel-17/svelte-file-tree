@@ -3,6 +3,7 @@
 		Tree,
 		type FolderNode,
 		type OnChildrenChangeArgs,
+		type OnCircularReferenceArgs,
 		type OnDropDestinationChangeArgs,
 		type OnRemoveArgs,
 		type OnResolveNameConflictArgs,
@@ -52,6 +53,10 @@
 		});
 	}
 
+	function onCircularReference(args: OnCircularReferenceArgs) {
+		toast.error(`Cannot move "${args.source.node.name}" inside itself`);
+	}
+
 	function canRemove(args: OnRemoveArgs) {
 		return confirmRemoveDialog!.show({
 			title: `Are you sure you want to delete ${args.removed.length} item(s)?`,
@@ -94,6 +99,7 @@
 		{onChildrenChange}
 		{onDropDestinationChange}
 		{onResolveNameConflict}
+		{onCircularReference}
 		{canRemove}
 		class={[
 			"relative grow p-6 focus-visible:outline-2 focus-visible:outline-current",
