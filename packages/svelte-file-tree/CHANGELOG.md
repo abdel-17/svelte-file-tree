@@ -1,5 +1,12 @@
 # svelte-file-tree
 
+## 0.3.0
+
+### Minor Changes
+
+- 565712c: Rework
+  https://github.com/abdel-17/svelte-file-tree/pull/70
+
 ## 0.2.0
 
 ### Minor Changes
