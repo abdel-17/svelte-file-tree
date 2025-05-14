@@ -1,101 +1,132 @@
-import type { HTMLDivAttributes, MaybePromise } from "$lib/internal/types.js";
-import type { FileNode, FileTree, FileTreeNode, FolderNode } from "$lib/tree.svelte.js";
+import type { Input as DragInput } from "@atlaskit/pragmatic-drag-and-drop/types";
 import type { Snippet } from "svelte";
-import type { ClassValue } from "svelte/elements";
+import type { HTMLAttributes } from "svelte/elements";
 import type { SvelteSet } from "svelte/reactivity";
+import type {
+	DefaultTFolder,
+	FileNode,
+	FolderNode,
+	TreeClipboard,
+	TreeItemState,
+} from "$lib/tree.svelte.js";
 
-export type ParentFileTreeNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = Extract<
-	TNode,
-	FolderNode<any>
->;
+export type { DragInput };
 
-export type TreeItemState<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
-	node: TNode;
-	index: number;
-	parent?: TreeItemState<ParentFileTreeNode<TNode>>;
-	depth: number;
-	selected: boolean;
-	expanded: boolean;
-	inClipboard: boolean;
-	disabled: boolean;
-	visible: boolean;
-	dragged: boolean;
+export type MaybePromise<T> = T | Promise<T>;
+
+export type TreeChildrenSnippetArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	items: Array<TreeItemState<TFile, TFolder>>;
 };
 
-export type DropPosition = "before" | "after" | "inside";
-
-export type TreeItemSnippetArgs<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
-	item: TreeItemState<TNode>;
+export type OnClipboardChangeArgs = {
+	clipboard: TreeClipboard | undefined;
 };
 
-export type PasteOperation = "copy" | "cut";
-
-export type MoveItemsArgs<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
-	updates: Array<{
-		target: ParentFileTreeNode<TNode> | FileTree<TNode>;
-		children: Array<TNode>;
-	}>;
-	moved: Array<TNode>;
+export type OnChildrenChangeArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	operation: "insert" | "remove";
+	target: TFolder;
+	children: Array<TFile | TFolder>;
 };
 
-export type CopyPasteItemsArgs<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
-	target: ParentFileTreeNode<TNode> | FileTree<TNode>;
-	start: number;
-	copies: Array<TNode>;
-	originals: Array<TNode>;
+export type OnDropDestinationChangeArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	dropDestination: TFolder | undefined;
 };
 
-export type RemoveItemsArgs<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> = {
-	updates: Array<{
-		target: ParentFileTreeNode<TNode> | FileTree<TNode>;
-		children: Array<TNode>;
-	}>;
-	removed: Array<TNode>;
-};
-
-export type ResolveNameConflictArgs = {
-	operation: "move" | "copy-paste";
+export type OnResolveNameConflictArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	operation: "copy" | "move";
+	destination: TFolder;
 	name: string;
 };
 
 export type NameConflictResolution = "skip" | "cancel";
 
-export type CircularReferenceErrorArgs<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> =
-	{
-		target: TNode;
-		position: DropPosition;
-	};
+export type OnCircularReferenceArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	source: TreeItemState<TFile, TFolder, TFolder>;
+	destination: TFolder;
+};
 
-export interface TreeProps<TNode extends FileNode | FolderNode<TNode> = FileTreeNode>
-	extends Omit<HTMLDivAttributes, "children" | "role" | "aria-multiselectable"> {
-	tree: FileTree<TNode>;
-	item: Snippet<[args: TreeItemSnippetArgs<TNode>]>;
+export type OnCopyArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	sources: Array<TreeItemState<TFile, TFolder>>;
+	destination: TFolder;
+};
+
+export type OnMoveArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	sources: Array<TreeItemState<TFile, TFolder>>;
+	destination: TFolder;
+};
+
+export type OnRemoveArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	removed: Array<TreeItemState<TFile, TFolder>>;
+};
+
+export interface TreeProps<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> extends Omit<HTMLAttributes<HTMLDivElement>, "children" | "role" | "aria-multiselectable"> {
+	children: Snippet<[args: TreeChildrenSnippetArgs<TFile, TFolder>]>;
+	root: TFolder;
 	defaultSelectedIds?: Iterable<string>;
 	selectedIds?: SvelteSet<string>;
 	defaultExpandedIds?: Iterable<string>;
 	expandedIds?: SvelteSet<string>;
-	defaultClipboardIds?: Iterable<string>;
-	clipboardIds?: SvelteSet<string>;
-	pasteOperation?: PasteOperation;
-	isItemDisabled?: boolean | ((node: TNode) => boolean);
-	id?: string;
+	clipboard?: TreeClipboard;
+	isItemDisabled?: boolean | ((node: TFile | TFolder) => boolean);
 	ref?: HTMLElement | null;
-	copyNode?: (node: TNode) => TNode;
-	onMoveItems?: (args: MoveItemsArgs<TNode>) => MaybePromise<boolean>;
-	onCopyPasteItems?: (args: CopyPasteItemsArgs<TNode>) => MaybePromise<boolean>;
-	onRemoveItems?: (args: RemoveItemsArgs<TNode>) => MaybePromise<boolean>;
-	onResolveNameConflict?: (args: ResolveNameConflictArgs) => MaybePromise<NameConflictResolution>;
-	onCircularReferenceError?: (args: CircularReferenceErrorArgs<TNode>) => void;
+	copyNode?: (node: TFile | TFolder) => TFile | TFolder;
+	onClipboardChange?: (args: OnClipboardChangeArgs) => void;
+	onChildrenChange?: (args: OnChildrenChangeArgs<TFile, TFolder>) => void;
+	onDropDestinationChange?: (args: OnDropDestinationChangeArgs<TFile, TFolder>) => void;
+	onResolveNameConflict?: (
+		args: OnResolveNameConflictArgs<TFile, TFolder>,
+	) => MaybePromise<NameConflictResolution>;
+	onCircularReference?: (args: OnCircularReferenceArgs<TFile, TFolder>) => void;
+	canCopy?: (args: OnCopyArgs<TFile, TFolder>) => MaybePromise<boolean>;
+	onCopy?: (args: OnCopyArgs<TFile, TFolder>) => void;
+	canMove?: (args: OnMoveArgs<TFile, TFolder>) => MaybePromise<boolean>;
+	onMove?: (args: OnMoveArgs<TFile, TFolder>) => void;
+	canRemove?: (args: OnRemoveArgs<TFile, TFolder>) => MaybePromise<boolean>;
+	onRemove?: (args: OnRemoveArgs<TFile, TFolder>) => void;
 }
 
-export type TreeItemChildrenSnippetArgs = {
-	dropPosition: DropPosition | undefined;
+export type DragSource = {
+	id: string;
+	element: HTMLElement;
 };
 
-export interface TreeItemProps
-	extends Omit<
-		HTMLDivAttributes,
-		| "children"
+export type DragEventArgs = {
+	input: DragInput;
+	source: DragSource;
+};
+
+export interface TreeItemProps<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> extends Omit<
+		HTMLAttributes<HTMLDivElement>,
 		| "id"
 		| "role"
 		| "aria-selected"
@@ -104,11 +135,14 @@ export interface TreeItemProps
 		| "aria-posinset"
 		| "aria-setsize"
 		| "tabindex"
-		| "class"
-		| "style"
 	> {
-	children: Snippet<[args: TreeItemChildrenSnippetArgs]>;
+	children: Snippet;
+	item: TreeItemState<TFile, TFolder>;
 	ref?: HTMLElement | null;
-	class?: ClassValue | ((args: TreeItemChildrenSnippetArgs) => ClassValue | undefined);
-	style?: string | ((args: TreeItemChildrenSnippetArgs) => string | undefined);
+	onDragStart?: (args: DragEventArgs) => void;
+	onDragEnd?: (args: DragEventArgs) => void;
+	onDragEnter?: (args: DragEventArgs) => void;
+	onDragOver?: (args: DragEventArgs) => void;
+	onDragLeave?: (args: DragEventArgs) => void;
+	onDrop?: (args: DragEventArgs) => void;
 }

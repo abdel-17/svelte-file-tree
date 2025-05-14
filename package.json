@@ -4,16 +4,17 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
+		"dev": "pnpm --parallel --color dev",
 		"build": "pnpm -r build",
 		"build:packages": "pnpm -F \"./packages/**\" -r build",
 		"build:preview": "pnpm build:packages && pnpm -F preview build",
-		"check": "pnpm --parallel check",
-		"format": "pnpm --parallel format",
-		"format:check": "pnpm --parallel format:check"
+		"check": "pnpm --parallel --color check",
+		"format": "pnpm --parallel --color format",
+		"format:check": "pnpm --parallel --color format:check"
 	},
 	"devDependencies": {
-		"@changesets/cli": "^2.28.1",
-		"playwright": "^1.51.1"
+		"@changesets/cli": "^2.29.3",
+		"playwright": "^1.52.0"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [

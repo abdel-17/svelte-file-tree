@@ -1,11 +1,10 @@
-import type { EventHandler } from "svelte/elements";
-
-// https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples
-export function isControlOrMeta(event: KeyboardEvent | MouseEvent): boolean {
+/**
+ * @link https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples
+ */
+export function isControlOrMeta(event: KeyboardEvent | MouseEvent) {
 	if (navigator.platform.startsWith("Mac") || navigator.platform === "iPhone") {
 		return event.metaKey;
 	}
-
 	return event.ctrlKey;
 }
 
@@ -14,9 +13,12 @@ export function composeEventHandlers<TEvent extends Event>(
 	b: (event: TEvent) => void,
 ) {
 	return (event: TEvent) => {
+		if (event.defaultPrevented) {
+			return;
+		}
+
 		if (a != null) {
 			a(event);
-
 			if (event.defaultPrevented) {
 				return;
 			}
@@ -24,4 +26,10 @@ export function composeEventHandlers<TEvent extends Event>(
 
 		b(event);
 	};
+}
+
+export function noop() {}
+
+export function truePredicate() {
+	return true;
 }
