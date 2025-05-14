@@ -4,7 +4,14 @@
 	import type { FocusEventHandler, KeyboardEventHandler, MouseEventHandler } from "svelte/elements";
 	import type { TreeItemProps } from "./types.js";
 
-	const { item, dropDestination, onExpand, onCollapse, onRename }: TreeItemProps = $props();
+	const {
+		item,
+		dropDestination,
+		borderAnimationTargetId,
+		onExpand,
+		onCollapse,
+		onRename,
+	}: TreeItemProps = $props();
 
 	let ref: HTMLDivElement | null = $state.raw(null);
 	let dragged = $state.raw(false);
@@ -73,14 +80,10 @@
 	{onDragStart}
 	{onDragEnd}
 	bind:ref
-	class={[
-		"relative flex items-center p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300",
-		{
-			"opacity-50": dragged,
-			"before:pointer-events-none before:absolute before:inset-0 before:border-2 before:border-red-500":
-				dropDestination === item.node,
-		},
-	]}
+	data-dragged={dragged ? true : undefined}
+	data-drop-destination={dropDestination === item.node ? true : undefined}
+	data-animation-target={borderAnimationTargetId === item.node.id ? true : undefined}
+	class="relative flex items-center bg-white p-3 before:pointer-events-none before:absolute before:inset-0 before:border-2 before:border-transparent before:transition-colors after:pointer-events-none after:absolute after:inset-0 after:border-2 after:border-transparent after:transition-colors hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300 data-animation-target:after:border-pink-500 data-animation-target:after:bg-pink-500/10 data-dragged:opacity-50 data-drop-destination:before:border-red-500"
 	style="padding-inline-start: calc(var(--spacing) * {item.depth * 6} + var(--spacing) * 3)"
 	onkeydown={onKeyDown}
 >

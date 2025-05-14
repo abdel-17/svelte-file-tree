@@ -7,6 +7,7 @@ export interface TreeProps {
 export interface TreeItemProps {
 	item: TreeItemState;
 	dropDestination: FolderNode | undefined;
+	borderAnimationTargetId: string | undefined;
 	onExpand: () => void;
 	onCollapse: () => void;
 	onRename: (name: string) => boolean;
