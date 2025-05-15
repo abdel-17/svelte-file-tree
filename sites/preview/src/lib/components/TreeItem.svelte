@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { TreeItem } from "svelte-file-tree";
-	import type { FocusEventHandler, KeyboardEventHandler, MouseEventHandler } from "svelte/elements";
+	import type { FocusEventHandler, KeyboardEventHandler } from "svelte/elements";
 	import type { TreeItemProps } from "./types.js";
 
 	const {
@@ -32,15 +32,13 @@
 		}
 	};
 
-	const onToggleClick: MouseEventHandler<HTMLButtonElement> = (event) => {
-		event.preventDefault();
-
+	function onToggleExpansion() {
 		if (item.expanded) {
 			onCollapse();
 		} else {
 			onExpand();
 		}
-	};
+	}
 
 	function onInputInit(input: HTMLInputElement) {
 		input.focus();
@@ -83,26 +81,17 @@
 	data-dragged={dragged ? true : undefined}
 	data-drop-destination={dropDestination === item.node ? true : undefined}
 	data-animation-target={borderAnimationTargetId === item.node.id ? true : undefined}
-	class="relative flex items-center bg-white p-3 before:pointer-events-none before:absolute before:inset-0 before:border-2 before:border-transparent before:transition-colors after:pointer-events-none after:absolute after:inset-0 after:border-2 after:border-transparent after:transition-colors hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300 data-animation-target:after:border-pink-500 data-animation-target:after:bg-pink-500/10 data-dragged:opacity-50 data-drop-destination:before:border-red-500"
+	class="group relative flex items-center bg-white p-3 before:pointer-events-none before:absolute before:inset-0 before:border-2 before:border-transparent before:transition-colors after:pointer-events-none after:absolute after:inset-0 after:border-2 after:border-transparent after:transition-colors hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300 data-animation-target:after:border-pink-500 data-animation-target:after:bg-pink-500/10 data-dragged:opacity-50 data-drop-destination:before:border-red-500"
 	style="padding-inline-start: calc(var(--spacing) * {item.depth * 6} + var(--spacing) * 3)"
 	onkeydown={onKeyDown}
 >
-	<button
-		type="button"
-		aria-expanded={item.expanded}
-		tabindex={-1}
-		class={[
-			"rounded-full transition-transform duration-200 hover:bg-current/8 active:bg-current/12",
-			{
-				invisible: item.node.type === "file",
-				"-rotate-90": item.expanded,
-			},
-		]}
-		onclick={onToggleClick}
-	>
-		<span class="sr-only">Toggle expansion</span>
-		<ChevronDownIcon role="presentation" size={20} />
-	</button>
+	<ChevronDownIcon
+		role="presentation"
+		size={20}
+		data-invisible={item.node.type === "file" ? true : undefined}
+		class="rounded-full transition-transform duration-200 group-aria-expanded:-rotate-90 hover:bg-current/8 active:bg-current/12 data-invisible:invisible"
+		onclick={onToggleExpansion}
+	/>
 
 	<div class="ps-1 pe-2">
 		{#if item.node.type === "file"}
