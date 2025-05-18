@@ -59,7 +59,7 @@ export type PasteOperation = "copy" | "cut";
 
 export type TreeClipboard = {
 	operation: PasteOperation;
-	ids: Set<string>;
+	ids: SvelteSet<string>;
 };
 
 export type TreeItemStateProps<

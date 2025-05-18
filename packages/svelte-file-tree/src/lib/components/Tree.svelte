@@ -234,9 +234,9 @@
 		}
 	}
 
-	export function copyToClipboard(item: TreeItemState<TFile, TFolder>, operation: PasteOperation) {
-		const clipboardIds = new Set(selectedIds);
-		clipboardIds.add(item.node.id);
+	export function copyToClipboard(itemId: string, operation: PasteOperation) {
+		const clipboardIds = new SvelteSet(selectedIds);
+		clipboardIds.add(itemId);
 		clipboard = {
 			ids: clipboardIds,
 			operation,
@@ -462,7 +462,7 @@
 		}
 	}
 
-	export async function remove(item: TreeItemState<TFile, TFolder>) {
+	async function _remove(item: TreeItemState<TFile, TFolder>) {
 		const removed: Array<TreeItemState<TFile, TFolder>> = [];
 		const removedOwners = new Set<TFolder>();
 		for (const id of selectedIds) {
@@ -542,6 +542,14 @@
 
 		onRemove({ removed });
 		return true;
+	}
+
+	export async function remove(itemId: string) {
+		const item = getItem(itemId);
+		if (item === undefined) {
+			return false;
+		}
+		return await _remove(item);
 	}
 
 	function getDropDestinationItem(item: TreeItemState<TFile, TFolder>) {
@@ -764,7 +772,7 @@
 					break;
 				}
 				case "Delete": {
-					remove(item);
+					_remove(item);
 					break;
 				}
 				case "a": {
@@ -780,7 +788,7 @@
 						break;
 					}
 
-					copyToClipboard(item, "copy");
+					copyToClipboard(item.node.id, "copy");
 					break;
 				}
 				case "x": {
@@ -788,7 +796,7 @@
 						break;
 					}
 
-					copyToClipboard(item, "cut");
+					copyToClipboard(item.node.id, "cut");
 					break;
 				}
 				case "v": {
@@ -881,7 +889,7 @@
 
 			const source = args.source;
 			const sourceId = source.data.id;
-			if (typeof sourceId !== "string") {
+			if (typeof sourceId !== "string" || !lookup.has(sourceId)) {
 				return false;
 			}
 

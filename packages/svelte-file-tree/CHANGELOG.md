@@ -1,5 +1,12 @@
 # svelte-file-tree
 
+## 0.4.0
+
+### Minor Changes
+
+- breaking: Tree.copyToClipboard() and Tree.remove() methods now receive an itemId parameter instead of an item.
+- breaking: TreeClipboard.ids is now a SvelteSet instead of a Set.
+
 ## 0.3.0
 
 ### Minor Changes
