@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.5.0
+
+### Minor Changes
+
+- feat: add `Tree.getItems()` method
+
 ## 0.4.0
 
 ### Minor Changes

@@ -99,6 +99,10 @@
 		return result;
 	});
 
+	export function getItems() {
+		return items;
+	}
+
 	export function getItem(itemId: string) {
 		return lookup.get(itemId);
 	}
