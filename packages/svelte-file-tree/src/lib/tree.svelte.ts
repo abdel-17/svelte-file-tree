@@ -6,7 +6,7 @@ export type FileNodeProps = {
 };
 
 export class FileNode {
-	readonly id: string;
+	id: string;
 	name = $state.raw("");
 
 	constructor(props: FileNodeProps) {
@@ -24,7 +24,7 @@ export type FolderNodeProps<TNode extends FileNode | FolderNode<TNode> = FileTre
 };
 
 export class FolderNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> {
-	readonly id: string;
+	id: string;
 	name = $state.raw("");
 	children: Array<TNode> = $state([]);
 
