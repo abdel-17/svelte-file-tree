@@ -31,7 +31,7 @@
 	"types": "./dist/index.d.ts",
 	"svelte": "./dist/index.js",
 	"peerDependencies": {
-		"svelte": "^5.20.0"
+		"svelte": "^5.31.0"
 	},
 	"dependencies": {
 		"@atlaskit/pragmatic-drag-and-drop": "^1.7.0",
