@@ -1,6 +1,6 @@
 <script
 	lang="ts"
-	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>"
+	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>, TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>"
 >
 	import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 	import { DEV } from "esm-env";
@@ -8,6 +8,7 @@
 	import { isControlOrMeta, noop, truePredicate } from "$lib/helpers.js";
 	import {
 		FileNode,
+		FileTree,
 		FolderNode,
 		TreeItemState,
 		type DefaultTFolder,
@@ -61,7 +62,7 @@
 		canRemove = truePredicate,
 		onRemove = noop,
 		...rest
-	}: TreeProps<TFile, TFolder> = $props();
+	}: TreeProps<TFile, TFolder, TTree> = $props();
 
 	const uid = $props.id();
 	let tabbableId: string | undefined = $state.raw();
@@ -274,7 +275,7 @@
 		return item.inClipboard;
 	}
 
-	async function copy(clipboardIds: Set<string>, destination: TFolder) {
+	async function copy(clipboardIds: Set<string>, destination: TFolder | TTree) {
 		const names = new Set<string>();
 		for (const child of destination.children) {
 			names.add(child.name);
@@ -340,7 +341,7 @@
 	async function move(
 		movedIds: Set<string>,
 		isItemMoved: (item: TreeItemState<TFile, TFolder>) => boolean,
-		destination: TFolder,
+		destination: TFolder | TTree,
 	) {
 		const names = new Set<string>();
 		for (const child of destination.children) {
@@ -349,7 +350,7 @@
 
 		const sources: Array<TreeItemState<TFile, TFolder>> = [];
 		const sourceIds = new Set<string>();
-		const sourceOwners = new Set<TFolder>();
+		const sourceOwners = new Set<TFolder | TTree>();
 		for (const id of movedIds) {
 			const current = getItem(id);
 			if (current === undefined) {
@@ -421,7 +422,7 @@
 		return true;
 	}
 
-	export async function paste(destination: TFolder) {
+	export async function paste(destination: TFolder | TTree) {
 		if (clipboard === undefined) {
 			return false;
 		}
@@ -468,7 +469,7 @@
 
 	async function _remove(item: TreeItemState<TFile, TFolder>) {
 		const removed: Array<TreeItemState<TFile, TFolder>> = [];
-		const removedOwners = new Set<TFolder>();
+		const removedOwners = new Set<TFolder | TTree>();
 		for (const id of selectedIds) {
 			const current = getItem(id);
 			if (current === undefined) {
@@ -983,7 +984,7 @@
 					return;
 				}
 
-				let dropDestination: TFolder;
+				let dropDestination: TFolder | TTree;
 				const dropTarget = dropTargets[0];
 				if (dropTarget.element === args.self.element) {
 					dropDestination = root;

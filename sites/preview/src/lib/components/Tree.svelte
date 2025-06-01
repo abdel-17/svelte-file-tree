@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		Tree,
+		type FileTree,
 		type FolderNode,
 		type OnChildrenChangeArgs,
 		type OnCircularReferenceArgs,
@@ -21,7 +22,7 @@
 	const { root }: TreeProps = $props();
 
 	const expandedIds = new SvelteSet<string>();
-	let dropDestination: FolderNode | undefined = $state.raw();
+	let dropDestination: FolderNode | FileTree | undefined = $state.raw();
 
 	let borderAnimationTargetId: string | undefined = $state.raw();
 	let borderAnimationTimeout: number | undefined;
@@ -81,11 +82,15 @@
 	}
 
 	function onCopy(args: OnMoveArgs) {
-		startBorderAnimation(args.destination.id);
+		if (args.destination.type === "folder") {
+			startBorderAnimation(args.destination.id);
+		}
 	}
 
 	function onMove(args: OnMoveArgs) {
-		startBorderAnimation(args.destination.id);
+		if (args.destination.type === "folder") {
+			startBorderAnimation(args.destination.id);
+		}
 	}
 
 	function onExpand(item: TreeItemState) {
@@ -135,11 +140,11 @@
 				<div animate:flip={{ duration: 300 }}>
 					<TreeItem
 						{item}
-						{dropDestination}
-						{borderAnimationTargetId}
-						onExpand={() => onExpand(item)}
-						onCollapse={() => onCollapse(item)}
-						onRename={(name) => onRename(item, name)}
+						{onExpand}
+						{onCollapse}
+						{onRename}
+						isDropDestination={dropDestination === item.node}
+						isBorderAnimationTarget={borderAnimationTargetId === item.node.id}
 					/>
 				</div>
 			{/each}
