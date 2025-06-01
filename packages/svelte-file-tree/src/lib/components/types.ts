@@ -5,6 +5,7 @@ import type { SvelteSet } from "svelte/reactivity";
 import type {
 	DefaultTFolder,
 	FileNode,
+	FileTree,
 	FolderNode,
 	TreeClipboard,
 	TreeItemState,
@@ -28,25 +29,28 @@ export type OnClipboardChangeArgs = {
 export type OnChildrenChangeArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > = {
 	operation: "insert" | "remove";
-	target: TFolder;
+	target: TFolder | TTree;
 	children: Array<TFile | TFolder>;
 };
 
 export type OnDropDestinationChangeArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > = {
-	dropDestination: TFolder | undefined;
+	dropDestination: TFolder | TTree | undefined;
 };
 
 export type OnResolveNameConflictArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > = {
 	operation: "copy" | "move";
-	destination: TFolder;
+	destination: TFolder | TTree;
 	name: string;
 };
 
@@ -63,17 +67,19 @@ export type OnCircularReferenceArgs<
 export type OnCopyArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > = {
 	sources: Array<TreeItemState<TFile, TFolder>>;
-	destination: TFolder;
+	destination: TFolder | TTree;
 };
 
 export type OnMoveArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > = {
 	sources: Array<TreeItemState<TFile, TFolder>>;
-	destination: TFolder;
+	destination: TFolder | TTree;
 };
 
 export type OnRemoveArgs<
@@ -86,9 +92,10 @@ export type OnRemoveArgs<
 export interface TreeProps<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > extends Omit<HTMLAttributes<HTMLDivElement>, "children" | "role" | "aria-multiselectable"> {
 	children: Snippet<[args: TreeChildrenSnippetArgs<TFile, TFolder>]>;
-	root: TFolder;
+	root: TTree;
 	defaultSelectedIds?: Iterable<string>;
 	selectedIds?: SvelteSet<string>;
 	defaultExpandedIds?: Iterable<string>;
@@ -98,16 +105,16 @@ export interface TreeProps<
 	ref?: HTMLElement | null;
 	copyNode?: (node: TFile | TFolder) => TFile | TFolder;
 	onClipboardChange?: (args: OnClipboardChangeArgs) => void;
-	onChildrenChange?: (args: OnChildrenChangeArgs<TFile, TFolder>) => void;
-	onDropDestinationChange?: (args: OnDropDestinationChangeArgs<TFile, TFolder>) => void;
+	onChildrenChange?: (args: OnChildrenChangeArgs<TFile, TFolder, TTree>) => void;
+	onDropDestinationChange?: (args: OnDropDestinationChangeArgs<TFile, TFolder, TTree>) => void;
 	onResolveNameConflict?: (
-		args: OnResolveNameConflictArgs<TFile, TFolder>,
+		args: OnResolveNameConflictArgs<TFile, TFolder, TTree>,
 	) => MaybePromise<NameConflictResolution>;
 	onCircularReference?: (args: OnCircularReferenceArgs<TFile, TFolder>) => void;
-	canCopy?: (args: OnCopyArgs<TFile, TFolder>) => MaybePromise<boolean>;
-	onCopy?: (args: OnCopyArgs<TFile, TFolder>) => void;
-	canMove?: (args: OnMoveArgs<TFile, TFolder>) => MaybePromise<boolean>;
-	onMove?: (args: OnMoveArgs<TFile, TFolder>) => void;
+	canCopy?: (args: OnCopyArgs<TFile, TFolder, TTree>) => MaybePromise<boolean>;
+	onCopy?: (args: OnCopyArgs<TFile, TFolder, TTree>) => void;
+	canMove?: (args: OnMoveArgs<TFile, TFolder, TTree>) => MaybePromise<boolean>;
+	onMove?: (args: OnMoveArgs<TFile, TFolder, TTree>) => void;
 	canRemove?: (args: OnRemoveArgs<TFile, TFolder>) => MaybePromise<boolean>;
 	onRemove?: (args: OnRemoveArgs<TFile, TFolder>) => void;
 }

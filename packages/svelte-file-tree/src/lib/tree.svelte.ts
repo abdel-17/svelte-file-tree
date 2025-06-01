@@ -1,5 +1,29 @@
 import type { SvelteSet } from "svelte/reactivity";
 
+function getTotalCount(children: Array<FileTreeNode>) {
+	let result = 0;
+	for (const child of children) {
+		result++;
+
+		if (child.type === "folder") {
+			result += child.count;
+		}
+	}
+	return result;
+}
+
+export class FileTree<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> {
+	children: Array<TNode>;
+
+	constructor(children: Array<TNode>) {
+		this.children = $state(children);
+	}
+
+	readonly type = "tree";
+
+	readonly count = $derived.by(() => getTotalCount(this.children));
+}
+
 export type FileNodeProps = {
 	id: string;
 	name: string;
@@ -7,11 +31,11 @@ export type FileNodeProps = {
 
 export class FileNode {
 	id: string;
-	name = $state.raw("");
+	name: string;
 
 	constructor(props: FileNodeProps) {
-		this.id = props.id;
-		this.name = props.name;
+		this.id = $state.raw(props.id);
+		this.name = $state.raw(props.name);
 	}
 
 	readonly type = "file";
@@ -25,28 +49,18 @@ export type FolderNodeProps<TNode extends FileNode | FolderNode<TNode> = FileTre
 
 export class FolderNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> {
 	id: string;
-	name = $state.raw("");
-	children: Array<TNode> = $state([]);
+	name: string;
+	children: Array<TNode>;
 
 	constructor(props: FolderNodeProps<TNode>) {
-		this.id = props.id;
-		this.name = props.name;
-		this.children = props.children;
+		this.id = $state.raw(props.id);
+		this.name = $state.raw(props.name);
+		this.children = $state(props.children);
 	}
 
 	readonly type = "folder";
 
-	readonly count = $derived.by(() => {
-		let result = 0;
-		for (const child of this.children) {
-			result++;
-
-			if (child.type === "folder") {
-				result += child.count;
-			}
-		}
-		return result;
-	});
+	readonly count = $derived.by(() => getTotalCount(this.children));
 }
 
 export type FileTreeNode = FileNode | FolderNode<FileTreeNode>;
@@ -100,6 +114,8 @@ export class TreeItemState<
 		this.#clipboard = props.clipboard;
 		this.#isItemDisabled = props.isItemDisabled;
 	}
+
+	readonly type = "item";
 
 	readonly selected = $derived.by(() => this.#selectedIds().has(this.node.id));
 

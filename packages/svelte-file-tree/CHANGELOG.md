@@ -1,5 +1,14 @@
 # svelte-file-tree
 
+## 0.7.0
+
+### Minor Changes
+
+- feat: add `FileTree` class
+- feat: add `TreeItemState.type` property (always equal to "item")
+- breaking: change the type of `TreeProps.root` to `FileTree`.
+- breaking: change the type of any `destination` property from `FolderNode` to `FolderNode | FileTree`.
+
 ## 0.6.0
 
 ### Patch Changes

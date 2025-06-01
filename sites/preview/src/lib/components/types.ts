@@ -1,14 +1,14 @@
-import type { FolderNode, TreeItemState } from "svelte-file-tree";
+import type { FileTree, TreeItemState } from "svelte-file-tree";
 
 export interface TreeProps {
-	root: FolderNode;
+	root: FileTree;
 }
 
 export interface TreeItemProps {
 	item: TreeItemState;
-	dropDestination: FolderNode | undefined;
-	borderAnimationTargetId: string | undefined;
-	onExpand: () => void;
-	onCollapse: () => void;
-	onRename: (name: string) => boolean;
+	isDropDestination: boolean;
+	isBorderAnimationTarget: boolean;
+	onExpand: (item: TreeItemState) => void;
+	onCollapse: (item: TreeItemState) => void;
+	onRename: (item: TreeItemState, name: string) => boolean;
 }
