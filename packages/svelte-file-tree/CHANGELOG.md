@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.6.0
+
+### Patch Changes
+
+- feat: make `FileNode.id` and `FolderNode.id` writable
+
 ## 0.5.0
 
 ### Minor Changes
