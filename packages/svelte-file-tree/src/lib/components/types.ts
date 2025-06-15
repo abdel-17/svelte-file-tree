@@ -7,7 +7,6 @@ import type {
 	FileNode,
 	FileTree,
 	FolderNode,
-	TreeClipboard,
 	TreeItemState,
 } from "$lib/tree.svelte.js";
 
@@ -22,8 +21,11 @@ export type TreeChildrenSnippetArgs<
 	items: Array<TreeItemState<TFile, TFolder>>;
 };
 
+export type PasteOperation = "copy" | "cut";
+
 export type OnClipboardChangeArgs = {
-	clipboard: TreeClipboard | undefined;
+	clipboardIds: SvelteSet<string>;
+	pasteOperation: PasteOperation | undefined;
 };
 
 export type OnChildrenChangeArgs<
@@ -70,6 +72,7 @@ export type OnCopyArgs<
 	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > = {
 	sources: Array<TreeItemState<TFile, TFolder>>;
+	copies: Array<TFile | TFolder>;
 	destination: TFolder | TTree;
 };
 
@@ -100,7 +103,9 @@ export interface TreeProps<
 	selectedIds?: SvelteSet<string>;
 	defaultExpandedIds?: Iterable<string>;
 	expandedIds?: SvelteSet<string>;
-	clipboard?: TreeClipboard;
+	defaultClipboardIds?: Iterable<string>;
+	clipboardIds?: SvelteSet<string>;
+	pasteOperation?: PasteOperation;
 	isItemDisabled?: boolean | ((node: TFile | TFolder) => boolean);
 	ref?: HTMLElement | null;
 	copyNode?: (node: TFile | TFolder) => TFile | TFolder;

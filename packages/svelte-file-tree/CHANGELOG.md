@@ -1,5 +1,17 @@
 # svelte-file-tree
 
+## 0.8.0
+
+### Minor Changes
+
+- feat: pass `copies` to `onCopy` and `canCopy` callbacks.
+- feat: add prop `TreeProps.defaultClipboardIds`.
+- feat: add prop `TreeProps.clipboardIds`.
+- feat: add bindable prop `TreeProps.pasteOperation`.
+- breaking: remove prop `TreeProps.clipboard`.
+- breaking: `TreeProps.onClipboardChange` callback now receives `clipboardIds` and `pasteOperation` instead of `clipboard`.
+- fix: `TreeProps.onClipboardChange` was previously not always called when the clipboard changes.
+
 ## 0.7.0
 
 ### Minor Changes

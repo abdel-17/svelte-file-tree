@@ -12,10 +12,9 @@
 		FolderNode,
 		TreeItemState,
 		type DefaultTFolder,
-		type PasteOperation,
 	} from "$lib/tree.svelte.js";
 	import { setTreeContext } from "./context.js";
-	import type { TreeProps } from "./types.js";
+	import type { PasteOperation, TreeProps } from "./types.js";
 
 	let {
 		children,
@@ -24,7 +23,9 @@
 		selectedIds = new SvelteSet(defaultSelectedIds),
 		defaultExpandedIds,
 		expandedIds = new SvelteSet(defaultExpandedIds),
-		clipboard = $bindable(),
+		defaultClipboardIds,
+		clipboardIds = new SvelteSet(defaultClipboardIds),
+		pasteOperation = $bindable(),
 		isItemDisabled = false,
 		ref = $bindable(null),
 		copyNode = function copyNode(node): TFile | TFolder {
@@ -80,7 +81,7 @@
 				parent,
 				selectedIds: () => selectedIds,
 				expandedIds: () => expandedIds,
-				clipboard: () => clipboard,
+				clipboardIds: () => clipboardIds,
 				isItemDisabled: () => isItemDisabled,
 			});
 			result.push(item);
@@ -240,13 +241,19 @@
 	}
 
 	export function copyToClipboard(itemId: string, operation: PasteOperation) {
-		const clipboardIds = new SvelteSet(selectedIds);
+		clipboardIds.clear();
+		for (const id of selectedIds) {
+			clipboardIds.add(id);
+		}
 		clipboardIds.add(itemId);
-		clipboard = {
-			ids: clipboardIds,
-			operation,
-		};
-		onClipboardChange({ clipboard });
+		pasteOperation = operation;
+		onClipboardChange({ clipboardIds, pasteOperation });
+	}
+
+	export function clearClipboard() {
+		clipboardIds.clear();
+		pasteOperation = undefined;
+		onClipboardChange({ clipboardIds, pasteOperation });
 	}
 
 	function getNearestAncestor(
@@ -275,13 +282,14 @@
 		return item.inClipboard;
 	}
 
-	async function copy(clipboardIds: Set<string>, destination: TFolder | TTree) {
+	async function copy(destination: TFolder | TTree) {
 		const names = new Set<string>();
 		for (const child of destination.children) {
 			names.add(child.name);
 		}
 
 		const sources: Array<TreeItemState<TFile, TFolder>> = [];
+		const copies: Array<TFile | TFolder> = [];
 		for (const id of clipboardIds) {
 			const current = getItem(id);
 			if (current === undefined) {
@@ -312,20 +320,20 @@
 
 			names.add(name);
 			sources.push(current);
+			copies.push(copyNode(current.node));
 		}
 
 		if (sources.length === 0) {
 			return true;
 		}
 
-		const canCopyResult = await canCopy({ sources, destination });
+		const canCopyResult = await canCopy({ sources, copies, destination });
 		if (!canCopyResult) {
 			return false;
 		}
 
 		const destinationChildren = destination.children;
-		for (const source of sources) {
-			const copy = copyNode(source.node);
+		for (const copy of copies) {
 			destinationChildren.push(copy);
 		}
 		onChildrenChange({
@@ -334,7 +342,7 @@
 			children: destinationChildren,
 		});
 
-		onCopy({ sources, destination });
+		onCopy({ sources, copies, destination });
 		return true;
 	}
 
@@ -423,19 +431,18 @@
 	}
 
 	export async function paste(destination: TFolder | TTree) {
-		if (clipboard === undefined) {
-			return false;
-		}
-
 		let didPaste: boolean;
-		switch (clipboard.operation) {
+		switch (pasteOperation) {
 			case "copy": {
-				didPaste = await copy(clipboard.ids, destination);
+				didPaste = await copy(destination);
 				break;
 			}
 			case "cut": {
-				didPaste = await move(clipboard.ids, isItemInClipboard, destination);
+				didPaste = await move(clipboardIds, isItemInClipboard, destination);
 				break;
+			}
+			case undefined: {
+				return false;
 			}
 		}
 
@@ -443,7 +450,7 @@
 			return false;
 		}
 
-		clipboard = undefined;
+		clearClipboard();
 		return true;
 	}
 
@@ -451,13 +458,10 @@
 		const id = node.id;
 		selectedIds.delete(id);
 		expandedIds.delete(id);
+		clipboardIds.delete(id);
 
-		if (clipboard !== undefined) {
-			const clipboardIds = clipboard.ids;
-			clipboardIds.delete(id);
-			if (clipboardIds.size === 0) {
-				clipboard = undefined;
-			}
+		if (clipboardIds.size === 0) {
+			pasteOperation = undefined;
 		}
 
 		if (node.type === "folder") {
@@ -541,8 +545,13 @@
 			});
 		}
 
+		const currentClipboardSize = clipboardIds.size;
 		for (const item of removed) {
 			onRemoveNode(item.node);
+		}
+
+		if (clipboardIds.size !== currentClipboardSize) {
+			onClipboardChange({ clipboardIds, pasteOperation });
 		}
 
 		onRemove({ removed });
@@ -568,7 +577,7 @@
 		}
 	}
 
-	setTreeContext<TFile, TFolder>({
+	setTreeContext<TFile, TFolder, TTree>({
 		root: () => root,
 		tabbableId: () => tabbableId ?? root.children[0].id,
 		getItemElementId,
@@ -763,8 +772,7 @@
 				}
 				case "Escape": {
 					selectedIds.clear();
-					clipboard = undefined;
-					onClipboardChange({ clipboard });
+					clearClipboard();
 					break;
 				}
 				case "*": {
@@ -809,7 +817,7 @@
 						break;
 					}
 
-					if (clipboard === undefined) {
+					if (pasteOperation === undefined) {
 						break;
 					}
 
@@ -829,7 +837,7 @@
 						}
 					}
 
-					if (pasteDestinationItem !== undefined && clipboard.operation === "cut") {
+					if (pasteDestinationItem !== undefined && pasteOperation === "cut") {
 						if (pasteDestinationItem.inClipboard) {
 							onCircularReference({
 								source: pasteDestinationItem,

@@ -69,13 +69,6 @@ export type DefaultTFolder<TFile extends FileNode = FileNode> = FolderNode<
 	TFile | DefaultTFolder<TFile>
 >;
 
-export type PasteOperation = "copy" | "cut";
-
-export type TreeClipboard = {
-	operation: PasteOperation;
-	ids: SvelteSet<string>;
-};
-
 export type TreeItemStateProps<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
@@ -86,7 +79,7 @@ export type TreeItemStateProps<
 	parent?: TreeItemState<TFile, TFolder, TFolder>;
 	selectedIds: () => SvelteSet<string>;
 	expandedIds: () => SvelteSet<string>;
-	clipboard: () => TreeClipboard | undefined;
+	clipboardIds: () => SvelteSet<string>;
 	isItemDisabled: () => boolean | ((node: TFile | TFolder) => boolean);
 };
 
@@ -101,7 +94,7 @@ export class TreeItemState<
 	readonly depth: number;
 	readonly #selectedIds: () => SvelteSet<string>;
 	readonly #expandedIds: () => SvelteSet<string>;
-	readonly #clipboard: () => TreeClipboard | undefined;
+	readonly #clipboardIds: () => SvelteSet<string>;
 	readonly #isItemDisabled: () => boolean | ((node: TFile | TFolder) => boolean);
 
 	constructor(props: TreeItemStateProps<TFile, TFolder, TNode>) {
@@ -111,7 +104,7 @@ export class TreeItemState<
 		this.depth = props.parent === undefined ? 0 : props.parent.depth + 1;
 		this.#selectedIds = props.selectedIds;
 		this.#expandedIds = props.expandedIds;
-		this.#clipboard = props.clipboard;
+		this.#clipboardIds = props.clipboardIds;
 		this.#isItemDisabled = props.isItemDisabled;
 	}
 
@@ -121,10 +114,7 @@ export class TreeItemState<
 
 	readonly expanded = $derived.by(() => this.#expandedIds().has(this.node.id));
 
-	readonly inClipboard = $derived.by(() => {
-		const clipboard = this.#clipboard();
-		return clipboard !== undefined && clipboard.ids.has(this.node.id);
-	});
+	readonly inClipboard = $derived.by(() => this.#clipboardIds().has(this.node.id));
 
 	readonly disabled = $derived.by(() => {
 		if (this.parent?.disabled) {
