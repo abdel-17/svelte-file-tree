@@ -289,6 +289,7 @@
 		}
 
 		const sources: Array<TreeItemState<TFile, TFolder>> = [];
+		const copies: Array<TFile | TFolder> = [];
 		for (const id of clipboardIds) {
 			const current = getItem(id);
 			if (current === undefined) {
@@ -319,20 +320,20 @@
 
 			names.add(name);
 			sources.push(current);
+			copies.push(copyNode(current.node));
 		}
 
 		if (sources.length === 0) {
 			return true;
 		}
 
-		const canCopyResult = await canCopy({ sources, destination });
+		const canCopyResult = await canCopy({ sources, copies, destination });
 		if (!canCopyResult) {
 			return false;
 		}
 
 		const destinationChildren = destination.children;
-		for (const source of sources) {
-			const copy = copyNode(source.node);
+		for (const copy of copies) {
 			destinationChildren.push(copy);
 		}
 		onChildrenChange({
@@ -341,7 +342,7 @@
 			children: destinationChildren,
 		});
 
-		onCopy({ sources, destination });
+		onCopy({ sources, copies, destination });
 		return true;
 	}
 
@@ -576,7 +577,7 @@
 		}
 	}
 
-	setTreeContext<TFile, TFolder>({
+	setTreeContext<TFile, TFolder, TTree>({
 		root: () => root,
 		tabbableId: () => tabbableId ?? root.children[0].id,
 		getItemElementId,

@@ -72,6 +72,7 @@ export type OnCopyArgs<
 	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > = {
 	sources: Array<TreeItemState<TFile, TFolder>>;
+	copies: Array<TFile | TFolder>;
 	destination: TFolder | TTree;
 };
 
