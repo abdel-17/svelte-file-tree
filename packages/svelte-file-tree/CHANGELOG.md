@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.9.0
+
+### Minor Changes
+
+- e4e8198: breaking: rework drag and drop callbacks (https://github.com/abdel-17/svelte-file-tree/pull/70)
+
 ## 0.8.0
 
 ### Minor Changes
