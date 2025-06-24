@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { AlertDialog } from "bits-ui";
-	import type { NameConflictResolution } from "svelte-file-tree";
 	import { fade, scale } from "svelte/transition";
+	import type { NameConflictResolution } from "svelte-file-tree";
 
 	let open = $state.raw(false);
 	let title = $state.raw("");

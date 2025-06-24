@@ -62,7 +62,7 @@
 							</AlertDialog.Cancel>
 
 							<AlertDialog.Action
-								class="inline-flex h-10 items-center justify-center rounded bg-red-700 px-6 text-sm font-medium text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:scale-95"
+								class="inline-flex h-10 items-center justify-center rounded bg-red-700 px-6 text-sm font-medium text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800 active:scale-95"
 								onclick={() => close(true)}
 							>
 								Confirm

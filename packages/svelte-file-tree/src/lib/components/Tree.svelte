@@ -2,7 +2,12 @@
 	lang="ts"
 	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>, TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>"
 >
-	import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+	import type { DragLocation } from "@atlaskit/pragmatic-drag-and-drop/dist/types/internal-types.js";
+	import {
+		dropTargetForElements,
+		type ElementDropTargetGetFeedbackArgs,
+	} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+	import { dropTargetForExternal } from "@atlaskit/pragmatic-drag-and-drop/external/adapter";
 	import { DEV } from "esm-env";
 	import { SvelteSet } from "svelte/reactivity";
 	import { isControlOrMeta, noop, truePredicate } from "$lib/helpers.js";
@@ -53,7 +58,6 @@
 		},
 		onClipboardChange = noop,
 		onChildrenChange = noop,
-		onDropDestinationChange = noop,
 		onResolveNameConflict = () => "cancel",
 		onCircularReference = noop,
 		canCopy = truePredicate,
@@ -62,6 +66,10 @@
 		onMove = noop,
 		canRemove = truePredicate,
 		onRemove = noop,
+		onDragEnter = noop,
+		onDragLeave = noop,
+		onDrag = noop,
+		onDrop = noop,
 		...rest
 	}: TreeProps<TFile, TFolder, TTree> = $props();
 
@@ -183,7 +191,7 @@
 	}
 
 	function selectUntil(item: TreeItemState<TFile, TFolder>, itemElement: HTMLDivElement) {
-		let lastSelected: TreeItemPosition | undefined;
+		let lastSelected;
 		for (const id of selectedIds) {
 			const current = getItem(id);
 			if (current !== undefined) {
@@ -256,32 +264,6 @@
 		onClipboardChange({ clipboardIds, pasteOperation });
 	}
 
-	function getNearestAncestor(
-		item: TreeItemState<TFile, TFolder>,
-		predicate: (ancestor: TreeItemState<TFile, TFolder, TFolder>) => boolean,
-	) {
-		for (let ancestor = item.parent; ancestor !== undefined; ancestor = ancestor.parent) {
-			if (predicate(ancestor)) {
-				return ancestor;
-			}
-		}
-	}
-
-	function hasAncestor(
-		item: TreeItemState<TFile, TFolder>,
-		predicate: (ancestor: TreeItemState<TFile, TFolder, TFolder>) => boolean,
-	) {
-		return getNearestAncestor(item, predicate) !== undefined;
-	}
-
-	function isItemSelected(item: TreeItemState<TFile, TFolder>) {
-		return item.selected;
-	}
-
-	function isItemInClipboard(item: TreeItemState<TFile, TFolder>) {
-		return item.inClipboard;
-	}
-
 	async function copy(destination: TFolder | TTree) {
 		const names = new Set<string>();
 		for (const child of destination.children) {
@@ -290,15 +272,17 @@
 
 		const sources: Array<TreeItemState<TFile, TFolder>> = [];
 		const copies: Array<TFile | TFolder> = [];
-		for (const id of clipboardIds) {
+		outer: for (const id of clipboardIds) {
 			const current = getItem(id);
 			if (current === undefined) {
 				continue;
 			}
 
-			if (hasAncestor(current, isItemInClipboard)) {
-				// If an ancestor is copied, its children are copied along with it.
-				continue;
+			for (let ancestor = current.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+				if (ancestor.inClipboard) {
+					// If an ancestor is copied, its children are copied along with it.
+					continue outer;
+				}
 			}
 
 			const name = current.node.name;
@@ -359,7 +343,7 @@
 		const sources: Array<TreeItemState<TFile, TFolder>> = [];
 		const sourceIds = new Set<string>();
 		const sourceOwners = new Set<TFolder | TTree>();
-		for (const id of movedIds) {
+		outer: for (const id of movedIds) {
 			const current = getItem(id);
 			if (current === undefined) {
 				continue;
@@ -370,9 +354,11 @@
 				continue;
 			}
 
-			if (hasAncestor(current, isItemMoved)) {
-				// If an ancestor is moved, its children are moved along with it.
-				continue;
+			for (let ancestor = current.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+				if (isItemMoved(ancestor)) {
+					// If an ancestor is moved, its children are moved along with it.
+					continue outer;
+				}
 			}
 
 			const name = current.node.name;
@@ -431,14 +417,14 @@
 	}
 
 	export async function paste(destination: TFolder | TTree) {
-		let didPaste: boolean;
+		let didPaste;
 		switch (pasteOperation) {
 			case "copy": {
 				didPaste = await copy(destination);
 				break;
 			}
 			case "cut": {
-				didPaste = await move(clipboardIds, isItemInClipboard, destination);
+				didPaste = await move(clipboardIds, (item) => item.inClipboard, destination);
 				break;
 			}
 			case undefined: {
@@ -471,25 +457,27 @@
 		}
 	}
 
-	async function _remove(item: TreeItemState<TFile, TFolder>) {
+	export async function remove(item: TreeItemState<TFile, TFolder>) {
 		const removed: Array<TreeItemState<TFile, TFolder>> = [];
 		const removedOwners = new Set<TFolder | TTree>();
-		for (const id of selectedIds) {
+		outer: for (const id of selectedIds) {
 			const current = getItem(id);
 			if (current === undefined) {
 				continue;
 			}
 
-			if (hasAncestor(current, isItemSelected)) {
-				// If an ancestor is removed, its children are removed along with it.
-				continue;
+			for (let ancestor = current.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+				if (ancestor.selected) {
+					// If an ancestor is removed, its children are removed along with it.
+					continue outer;
+				}
 			}
 
 			removed.push(current);
 			removedOwners.add(current.parent?.node ?? root);
 		}
 
-		if (!item.selected && !hasAncestor(item, isItemSelected)) {
+		if (!removed.includes(item)) {
 			removed.push(item);
 			removedOwners.add(item.parent?.node ?? root);
 		}
@@ -502,11 +490,7 @@
 		let focusTarget = getNextNonChildItem(item) ?? getPreviousItem(item);
 		while (focusTarget !== undefined) {
 			// Move to the highest selected ancestor as all its children will be removed.
-			for (
-				let ancestor: TreeItemPosition | undefined = focusTarget.parent;
-				ancestor !== undefined;
-				ancestor = ancestor.parent
-			) {
+			for (let ancestor = focusTarget.parent; ancestor !== undefined; ancestor = ancestor.parent) {
 				if (selectedIds.has(ancestor.node.id)) {
 					focusTarget = ancestor;
 				}
@@ -558,21 +542,78 @@
 		return true;
 	}
 
-	export async function remove(itemId: string) {
-		const item = getItem(itemId);
-		if (item === undefined) {
-			return false;
-		}
-		return await _remove(item);
+	function getDragData(itemId: string) {
+		return { itemId };
 	}
 
-	function getDropDestinationItem(item: TreeItemState<TFile, TFolder>) {
+	function getItemFromDragData(data: Record<string, unknown>) {
+		const itemId = data.itemId;
+		if (typeof itemId !== "string") {
+			return;
+		}
+		return getItem(itemId);
+	}
+
+	function getDropDestination(item: TreeItemState<TFile, TFolder>) {
 		switch (item.node.type) {
 			case "file": {
-				return item.parent;
+				return item.parent?.node ?? root;
 			}
 			case "folder": {
-				return item as TreeItemState<TFile, TFolder, TFolder>;
+				return item.node;
+			}
+		}
+	}
+
+	function canDrop(item: TreeItemState<TFile, TFolder>, args: ElementDropTargetGetFeedbackArgs) {
+		if (item.disabled) {
+			return false;
+		}
+
+		const source = getItemFromDragData(args.source.data);
+		if (source === undefined) {
+			return false;
+		}
+
+		if (item === source) {
+			// Dropping an item on itself is not allowed.
+			return false;
+		}
+
+		let dropDestinationItem;
+		switch (item.node.type) {
+			case "file": {
+				dropDestinationItem = item.parent;
+				break;
+			}
+			case "folder": {
+				dropDestinationItem = item as TreeItemState<TFile, TFolder, TFolder>;
+				break;
+			}
+		}
+
+		for (let current = dropDestinationItem; current !== undefined; current = current.parent) {
+			if (current.selected || current === source) {
+				// Moving an item inside itself is not allowed.
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	function getDropDestinationFromLocation(location: DragLocation) {
+		const dropTarget = location.dropTargets[0];
+		switch (dropTarget?.element.role) {
+			case "tree": {
+				return root;
+			}
+			case "treeitem": {
+				const dropTargetItem = getItemFromDragData(dropTarget.data);
+				if (dropTargetItem === undefined) {
+					return;
+				}
+				return getDropDestination(dropTargetItem);
 			}
 		}
 	}
@@ -785,7 +826,7 @@
 					break;
 				}
 				case "Delete": {
-					_remove(item);
+					remove(item);
 					break;
 				}
 				case "a": {
@@ -821,7 +862,7 @@
 						break;
 					}
 
-					let pasteDestinationItem: TreeItemState<TFile, TFolder, TFolder> | undefined;
+					let pasteDestinationItem;
 					switch (item.node.type) {
 						case "file": {
 							pasteDestinationItem = item.parent;
@@ -837,22 +878,18 @@
 						}
 					}
 
-					if (pasteDestinationItem !== undefined && pasteOperation === "cut") {
-						if (pasteDestinationItem.inClipboard) {
-							onCircularReference({
-								source: pasteDestinationItem,
-								destination: pasteDestinationItem.node,
-							});
-							break;
+					if (pasteOperation === "cut") {
+						let nearestCopiedItem;
+						for (let item = pasteDestinationItem; item !== undefined; item = item.parent) {
+							if (item.inClipboard) {
+								nearestCopiedItem = item;
+								break;
+							}
 						}
 
-						const nearestCopiedAncestor = getNearestAncestor(
-							pasteDestinationItem,
-							isItemInClipboard,
-						);
-						if (nearestCopiedAncestor !== undefined) {
+						if (pasteDestinationItem !== undefined && nearestCopiedItem !== undefined) {
 							onCircularReference({
-								source: nearestCopiedAncestor,
+								source: nearestCopiedItem,
 								destination: pasteDestinationItem.node,
 							});
 							break;
@@ -888,45 +925,22 @@
 				selectedIds.add(item.node.id);
 			}
 		},
+		getDragData,
+		getItemFromDragData,
+		getDropDestination,
 		canDrag: (item) => !item.disabled,
+		canDrop: (item, args) => {
+			// If an item cannot be dropped on, we need to notify the root drop target
+			// that it cannot be dropped on as well.
+			const result = canDrop(item, args);
+			(args.input as any).__canDrop = result;
+			return result;
+		},
 		onDragStart: (item) => {
 			if (!item.selected) {
 				selectedIds.clear();
 				selectedIds.add(item.node.id);
 			}
-		},
-		canDrop: (item, args) => {
-			if (item.disabled) {
-				return false;
-			}
-
-			const source = args.source;
-			const sourceId = source.data.id;
-			if (typeof sourceId !== "string" || !lookup.has(sourceId)) {
-				return false;
-			}
-
-			if (item.node.id === sourceId) {
-				// Dropping an item on itself is not allowed.
-				return false;
-			}
-
-			const dropDestinationItem = getDropDestinationItem(item);
-			if (dropDestinationItem === undefined) {
-				// Dropping at the root level is always allowed.
-				return true;
-			}
-
-			if (dropDestinationItem.selected || dropDestinationItem.node.id === sourceId) {
-				// Moving an item inside itself is not allowed.
-				return false;
-			}
-
-			// Moving an item inside itself is not allowed.
-			return !hasAncestor(
-				dropDestinationItem,
-				(ancestor) => ancestor.selected || ancestor.node.id === sourceId,
-			);
 		},
 		onDestroyItem: (item) => {
 			if (tabbableId === item.node.id) {
@@ -938,87 +952,129 @@
 	$effect(() => {
 		return dropTargetForElements({
 			element: ref!,
-			canDrop: (args) => {
-				const input = args.input;
-				if ("__canDrop" in input && input.__canDrop === false) {
-					return false;
+			canDrop: (args) => (args.input as any).__canDrop !== false,
+			onDragEnter: (args) => {
+				const source = getItemFromDragData(args.source.data);
+				if (source === undefined) {
+					return;
 				}
-				return true;
+
+				onDragEnter({
+					type: "item",
+					input: args.location.current.input,
+					source,
+					destination: root,
+				});
+			},
+			onDragLeave: (args) => {
+				const source = getItemFromDragData(args.source.data);
+				if (source === undefined) {
+					return;
+				}
+
+				onDragLeave({
+					type: "item",
+					input: args.location.current.input,
+					source,
+					destination: root,
+				});
 			},
 			onDrag: (args) => {
-				const dropTargets = args.location.current.dropTargets;
-				if (dropTargets.length === 0) {
+				const source = getItemFromDragData(args.source.data);
+				if (source === undefined) {
 					return;
 				}
 
-				const dropTarget = dropTargets[0];
-				if (dropTarget.element === args.self.element) {
-					onDropDestinationChange({ dropDestination: root });
-				} else {
-					const dropTargetId = dropTarget.data.id;
-					if (typeof dropTargetId !== "string") {
-						return;
-					}
-
-					const dropTargetItem = getItem(dropTargetId);
-					if (dropTargetItem === undefined) {
-						return;
-					}
-
-					const dropDestinationItem = getDropDestinationItem(dropTargetItem);
-					const dropDestination = dropDestinationItem?.node ?? root;
-					onDropDestinationChange({ dropDestination });
+				const location = args.location.current;
+				const dropDestination = getDropDestinationFromLocation(location);
+				if (dropDestination === undefined) {
+					return;
 				}
-			},
-			onDragLeave: () => {
-				onDropDestinationChange({ dropDestination: undefined });
+
+				onDrag({
+					type: "item",
+					input: location.input,
+					source,
+					destination: dropDestination,
+				});
 			},
 			onDrop: async (args) => {
-				onDropDestinationChange({ dropDestination: undefined });
-
-				const source = args.source;
-				const sourceId = source.data.id;
-				if (typeof sourceId !== "string") {
+				const source = getItemFromDragData(args.source.data);
+				if (source === undefined) {
 					return;
 				}
 
-				const sourceItem = getItem(sourceId);
-				if (sourceItem === undefined) {
+				const location = args.location.current;
+				const dropDestination = getDropDestinationFromLocation(location);
+				if (dropDestination === undefined) {
 					return;
 				}
 
-				const dropTargets = args.location.current.dropTargets;
-				if (dropTargets.length === 0) {
-					return;
+				onDrop({
+					type: "item",
+					input: location.input,
+					source,
+					destination: dropDestination,
+				});
+
+				if (!source.selected) {
+					selectedIds.add(source.node.id);
 				}
 
-				let dropDestination: TFolder | TTree;
-				const dropTarget = dropTargets[0];
-				if (dropTarget.element === args.self.element) {
-					dropDestination = root;
-				} else {
-					const dropTargetId = dropTarget.data.id;
-					if (typeof dropTargetId !== "string") {
-						return;
-					}
-
-					const dropTargetItem = getItem(dropTargetId);
-					if (dropTargetItem === undefined) {
-						return;
-					}
-
-					const dropDestinationItem = getDropDestinationItem(dropTargetItem);
-					dropDestination = dropDestinationItem?.node ?? root;
-				}
-
-				if (!sourceItem.selected) {
-					selectedIds.add(sourceId);
-				}
-
-				const didMove = await move(selectedIds, isItemSelected, dropDestination);
+				const didMove = await move(selectedIds, (item) => item.selected, dropDestination);
 				if (didMove) {
-					source.element.focus();
+					args.source.element.focus();
 				}
+			},
+		});
+	});
+
+	$effect(() => {
+		return dropTargetForExternal({
+			element: ref!,
+			onDragEnter: (args) => {
+				onDragEnter({
+					type: "external",
+					input: args.location.current.input,
+					items: args.source.items,
+					destination: root,
+				});
+			},
+			onDragLeave: (args) => {
+				onDragLeave({
+					type: "external",
+					input: args.location.current.input,
+					items: args.source.items,
+					destination: root,
+				});
+			},
+			onDrag: (args) => {
+				const location = args.location.current;
+				const dropDestination = getDropDestinationFromLocation(location);
+				if (dropDestination === undefined) {
+					return;
+				}
+
+				onDrag({
+					type: "external",
+					input: location.input,
+					items: args.source.items,
+					destination: dropDestination,
+				});
+			},
+			onDrop: (args) => {
+				const location = args.location.current;
+				const dropDestination = getDropDestinationFromLocation(location);
+				if (dropDestination === undefined) {
+					return;
+				}
+
+				onDrop({
+					type: "external",
+					input: location.input,
+					items: args.source.items,
+					destination: dropDestination,
+				});
 			},
 		});
 	});
