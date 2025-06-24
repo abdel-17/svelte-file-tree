@@ -38,14 +38,6 @@ export type OnChildrenChangeArgs<
 	children: Array<TFile | TFolder>;
 };
 
-export type OnDropDestinationChangeArgs<
-	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
-> = {
-	dropDestination: TFolder | TTree | undefined;
-};
-
 export type OnResolveNameConflictArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
@@ -92,6 +84,34 @@ export type OnRemoveArgs<
 	removed: Array<TreeItemState<TFile, TFolder>>;
 };
 
+export type ItemDragEventArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
+> = {
+	type: "item";
+	input: DragInput;
+	source: TreeItemState<TFile, TFolder>;
+	destination: TFolder | TTree;
+};
+
+export type ExternalDragEventArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
+> = {
+	type: "external";
+	input: DragInput;
+	items: Array<DataTransferItem>;
+	destination: TFolder | TTree;
+};
+
+export type DragEventArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
+> = ItemDragEventArgs<TFile, TFolder, TTree> | ExternalDragEventArgs<TFile, TFolder, TTree>;
+
 export interface TreeProps<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
@@ -111,7 +131,6 @@ export interface TreeProps<
 	copyNode?: (node: TFile | TFolder) => TFile | TFolder;
 	onClipboardChange?: (args: OnClipboardChangeArgs) => void;
 	onChildrenChange?: (args: OnChildrenChangeArgs<TFile, TFolder, TTree>) => void;
-	onDropDestinationChange?: (args: OnDropDestinationChangeArgs<TFile, TFolder, TTree>) => void;
 	onResolveNameConflict?: (
 		args: OnResolveNameConflictArgs<TFile, TFolder, TTree>,
 	) => MaybePromise<NameConflictResolution>;
@@ -122,21 +141,16 @@ export interface TreeProps<
 	onMove?: (args: OnMoveArgs<TFile, TFolder, TTree>) => void;
 	canRemove?: (args: OnRemoveArgs<TFile, TFolder>) => MaybePromise<boolean>;
 	onRemove?: (args: OnRemoveArgs<TFile, TFolder>) => void;
+	onDragEnter?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
+	onDragLeave?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
+	onDrag?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
+	onDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 }
-
-export type DragSource = {
-	id: string;
-	element: HTMLElement;
-};
-
-export type DragEventArgs = {
-	input: DragInput;
-	source: DragSource;
-};
 
 export interface TreeItemProps<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > extends Omit<
 		HTMLAttributes<HTMLDivElement>,
 		| "id"
@@ -151,10 +165,8 @@ export interface TreeItemProps<
 	children: Snippet;
 	item: TreeItemState<TFile, TFolder>;
 	ref?: HTMLElement | null;
-	onDragStart?: (args: DragEventArgs) => void;
-	onDragEnd?: (args: DragEventArgs) => void;
-	onDragEnter?: (args: DragEventArgs) => void;
-	onDragOver?: (args: DragEventArgs) => void;
-	onDragLeave?: (args: DragEventArgs) => void;
-	onDrop?: (args: DragEventArgs) => void;
+	onDragEnter?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
+	onDragLeave?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
+	onDrag?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
+	onDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 }

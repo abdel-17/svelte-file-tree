@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
-	import { TreeItem } from "svelte-file-tree";
 	import type { FocusEventHandler, KeyboardEventHandler, MouseEventHandler } from "svelte/elements";
+	import { TreeItem } from "svelte-file-tree";
 	import type { TreeItemProps } from "./types.js";
 
 	const {
 		item,
 		isDropDestination,
 		isBorderAnimationTarget,
+		onDragLeave,
 		onExpand,
 		onCollapse,
 		onRename,
@@ -77,14 +78,15 @@
 
 <TreeItem
 	{item}
-	{onDragStart}
-	{onDragEnd}
+	{onDragLeave}
 	bind:ref
 	data-dragged={dragged ? true : undefined}
 	data-drop-destination={isDropDestination ? true : undefined}
 	data-animation-target={isBorderAnimationTarget ? true : undefined}
 	class="group relative flex items-center bg-white p-3 before:pointer-events-none before:absolute before:inset-0 before:border-2 before:border-transparent before:transition-colors after:pointer-events-none after:absolute after:inset-0 after:border-2 after:border-transparent after:transition-colors hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300 data-animation-target:after:border-pink-500 data-animation-target:after:bg-pink-500/10 data-dragged:opacity-50 data-drop-destination:before:border-red-500"
 	style="padding-inline-start: calc(var(--spacing) * {item.depth * 6} + var(--spacing) * 3)"
+	ondragstart={onDragStart}
+	ondragend={onDragEnd}
 	onkeydown={onKeyDown}
 >
 	<ChevronDownIcon

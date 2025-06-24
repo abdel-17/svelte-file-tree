@@ -28,9 +28,12 @@ export type TreeContext<
 	onFocusIn: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<FocusEvent>) => void;
 	onKeyDown: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<KeyboardEvent>) => void;
 	onClick: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<MouseEvent>) => void;
+	getDragData: (itemId: string) => Record<string, unknown>;
+	getItemFromDragData: (data: Record<string, unknown>) => TreeItemState<TFile, TFolder> | undefined;
+	getDropDestination: (item: TreeItemState<TFile, TFolder>) => TFolder | TTree;
 	canDrag: (item: TreeItemState<TFile, TFolder>, args: ElementGetFeedbackArgs) => boolean;
-	onDragStart: (item: TreeItemState<TFile, TFolder>, args: ElementEventBasePayload) => void;
 	canDrop: (item: TreeItemState<TFile, TFolder>, args: ElementDropTargetGetFeedbackArgs) => boolean;
+	onDragStart: (item: TreeItemState<TFile, TFolder>, args: ElementEventBasePayload) => void;
 	onDestroyItem: (item: TreeItemState<TFile, TFolder>) => void;
 };
 
