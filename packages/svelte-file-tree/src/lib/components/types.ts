@@ -92,6 +92,7 @@ export type ItemDragEventArgs<
 	type: "item";
 	input: DragInput;
 	source: TreeItemState<TFile, TFolder>;
+	items?: never;
 	destination: TFolder | TTree;
 };
 
@@ -102,6 +103,7 @@ export type ExternalDragEventArgs<
 > = {
 	type: "external";
 	input: DragInput;
+	source?: never;
 	items: Array<DataTransferItem>;
 	destination: TFolder | TTree;
 };
