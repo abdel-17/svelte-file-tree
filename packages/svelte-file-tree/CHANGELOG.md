@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.9.1
+
+### Patch Changes
+
+- 6f90b65: fix: allow destructuring `source` and `items` in drag and drop callbacks
+
 ## 0.9.0
 
 ### Minor Changes
