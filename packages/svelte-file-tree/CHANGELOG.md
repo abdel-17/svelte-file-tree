@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.9.2
+
+### Patch Changes
+
+- d686683: fix: focused item not deleted if it's not selected
+
 ## 0.9.1
 
 ### Patch Changes
