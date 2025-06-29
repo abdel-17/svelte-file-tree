@@ -520,8 +520,11 @@
 			focusTarget = nearestUnselected;
 		}
 
+		const node = item.node;
 		for (const owner of removedOwners) {
-			owner.children = owner.children.filter((child) => !selectedIds.has(child.id));
+			owner.children = owner.children.filter(
+				(child) => !selectedIds.has(child.id) && child !== node,
+			);
 			onChildrenChange({
 				operation: "remove",
 				target: owner,
