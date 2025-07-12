@@ -19,7 +19,11 @@
 		type DefaultTFolder,
 	} from "$lib/tree.svelte.js";
 	import { setTreeContext } from "./context.js";
-	import type { PasteOperation, TreeProps } from "./types.js";
+	import type {
+		TreeCopyToClipboardMethodOptions,
+		TreeProps,
+		TreeRemoveMethodOptions,
+	} from "./types.js";
 
 	let {
 		children,
@@ -248,13 +252,17 @@
 		}
 	}
 
-	export function copyToClipboard(itemId: string, operation: PasteOperation) {
+	export function copyToClipboard(itemId: string, options: TreeCopyToClipboardMethodOptions = {}) {
+		const { pasteOperation: newPasteOperation = "copy", batched = true } = options;
+
 		clipboardIds.clear();
-		for (const id of selectedIds) {
-			clipboardIds.add(id);
+		if (batched) {
+			for (const id of selectedIds) {
+				clipboardIds.add(id);
+			}
 		}
 		clipboardIds.add(itemId);
-		pasteOperation = operation;
+		pasteOperation = newPasteOperation;
 		onClipboardChange({ clipboardIds, pasteOperation });
 	}
 
@@ -457,24 +465,31 @@
 		}
 	}
 
-	export async function remove(item: TreeItemState<TFile, TFolder>) {
+	export async function remove(
+		item: TreeItemState<TFile, TFolder>,
+		options: TreeRemoveMethodOptions = {},
+	) {
+		const { batched = true } = options;
+
 		const removed: Array<TreeItemState<TFile, TFolder>> = [];
 		const removedOwners = new Set<TFolder | TTree>();
-		outer: for (const id of selectedIds) {
-			const current = getItem(id);
-			if (current === undefined) {
-				continue;
-			}
-
-			for (let ancestor = current.parent; ancestor !== undefined; ancestor = ancestor.parent) {
-				if (ancestor.selected) {
-					// If an ancestor is removed, its children are removed along with it.
-					continue outer;
+		if (batched) {
+			outer: for (const id of selectedIds) {
+				const current = getItem(id);
+				if (current === undefined) {
+					continue;
 				}
-			}
 
-			removed.push(current);
-			removedOwners.add(current.parent?.node ?? root);
+				for (let ancestor = current.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+					if (ancestor.selected) {
+						// If an ancestor is removed, its children are removed along with it.
+						continue outer;
+					}
+				}
+
+				removed.push(current);
+				removedOwners.add(current.parent?.node ?? root);
+			}
 		}
 
 		if (!removed.includes(item)) {
@@ -521,10 +536,20 @@
 		}
 
 		const node = item.node;
-		for (const owner of removedOwners) {
-			owner.children = owner.children.filter(
-				(child) => !selectedIds.has(child.id) && child !== node,
-			);
+		if (batched) {
+			for (const owner of removedOwners) {
+				owner.children = owner.children.filter(
+					(child) => !selectedIds.has(child.id) && child !== node,
+				);
+				onChildrenChange({
+					operation: "remove",
+					target: owner,
+					children: owner.children,
+				});
+			}
+		} else {
+			const owner = item.parent?.node ?? root;
+			owner.children = owner.children.filter((child) => child !== node);
 			onChildrenChange({
 				operation: "remove",
 				target: owner,
@@ -845,7 +870,7 @@
 						break;
 					}
 
-					copyToClipboard(item.node.id, "copy");
+					copyToClipboard(item.node.id, { pasteOperation: "copy" });
 					break;
 				}
 				case "x": {
@@ -853,7 +878,7 @@
 						break;
 					}
 
-					copyToClipboard(item.node.id, "cut");
+					copyToClipboard(item.node.id, { pasteOperation: "cut" });
 					break;
 				}
 				case "v": {

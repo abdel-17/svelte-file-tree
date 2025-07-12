@@ -14,20 +14,21 @@
 		"format:check": "prettier --check ."
 	},
 	"devDependencies": {
-		"@lucide/svelte": "^0.511.0",
+		"@internationalized/date": "^3.8.2",
+		"@lucide/svelte": "^0.525.0",
 		"@sveltejs/adapter-static": "^3.0.6",
-		"@sveltejs/kit": "^2.21.1",
-		"@sveltejs/vite-plugin-svelte": "5.0.3",
-		"@tailwindcss/vite": "4.1.8",
-		"bits-ui": "^2.4.1",
-		"prettier": "^3.5.3",
+		"@sveltejs/kit": "^2.22.5",
+		"@sveltejs/vite-plugin-svelte": "6.0.0",
+		"@tailwindcss/vite": "4.1.11",
+		"bits-ui": "^2.8.10",
+		"prettier": "^3.6.2",
 		"prettier-plugin-svelte": "^3.4.0",
-		"prettier-plugin-tailwindcss": "^0.6.12",
-		"svelte": "5.33.11",
-		"svelte-check": "^4.2.1",
+		"prettier-plugin-tailwindcss": "^0.6.14",
+		"svelte": "5.35.6",
+		"svelte-check": "^4.2.2",
 		"svelte-file-tree": "workspace:^",
-		"svelte-sonner": "^1.0.4",
-		"tailwindcss": "4.1.8",
-		"vite": "^6.3.5"
+		"svelte-sonner": "^1.0.5",
+		"tailwindcss": "4.1.11",
+		"vite": "^7.0.4"
 	}
 }

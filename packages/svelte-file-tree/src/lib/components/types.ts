@@ -149,6 +149,15 @@ export interface TreeProps<
 	onDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 }
 
+export type TreeCopyToClipboardMethodOptions = {
+	pasteOperation?: PasteOperation;
+	batched?: boolean;
+};
+
+export type TreeRemoveMethodOptions = {
+	batched?: boolean;
+};
+
 export interface TreeItemProps<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
