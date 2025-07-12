@@ -1,5 +1,15 @@
 # svelte-file-tree
 
+## 0.10.0
+
+### Minor Changes
+
+- 9cf6ba1: feat: expose an option to disable batching in tree methods
+
+### Patch Changes
+
+- d686683: fix: focused item not deleted if it's not selected
+
 ## 0.9.1
 
 ### Patch Changes
