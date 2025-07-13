@@ -6,6 +6,8 @@
 
 - 9cf6ba1: feat: expose an option to disable batching in tree methods
 
+## 0.9.2
+
 ### Patch Changes
 
 - d686683: fix: focused item not deleted if it's not selected
