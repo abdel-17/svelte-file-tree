@@ -3,6 +3,7 @@ import type {
 	ElementEventBasePayload,
 	ElementGetFeedbackArgs,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import type { ExternalDropTargetGetFeedbackArgs } from "@atlaskit/pragmatic-drag-and-drop/external/adapter";
 import { DEV } from "esm-env";
 import { getContext, hasContext, setContext } from "svelte";
 import type {
@@ -28,11 +29,16 @@ export type TreeContext<
 	onFocusIn: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<FocusEvent>) => void;
 	onKeyDown: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<KeyboardEvent>) => void;
 	onClick: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<MouseEvent>) => void;
-	getDragData: (itemId: string) => Record<string, unknown>;
-	getItemFromDragData: (data: Record<string, unknown>) => TreeItemState<TFile, TFolder> | undefined;
 	getDropDestination: (item: TreeItemState<TFile, TFolder>) => TFolder | TTree;
 	canDrag: (item: TreeItemState<TFile, TFolder>, args: ElementGetFeedbackArgs) => boolean;
-	canDrop: (item: TreeItemState<TFile, TFolder>, args: ElementDropTargetGetFeedbackArgs) => boolean;
+	canDropElement: (
+		item: TreeItemState<TFile, TFolder>,
+		args: ElementDropTargetGetFeedbackArgs,
+	) => boolean;
+	canDropExternal: (
+		item: TreeItemState<TFile, TFolder>,
+		args: ExternalDropTargetGetFeedbackArgs,
+	) => boolean;
 	onDragStart: (item: TreeItemState<TFile, TFolder>, args: ElementEventBasePayload) => void;
 	onDestroyItem: (item: TreeItemState<TFile, TFolder>) => void;
 };

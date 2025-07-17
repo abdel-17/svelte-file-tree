@@ -7,7 +7,10 @@
 		dropTargetForElements,
 		type ElementDropTargetGetFeedbackArgs,
 	} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-	import { dropTargetForExternal } from "@atlaskit/pragmatic-drag-and-drop/external/adapter";
+	import {
+		dropTargetForExternal,
+		type ExternalDropTargetGetFeedbackArgs,
+	} from "@atlaskit/pragmatic-drag-and-drop/external/adapter";
 	import { DEV } from "esm-env";
 	import { SvelteSet } from "svelte/reactivity";
 	import { isControlOrMeta, noop, truePredicate } from "$lib/helpers.js";
@@ -19,6 +22,7 @@
 		type DefaultTFolder,
 	} from "$lib/tree.svelte.js";
 	import { setTreeContext } from "./context.js";
+	import { DragData } from "./data.js";
 	import type {
 		TreeCopyToClipboardMethodOptions,
 		TreeProps,
@@ -72,7 +76,9 @@
 		onRemove = noop,
 		onDragEnter = noop,
 		onDragLeave = noop,
+		canDrag = truePredicate,
 		onDrag = noop,
+		canDrop = truePredicate,
 		onDrop = noop,
 		...rest
 	}: TreeProps<TFile, TFolder, TTree> = $props();
@@ -570,18 +576,6 @@
 		return true;
 	}
 
-	function getDragData(itemId: string) {
-		return { itemId };
-	}
-
-	function getItemFromDragData(data: Record<string, unknown>) {
-		const itemId = data.itemId;
-		if (typeof itemId !== "string") {
-			return;
-		}
-		return getItem(itemId);
-	}
-
 	function getDropDestination(item: TreeItemState<TFile, TFolder>) {
 		switch (item.node.type) {
 			case "file": {
@@ -593,15 +587,19 @@
 		}
 	}
 
-	function canDrop(item: TreeItemState<TFile, TFolder>, args: ElementDropTargetGetFeedbackArgs) {
+	function canDropElementOnItem(
+		item: TreeItemState<TFile, TFolder>,
+		args: ElementDropTargetGetFeedbackArgs,
+	) {
 		if (item.disabled) {
 			return false;
 		}
 
-		const source = getItemFromDragData(args.source.data);
-		if (source === undefined) {
+		const dragData = args.source.data;
+		if (!(dragData instanceof DragData)) {
 			return false;
 		}
+		const source = dragData.item();
 
 		if (item === source) {
 			// Dropping an item on itself is not allowed.
@@ -627,7 +625,28 @@
 			}
 		}
 
-		return true;
+		return canDrop({
+			type: "item",
+			source,
+			input: args.input,
+			destination: dropDestinationItem?.node ?? root,
+		});
+	}
+
+	function canDropExternalOnItem(
+		item: TreeItemState<TFile, TFolder>,
+		args: ExternalDropTargetGetFeedbackArgs,
+	) {
+		if (item.disabled) {
+			return false;
+		}
+
+		return canDrop({
+			type: "external",
+			input: args.input,
+			items: args.source.items,
+			destination: getDropDestination(item),
+		});
 	}
 
 	function getDropDestinationFromLocation(location: DragLocation) {
@@ -637,11 +656,11 @@
 				return root;
 			}
 			case "treeitem": {
-				const dropTargetItem = getItemFromDragData(dropTarget.data);
-				if (dropTargetItem === undefined) {
+				const dropData = dropTarget.data;
+				if (!(dropData instanceof DragData)) {
 					return;
 				}
-				return getDropDestination(dropTargetItem);
+				return getDropDestination(dropData.item());
 			}
 		}
 	}
@@ -953,14 +972,26 @@
 				selectedIds.add(item.node.id);
 			}
 		},
-		getDragData,
-		getItemFromDragData,
 		getDropDestination,
-		canDrag: (item) => !item.disabled,
-		canDrop: (item, args) => {
+		canDrag: (item, args) => {
+			if (item.disabled) {
+				return false;
+			}
+
+			return canDrag({
+				input: args.input,
+				source: item,
+			});
+		},
+		canDropElement: (item, args) => {
 			// If an item cannot be dropped on, we need to notify the root drop target
 			// that it cannot be dropped on as well.
-			const result = canDrop(item, args);
+			const result = canDropElementOnItem(item, args);
+			(args.input as any).__canDrop = result;
+			return result;
+		},
+		canDropExternal: (item, args) => {
+			const result = canDropExternalOnItem(item, args);
 			(args.input as any).__canDrop = result;
 			return result;
 		},
@@ -980,12 +1011,31 @@
 	$effect(() => {
 		return dropTargetForElements({
 			element: ref!,
-			canDrop: (args) => (args.input as any).__canDrop !== false,
-			onDragEnter: (args) => {
-				const source = getItemFromDragData(args.source.data);
-				if (source === undefined) {
-					return;
+			canDrop: (args) => {
+				// Check if an item prevented the drop.
+				if ((args.input as any).__canDrop === false) {
+					return false;
 				}
+
+				const dragData = args.source.data;
+				if (!(dragData instanceof DragData)) {
+					return false;
+				}
+				const source = dragData.item();
+
+				return canDrop({
+					type: "item",
+					input: args.input,
+					source,
+					destination: root,
+				});
+			},
+			onDragEnter: (args) => {
+				const dragData = args.source.data;
+				if (!(dragData instanceof DragData)) {
+					return false;
+				}
+				const source = dragData.item();
 
 				onDragEnter({
 					type: "item",
@@ -995,10 +1045,11 @@
 				});
 			},
 			onDragLeave: (args) => {
-				const source = getItemFromDragData(args.source.data);
-				if (source === undefined) {
-					return;
+				const dragData = args.source.data;
+				if (!(dragData instanceof DragData)) {
+					return false;
 				}
+				const source = dragData.item();
 
 				onDragLeave({
 					type: "item",
@@ -1008,10 +1059,11 @@
 				});
 			},
 			onDrag: (args) => {
-				const source = getItemFromDragData(args.source.data);
-				if (source === undefined) {
-					return;
+				const dragData = args.source.data;
+				if (!(dragData instanceof DragData)) {
+					return false;
 				}
+				const source = dragData.item();
 
 				const location = args.location.current;
 				const dropDestination = getDropDestinationFromLocation(location);
@@ -1027,10 +1079,11 @@
 				});
 			},
 			onDrop: async (args) => {
-				const source = getItemFromDragData(args.source.data);
-				if (source === undefined) {
-					return;
+				const dragData = args.source.data;
+				if (!(dragData instanceof DragData)) {
+					return false;
 				}
+				const source = dragData.item();
 
 				const location = args.location.current;
 				const dropDestination = getDropDestinationFromLocation(location);
@@ -1060,6 +1113,19 @@
 	$effect(() => {
 		return dropTargetForExternal({
 			element: ref!,
+			canDrop: (args) => {
+				// Check if an item prevented the drop.
+				if ((args.input as any).__canDrop === false) {
+					return false;
+				}
+
+				return canDrop({
+					type: "external",
+					input: args.input,
+					items: args.source.items,
+					destination: root,
+				});
+			},
 			onDragEnter: (args) => {
 				onDragEnter({
 					type: "external",
