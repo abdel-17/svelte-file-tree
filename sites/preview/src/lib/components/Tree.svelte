@@ -15,8 +15,7 @@
 		type TreeItemState,
 	} from "svelte-file-tree";
 	import { toast } from "svelte-sonner";
-	import ConfirmRemoveDialog from "./ConfirmRemoveDialog.svelte";
-	import ResolveConflictDialog from "./ResolveConflictDialog.svelte";
+	import ConfirmDialog from "./ConfirmDialog.svelte";
 	import TreeItem from "./TreeItem.svelte";
 	import type { TreeProps } from "./types.js";
 
@@ -28,8 +27,7 @@
 	let borderAnimationTargetId: string | undefined = $state.raw();
 	let borderAnimationTimeout: number | undefined;
 
-	let confirmRemoveDialog: ConfirmRemoveDialog | null = $state.raw(null);
-	let resolveConflictDialog: ResolveConflictDialog | null = $state.raw(null);
+	let confirmDialog: ConfirmDialog | null = $state.raw(null);
 
 	function startBorderAnimation(targetId: string) {
 		if (borderAnimationTimeout !== undefined) {
@@ -46,7 +44,7 @@
 		nodes.sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	function onResolveNameConflict({ operation, name }: OnResolveNameConflictArgs) {
+	async function onResolveNameConflict({ operation, name }: OnResolveNameConflictArgs) {
 		let title: string;
 		switch (operation) {
 			case "copy": {
@@ -59,10 +57,12 @@
 			}
 		}
 
-		return resolveConflictDialog!.show({
+		const didConfirm = await confirmDialog!.show({
 			title,
 			description: `An item named "${name}" already exists in this location. Do you want to skip it or cancel the operation entirely?`,
+			confirmLabel: "Skip",
 		});
+		return didConfirm ? "skip" : "cancel";
 	}
 
 	function onCircularReference({ source }: OnCircularReferenceArgs) {
@@ -70,9 +70,10 @@
 	}
 
 	function canRemove({ removed }: OnRemoveArgs) {
-		return confirmRemoveDialog!.show({
+		return confirmDialog!.show({
 			title: `Are you sure you want to delete ${removed.length} item(s)?`,
 			description: "They will be permanently deleted. This action cannot be undone.",
+			confirmLabel: "Confirm",
 		});
 	}
 
@@ -155,6 +156,11 @@
 			return false;
 		}
 
+		if (name.includes("/")) {
+			toast.error("The name cannot contain a slash");
+			return false;
+		}
+
 		const node = item.node;
 		const siblings = item.parent?.node.children ?? root.children;
 		for (const sibling of siblings) {
@@ -169,7 +175,7 @@
 	}
 </script>
 
-<div class="flex min-h-svh p-2">
+<div class="flex min-h-svh p-4">
 	<Tree
 		{root}
 		{expandedIds}
@@ -202,5 +208,4 @@
 	</Tree>
 </div>
 
-<ConfirmRemoveDialog bind:this={confirmRemoveDialog} />
-<ResolveConflictDialog bind:this={resolveConflictDialog} />
+<ConfirmDialog bind:this={confirmDialog} />
