@@ -84,6 +84,14 @@ export type OnRemoveArgs<
 	removed: Array<TreeItemState<TFile, TFolder>>;
 };
 
+export type CanDragArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	input: DragInput;
+	source: TreeItemState<TFile, TFolder>;
+};
+
 export type ItemDragEventArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
@@ -145,7 +153,9 @@ export interface TreeProps<
 	onRemove?: (args: OnRemoveArgs<TFile, TFolder>) => void;
 	onDragEnter?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 	onDragLeave?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
+	canDrag?: (args: CanDragArgs<TFile, TFolder>) => boolean;
 	onDrag?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
+	canDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => boolean;
 	onDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 }
 

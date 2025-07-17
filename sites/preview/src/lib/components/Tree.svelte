@@ -8,7 +8,6 @@
 		type FileTree,
 		type FileTreeNode,
 		type FolderNode,
-		type OnChildrenChangeArgs,
 		type OnCircularReferenceArgs,
 		type OnMoveArgs,
 		type OnRemoveArgs,
@@ -47,15 +46,9 @@
 		nodes.sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	function onChildrenChange(args: OnChildrenChangeArgs) {
-		if (args.operation === "insert") {
-			sortByName(args.children);
-		}
-	}
-
-	function onResolveNameConflict(args: OnResolveNameConflictArgs) {
+	function onResolveNameConflict({ operation, name }: OnResolveNameConflictArgs) {
 		let title: string;
-		switch (args.operation) {
+		switch (operation) {
 			case "copy": {
 				title = "Failed to copy items";
 				break;
@@ -68,64 +61,84 @@
 
 		return resolveConflictDialog!.show({
 			title,
-			description: `An item named "${args.name}" already exists in this location. Do you want to skip it or cancel the operation entirely?`,
+			description: `An item named "${name}" already exists in this location. Do you want to skip it or cancel the operation entirely?`,
 		});
 	}
 
-	function onCircularReference(args: OnCircularReferenceArgs) {
-		toast.error(`Cannot move "${args.source.node.name}" inside itself`);
+	function onCircularReference({ source }: OnCircularReferenceArgs) {
+		toast.error(`Cannot move "${source.node.name}" inside itself`);
 	}
 
-	function canRemove(args: OnRemoveArgs) {
+	function canRemove({ removed }: OnRemoveArgs) {
 		return confirmRemoveDialog!.show({
-			title: `Are you sure you want to delete ${args.removed.length} item(s)?`,
+			title: `Are you sure you want to delete ${removed.length} item(s)?`,
 			description: "They will be permanently deleted. This action cannot be undone.",
 		});
 	}
 
-	function onCopy(args: OnMoveArgs) {
-		if (args.destination.type === "folder") {
-			startBorderAnimation(args.destination.id);
+	function onCopy({ destination }: OnMoveArgs) {
+		sortByName(destination.children);
+
+		if (destination.type === "folder") {
+			startBorderAnimation(destination.id);
 		}
 	}
 
-	function onMove(args: OnMoveArgs) {
-		if (args.destination.type === "folder") {
-			startBorderAnimation(args.destination.id);
+	function onMove({ destination }: OnMoveArgs) {
+		sortByName(destination.children);
+
+		if (destination.type === "folder") {
+			startBorderAnimation(destination.id);
 		}
 	}
 
-	function onDrag(args: DragEventArgs) {
-		dropDestination = args.destination;
+	function onDrag({ destination }: DragEventArgs) {
+		dropDestination = destination;
 	}
 
 	function onDragLeave() {
 		dropDestination = undefined;
 	}
 
-	function onDrop(args: DragEventArgs) {
+	function onDrop({ type, items, destination }: DragEventArgs) {
 		dropDestination = undefined;
 
-		if (args.type !== "external") {
+		if (type !== "external") {
 			return;
 		}
 
-		const files: Array<FileNode> = [];
-		for (const item of args.items) {
-			const file = item.getAsFile();
-			if (file !== null) {
-				files.push(
-					new FileNode({
-						id: crypto.randomUUID(),
-						name: file.name,
-					}),
-				);
-			}
+		const uniqueNames = new Set();
+		for (const child of destination.children) {
+			uniqueNames.add(child.name);
 		}
 
-		const children = args.destination.children;
-		children.push(...files);
-		sortByName(children);
+		const files: Array<FileNode> = [];
+		for (const item of items) {
+			const file = item.getAsFile();
+			if (file === null) {
+				continue;
+			}
+
+			const fileName = file.name;
+			if (uniqueNames.has(fileName)) {
+				toast.error(`An item named "${fileName}" already exists in this location`);
+				return;
+			}
+
+			files.push(
+				new FileNode({
+					id: crypto.randomUUID(),
+					name: fileName,
+				}),
+			);
+		}
+
+		destination.children.push(...files);
+		sortByName(destination.children);
+
+		if (destination.type === "folder") {
+			startBorderAnimation(destination.id);
+		}
 	}
 
 	function onExpand(item: TreeItemState) {
@@ -160,7 +173,6 @@
 	<Tree
 		{root}
 		{expandedIds}
-		{onChildrenChange}
 		{onResolveNameConflict}
 		{onCircularReference}
 		{canRemove}

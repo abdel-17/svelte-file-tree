@@ -11,6 +11,7 @@
 	import { composeEventHandlers, noop } from "$lib/helpers.js";
 	import type { DefaultTFolder, FileNode, FileTree, FolderNode } from "$lib/tree.svelte.js";
 	import { getTreeContext } from "./context.js";
+	import { DragData } from "./data.js";
 	import type { TreeItemProps } from "./types.js";
 
 	const context = getTreeContext<TFile, TFolder, TTree>();
@@ -41,10 +42,18 @@
 		context.onClick(item, event);
 	};
 
+	function getItem() {
+		return item;
+	}
+
+	function getDragData() {
+		return new DragData(getItem);
+	}
+
 	$effect(() => {
 		return draggable({
 			element: ref!,
-			getInitialData: () => context.getDragData(item.node.id),
+			getInitialData: getDragData,
 			canDrag: (args) => context.canDrag(item, args),
 			onDragStart: (args) => {
 				context.onDragStart(item, args);
@@ -55,13 +64,14 @@
 	$effect(() => {
 		return dropTargetForElements({
 			element: ref!,
-			getData: () => context.getDragData(item.node.id),
-			canDrop: (args) => context.canDrop(item, args),
+			getData: getDragData,
+			canDrop: (args) => context.canDropElement(item, args),
 			onDragEnter: (args) => {
-				const source = context.getItemFromDragData(args.source.data);
-				if (source === undefined) {
+				const dragData = args.source.data;
+				if (!(dragData instanceof DragData)) {
 					return;
 				}
+				const source = dragData.item();
 
 				onDragEnter({
 					type: "item",
@@ -71,10 +81,11 @@
 				});
 			},
 			onDragLeave: (args) => {
-				const source = context.getItemFromDragData(args.source.data);
-				if (source === undefined) {
+				const dragData = args.source.data;
+				if (!(dragData instanceof DragData)) {
 					return;
 				}
+				const source = dragData.item();
 
 				onDragLeave({
 					type: "item",
@@ -84,10 +95,11 @@
 				});
 			},
 			onDrag: (args) => {
-				const source = context.getItemFromDragData(args.source.data);
-				if (source === undefined) {
+				const dragData = args.source.data;
+				if (!(dragData instanceof DragData)) {
 					return;
 				}
+				const source = dragData.item();
 
 				onDrag({
 					type: "item",
@@ -97,10 +109,11 @@
 				});
 			},
 			onDrop: (args) => {
-				const source = context.getItemFromDragData(args.source.data);
-				if (source === undefined) {
+				const dragData = args.source.data;
+				if (!(dragData instanceof DragData)) {
 					return;
 				}
+				const source = dragData.item();
 
 				onDrop({
 					type: "item",
@@ -115,7 +128,8 @@
 	$effect(() => {
 		return dropTargetForExternal({
 			element: ref!,
-			getData: () => context.getDragData(item.node.id),
+			getData: getDragData,
+			canDrop: (args) => context.canDropExternal(item, args),
 			onDragEnter: (args) => {
 				onDragEnter({
 					type: "external",
