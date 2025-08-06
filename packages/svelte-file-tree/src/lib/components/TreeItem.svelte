@@ -8,7 +8,7 @@
 	} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 	import { dropTargetForExternal } from "@atlaskit/pragmatic-drag-and-drop/external/adapter";
 	import type { EventHandler } from "svelte/elements";
-	import { composeEventHandlers, noop } from "$lib/helpers.js";
+	import { noop } from "$lib/internal/helpers.js";
 	import type { DefaultTFolder, FileNode, FileTree, FolderNode } from "$lib/tree.svelte.js";
 	import { getTreeContext } from "./context.js";
 	import { DragData } from "./data.js";
@@ -31,14 +31,17 @@
 	}: TreeItemProps<TFile, TFolder, TTree> = $props();
 
 	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
+		onfocusin?.(event);
 		context.onFocusIn(item, event);
 	};
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
+		onkeydown?.(event);
 		context.onKeyDown(item, event);
 	};
 
 	const handleClick: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
+		onclick?.(event);
 		context.onClick(item, event);
 	};
 
@@ -185,9 +188,9 @@
 	aria-posinset={item.index + 1}
 	aria-setsize={item.parent?.node.children.length ?? context.root().children.length}
 	tabindex={context.tabbableId() === item.node.id ? 0 : -1}
-	onfocusin={composeEventHandlers(onfocusin, handleFocusIn)}
-	onkeydown={composeEventHandlers(onkeydown, handleKeyDown)}
-	onclick={composeEventHandlers(onclick, handleClick)}
+	onfocusin={handleFocusIn}
+	onkeydown={handleKeyDown}
+	onclick={handleClick}
 >
 	{@render children()}
 </div>

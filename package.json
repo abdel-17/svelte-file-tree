@@ -14,7 +14,7 @@
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.29.5",
-		"playwright": "^1.54.1",
+		"playwright": "^1.54.2",
 		"prettier-plugin-svelte": "^3.4.0"
 	},
 	"pnpm": {

@@ -13,7 +13,7 @@
 	} from "@atlaskit/pragmatic-drag-and-drop/external/adapter";
 	import { DEV } from "esm-env";
 	import { SvelteSet } from "svelte/reactivity";
-	import { isControlOrMeta, noop, truePredicate } from "$lib/helpers.js";
+	import { isControlOrMeta, noop, truePredicate } from "$lib/internal/helpers.js";
 	import {
 		FileNode,
 		FileTree,
@@ -673,13 +673,7 @@
 			tabbableId = item.node.id;
 		},
 		onKeyDown: (item, event) => {
-			if (event.target !== event.currentTarget) {
-				// Don't handle keydown events that bubble up from child elements
-				// because it can cause unexpected behavior with child inputs.
-				return;
-			}
-
-			if (item.disabled) {
+			if (event.defaultPrevented || event.target !== event.currentTarget || item.disabled) {
 				return;
 			}
 
@@ -959,7 +953,7 @@
 			event.preventDefault();
 		},
 		onClick: (item, event) => {
-			if (item.disabled) {
+			if (event.defaultPrevented || item.disabled) {
 				return;
 			}
 
