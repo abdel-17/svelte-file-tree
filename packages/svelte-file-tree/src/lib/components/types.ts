@@ -139,8 +139,6 @@ export interface TreeProps<
 	ref?: HTMLDivElement | null;
 	isItemDisabled?: (node: TFile | TFolder) => boolean;
 	copyNode?: (node: TFile | TFolder) => TFile | TFolder;
-	onClipboardChange?: (args: OnClipboardChangeArgs) => void;
-	onChildrenChange?: (args: OnChildrenChangeArgs<TFile, TFolder, TTree>) => void;
 	onResolveNameConflict?: (
 		args: OnResolveNameConflictArgs<TFile, TFolder, TTree>,
 	) => MaybePromise<NameConflictResolution>;

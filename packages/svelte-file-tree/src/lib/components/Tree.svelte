@@ -1,17 +1,17 @@
-<script
-	lang="ts"
-	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>, TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>"
->
+<script lang="ts" module>
 	import type { DragLocation } from "@atlaskit/pragmatic-drag-and-drop/dist/types/internal-types.js";
 	import {
 		dropTargetForElements,
 		type ElementDropTargetGetFeedbackArgs,
+		type ElementEventBasePayload,
+		type ElementGetFeedbackArgs,
 	} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 	import {
 		dropTargetForExternal,
 		type ExternalDropTargetGetFeedbackArgs,
 	} from "@atlaskit/pragmatic-drag-and-drop/external/adapter";
 	import { DEV } from "esm-env";
+	import { getContext, hasContext, setContext } from "svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import { falsePredicate, isControlOrMeta, noop, truePredicate } from "$lib/internal/helpers.js";
 	import {
@@ -21,7 +21,6 @@
 		TreeItemState,
 		type DefaultTFolder,
 	} from "$lib/tree.svelte.js";
-	import { setTreeContext } from "./context.js";
 	import { DragData } from "./data.js";
 	import type {
 		TreeCopyToClipboardMethodOptions,
@@ -29,6 +28,53 @@
 		TreeRemoveMethodOptions,
 	} from "./types.js";
 
+	export type TreeItemEvent<TEvent extends Event = Event> = TEvent & {
+		currentTarget: HTMLDivElement;
+	};
+
+	export type TreeContext<
+		TFile extends FileNode = FileNode,
+		TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+		TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
+	> = {
+		root: () => TTree;
+		tabbableId: () => string;
+		getItemElementId: (itemId: string) => string;
+		onFocusIn: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<FocusEvent>) => void;
+		onKeyDown: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<KeyboardEvent>) => void;
+		onClick: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<MouseEvent>) => void;
+		getDropDestination: (item: TreeItemState<TFile, TFolder>) => TFolder | TTree;
+		canDrag: (item: TreeItemState<TFile, TFolder>, args: ElementGetFeedbackArgs) => boolean;
+		canDropElement: (
+			item: TreeItemState<TFile, TFolder>,
+			args: ElementDropTargetGetFeedbackArgs,
+		) => boolean;
+		canDropExternal: (
+			item: TreeItemState<TFile, TFolder>,
+			args: ExternalDropTargetGetFeedbackArgs,
+		) => boolean;
+		onDragStart: (item: TreeItemState<TFile, TFolder>, args: ElementEventBasePayload) => void;
+		onDestroyItem: (item: TreeItemState<TFile, TFolder>) => void;
+	};
+
+	const CONTEXT_KEY = Symbol("TreeContext");
+
+	export function getTreeContext<
+		TFile extends FileNode = FileNode,
+		TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+		TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
+	>(): TreeContext<TFile, TFolder, TTree> {
+		if (DEV && !hasContext(CONTEXT_KEY)) {
+			throw new Error("No parent <Tree> found");
+		}
+		return getContext(CONTEXT_KEY);
+	}
+</script>
+
+<script
+	lang="ts"
+	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>, TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>"
+>
 	let {
 		children,
 		root,
@@ -64,8 +110,6 @@
 				}
 			}
 		},
-		onClipboardChange = noop,
-		onChildrenChange = noop,
 		onResolveNameConflict = () => "cancel",
 		onCircularReference = noop,
 		canCopy = truePredicate,
@@ -269,13 +313,11 @@
 		}
 		clipboardIds.add(itemId);
 		pasteOperation = newPasteOperation;
-		onClipboardChange({ clipboardIds, pasteOperation });
 	}
 
 	export function clearClipboard() {
 		clipboardIds.clear();
 		pasteOperation = undefined;
-		onClipboardChange({ clipboardIds, pasteOperation });
 	}
 
 	async function copy(destination: TFolder | TTree) {
@@ -334,11 +376,6 @@
 		for (const copy of copies) {
 			destinationChildren.push(copy);
 		}
-		onChildrenChange({
-			operation: "insert",
-			target: destination,
-			children: destinationChildren,
-		});
 
 		onCopy({ sources, copies, destination });
 		return true;
@@ -409,22 +446,12 @@
 
 		for (const owner of sourceOwners) {
 			owner.children = owner.children.filter((child) => !sourceIds.has(child.id));
-			onChildrenChange({
-				operation: "remove",
-				target: owner,
-				children: owner.children,
-			});
 		}
 
 		const destinationChildren = destination.children;
 		for (const source of sources) {
 			destinationChildren.push(source.node);
 		}
-		onChildrenChange({
-			operation: "insert",
-			target: destination,
-			children: destinationChildren,
-		});
 
 		onMove({ sources, destination });
 		return true;
@@ -547,29 +574,14 @@
 				owner.children = owner.children.filter(
 					(child) => !selectedIds.has(child.id) && child !== node,
 				);
-				onChildrenChange({
-					operation: "remove",
-					target: owner,
-					children: owner.children,
-				});
 			}
 		} else {
 			const owner = item.parent?.node ?? root;
 			owner.children = owner.children.filter((child) => child !== node);
-			onChildrenChange({
-				operation: "remove",
-				target: owner,
-				children: owner.children,
-			});
 		}
 
-		const currentClipboardSize = clipboardIds.size;
 		for (const item of removed) {
 			onRemoveNode(item.node);
-		}
-
-		if (clipboardIds.size !== currentClipboardSize) {
-			onClipboardChange({ clipboardIds, pasteOperation });
 		}
 
 		onRemove({ removed });
@@ -665,7 +677,7 @@
 		}
 	}
 
-	setTreeContext<TFile, TFolder, TTree>({
+	const context: TreeContext<TFile, TFolder, TTree> = {
 		root: () => root,
 		tabbableId: () => tabbableId ?? root.children[0].id,
 		getItemElementId,
@@ -1000,7 +1012,8 @@
 				tabbableId = undefined;
 			}
 		},
-	});
+	};
+	setContext(CONTEXT_KEY, context);
 
 	$effect(() => {
 		return dropTargetForElements({

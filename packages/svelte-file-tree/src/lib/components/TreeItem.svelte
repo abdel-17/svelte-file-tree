@@ -10,7 +10,7 @@
 	import type { EventHandler } from "svelte/elements";
 	import { noop } from "$lib/internal/helpers.js";
 	import type { DefaultTFolder, FileNode, FileTree, FolderNode } from "$lib/tree.svelte.js";
-	import { getTreeContext } from "./context.js";
+	import { getTreeContext } from "./Tree.svelte";
 	import { DragData } from "./data.js";
 	import type { TreeItemProps } from "./types.js";
 
