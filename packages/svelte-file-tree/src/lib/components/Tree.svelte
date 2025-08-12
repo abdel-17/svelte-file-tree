@@ -13,7 +13,7 @@
 	} from "@atlaskit/pragmatic-drag-and-drop/external/adapter";
 	import { DEV } from "esm-env";
 	import { SvelteSet } from "svelte/reactivity";
-	import { isControlOrMeta, noop, truePredicate } from "$lib/internal/helpers.js";
+	import { falsePredicate, isControlOrMeta, noop, truePredicate } from "$lib/internal/helpers.js";
 	import {
 		FileNode,
 		FileTree,
@@ -39,8 +39,8 @@
 		defaultClipboardIds,
 		clipboardIds = new SvelteSet(defaultClipboardIds),
 		pasteOperation = $bindable(),
-		isItemDisabled = false,
 		ref = $bindable(null),
+		isItemDisabled = falsePredicate,
 		copyNode = function copyNode(node): TFile | TFolder {
 			if (DEV && node.constructor !== FileNode && node.constructor !== FolderNode) {
 				throw new Error(
@@ -97,10 +97,10 @@
 				node,
 				index,
 				parent,
-				selectedIds: () => selectedIds,
-				expandedIds: () => expandedIds,
-				clipboardIds: () => clipboardIds,
-				isItemDisabled: () => isItemDisabled,
+				selected: () => selectedIds.has(node.id),
+				expanded: () => expandedIds.has(node.id),
+				inClipboard: () => clipboardIds.has(node.id),
+				disabled: () => isItemDisabled(node),
 			});
 			result.push(item);
 

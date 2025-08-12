@@ -8,6 +8,10 @@ export function isControlOrMeta(event: KeyboardEvent | MouseEvent) {
 
 export function noop() {}
 
+export function falsePredicate() {
+	return false;
+}
+
 export function truePredicate() {
 	return true;
 }

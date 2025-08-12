@@ -136,8 +136,8 @@ export interface TreeProps<
 	defaultClipboardIds?: Iterable<string>;
 	clipboardIds?: SvelteSet<string>;
 	pasteOperation?: PasteOperation;
-	isItemDisabled?: boolean | ((node: TFile | TFolder) => boolean);
-	ref?: HTMLElement | null;
+	ref?: HTMLDivElement | null;
+	isItemDisabled?: (node: TFile | TFolder) => boolean;
 	copyNode?: (node: TFile | TFolder) => TFile | TFolder;
 	onClipboardChange?: (args: OnClipboardChangeArgs) => void;
 	onChildrenChange?: (args: OnChildrenChangeArgs<TFile, TFolder, TTree>) => void;
@@ -185,7 +185,7 @@ export interface TreeItemProps<
 	> {
 	children: Snippet;
 	item: TreeItemState<TFile, TFolder>;
-	ref?: HTMLElement | null;
+	ref?: HTMLDivElement | null;
 	onDragEnter?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 	onDragLeave?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 	onDrag?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;

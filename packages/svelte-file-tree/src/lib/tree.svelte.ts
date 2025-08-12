@@ -1,5 +1,3 @@
-import type { SvelteSet } from "svelte/reactivity";
-
 function getTotalCount(children: Array<FileTreeNode>) {
 	let result = 0;
 	for (const child of children) {
@@ -77,10 +75,10 @@ export type TreeItemStateProps<
 	node: TNode;
 	index: number;
 	parent?: TreeItemState<TFile, TFolder, TFolder>;
-	selectedIds: () => SvelteSet<string>;
-	expandedIds: () => SvelteSet<string>;
-	clipboardIds: () => SvelteSet<string>;
-	isItemDisabled: () => boolean | ((node: TFile | TFolder) => boolean);
+	selected: () => boolean;
+	expanded: () => boolean;
+	inClipboard: () => boolean;
+	disabled: () => boolean;
 };
 
 export class TreeItemState<
@@ -92,41 +90,23 @@ export class TreeItemState<
 	readonly index: number;
 	readonly parent?: TreeItemState<TFile, TFolder, TFolder>;
 	readonly depth: number;
-	readonly #selectedIds: () => SvelteSet<string>;
-	readonly #expandedIds: () => SvelteSet<string>;
-	readonly #clipboardIds: () => SvelteSet<string>;
-	readonly #isItemDisabled: () => boolean | ((node: TFile | TFolder) => boolean);
+	readonly selected: boolean;
+	readonly expanded: boolean;
+	readonly inClipboard: boolean;
+	readonly disabled: boolean;
 
 	constructor(props: TreeItemStateProps<TFile, TFolder, TNode>) {
 		this.node = props.node;
 		this.index = props.index;
 		this.parent = props.parent;
 		this.depth = props.parent === undefined ? 0 : props.parent.depth + 1;
-		this.#selectedIds = props.selectedIds;
-		this.#expandedIds = props.expandedIds;
-		this.#clipboardIds = props.clipboardIds;
-		this.#isItemDisabled = props.isItemDisabled;
+		this.selected = $derived.by(props.selected);
+		this.expanded = $derived.by(props.expanded);
+		this.inClipboard = $derived.by(props.inClipboard);
+		this.disabled = $derived(this.parent?.disabled || props.disabled());
 	}
 
 	readonly type = "item";
-
-	readonly selected = $derived.by(() => this.#selectedIds().has(this.node.id));
-
-	readonly expanded = $derived.by(() => this.#expandedIds().has(this.node.id));
-
-	readonly inClipboard = $derived.by(() => this.#clipboardIds().has(this.node.id));
-
-	readonly disabled = $derived.by(() => {
-		if (this.parent?.disabled) {
-			return true;
-		}
-
-		const isItemDisabled = this.#isItemDisabled();
-		if (typeof isItemDisabled === "function") {
-			return isItemDisabled(this.node);
-		}
-		return isItemDisabled;
-	});
 
 	readonly visible: boolean = $derived.by(() => {
 		const parent = this.parent;
