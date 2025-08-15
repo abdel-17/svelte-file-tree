@@ -74,11 +74,13 @@ export type TreeItemStateProps<
 > = {
 	node: TNode;
 	index: number;
-	parent?: TreeItemState<TFile, TFolder, TFolder>;
+	parent: TreeItemState<TFile, TFolder, TFolder> | undefined;
+	order: number;
 	selected: () => boolean;
 	expanded: () => boolean;
 	inClipboard: () => boolean;
 	disabled: () => boolean;
+	visible: () => boolean;
 };
 
 export class TreeItemState<
@@ -88,31 +90,27 @@ export class TreeItemState<
 > {
 	readonly node: TNode;
 	readonly index: number;
-	readonly parent?: TreeItemState<TFile, TFolder, TFolder>;
+	readonly parent: TreeItemState<TFile, TFolder, TFolder> | undefined;
+	readonly order: number;
 	readonly depth: number;
 	readonly selected: boolean;
 	readonly expanded: boolean;
 	readonly inClipboard: boolean;
 	readonly disabled: boolean;
+	readonly visible: boolean;
 
 	constructor(props: TreeItemStateProps<TFile, TFolder, TNode>) {
 		this.node = props.node;
 		this.index = props.index;
 		this.parent = props.parent;
+		this.order = props.order;
 		this.depth = props.parent === undefined ? 0 : props.parent.depth + 1;
 		this.selected = $derived.by(props.selected);
 		this.expanded = $derived.by(props.expanded);
 		this.inClipboard = $derived.by(props.inClipboard);
-		this.disabled = $derived(this.parent?.disabled || props.disabled());
+		this.disabled = $derived.by(props.disabled);
+		this.visible = $derived.by(props.visible);
 	}
 
 	readonly type = "item";
-
-	readonly visible: boolean = $derived.by(() => {
-		const parent = this.parent;
-		if (parent === undefined) {
-			return true;
-		}
-		return parent.expanded && parent.visible;
-	});
 }

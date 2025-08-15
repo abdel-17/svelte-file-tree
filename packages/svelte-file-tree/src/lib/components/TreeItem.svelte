@@ -14,7 +14,7 @@
 	import { DragData } from "./data.js";
 	import type { TreeItemProps } from "./types.js";
 
-	const context = getTreeContext<TFile, TFolder, TTree>();
+	const treeContext = getTreeContext<TFile, TFolder, TTree>();
 
 	let {
 		children,
@@ -32,17 +32,17 @@
 
 	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
 		onfocusin?.(event);
-		context.onFocusIn(item, event);
+		treeContext.onFocusIn(item, event);
 	};
 
 	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 		onkeydown?.(event);
-		context.onKeyDown(item, event);
+		treeContext.onKeyDown(item, event);
 	};
 
 	const handleClick: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
 		onclick?.(event);
-		context.onClick(item, event);
+		treeContext.onClick(item, event);
 	};
 
 	function getItem() {
@@ -57,9 +57,9 @@
 		return draggable({
 			element: ref!,
 			getInitialData: getDragData,
-			canDrag: (args) => context.canDrag(item, args),
+			canDrag: (args) => treeContext.canDrag(item, args),
 			onDragStart: (args) => {
-				context.onDragStart(item, args);
+				treeContext.onDragStart(item, args);
 			},
 		});
 	});
@@ -68,7 +68,7 @@
 		return dropTargetForElements({
 			element: ref!,
 			getData: getDragData,
-			canDrop: (args) => context.canDropElement(item, args),
+			canDrop: (args) => treeContext.canDropElement(item, args),
 			onDragEnter: (args) => {
 				const dragData = args.source.data;
 				if (!(dragData instanceof DragData)) {
@@ -80,7 +80,7 @@
 					type: "item",
 					input: args.location.current.input,
 					source,
-					destination: context.getDropDestination(item),
+					destination: treeContext.getDropDestination(item),
 				});
 			},
 			onDragLeave: (args) => {
@@ -94,7 +94,7 @@
 					type: "item",
 					input: args.location.current.input,
 					source,
-					destination: context.getDropDestination(item),
+					destination: treeContext.getDropDestination(item),
 				});
 			},
 			onDrag: (args) => {
@@ -108,7 +108,7 @@
 					type: "item",
 					input: args.location.current.input,
 					source,
-					destination: context.getDropDestination(item),
+					destination: treeContext.getDropDestination(item),
 				});
 			},
 			onDrop: (args) => {
@@ -122,7 +122,7 @@
 					type: "item",
 					input: args.location.current.input,
 					source,
-					destination: context.getDropDestination(item),
+					destination: treeContext.getDropDestination(item),
 				});
 			},
 		});
@@ -132,13 +132,13 @@
 		return dropTargetForExternal({
 			element: ref!,
 			getData: getDragData,
-			canDrop: (args) => context.canDropExternal(item, args),
+			canDrop: (args) => treeContext.canDropExternal(item, args),
 			onDragEnter: (args) => {
 				onDragEnter({
 					type: "external",
 					input: args.location.current.input,
 					items: args.source.items,
-					destination: context.getDropDestination(item),
+					destination: treeContext.getDropDestination(item),
 				});
 			},
 			onDragLeave: (args) => {
@@ -146,7 +146,7 @@
 					type: "external",
 					input: args.location.current.input,
 					items: args.source.items,
-					destination: context.getDropDestination(item),
+					destination: treeContext.getDropDestination(item),
 				});
 			},
 			onDrag: (args) => {
@@ -154,7 +154,7 @@
 					type: "external",
 					input: args.location.current.input,
 					items: args.source.items,
-					destination: context.getDropDestination(item),
+					destination: treeContext.getDropDestination(item),
 				});
 			},
 			onDrop: (args) => {
@@ -162,7 +162,7 @@
 					type: "external",
 					input: args.location.current.input,
 					items: args.source.items,
-					destination: context.getDropDestination(item),
+					destination: treeContext.getDropDestination(item),
 				});
 			},
 		});
@@ -170,7 +170,7 @@
 
 	$effect(() => {
 		return () => {
-			context.onDestroyItem(item);
+			treeContext.onDestroyItem(item);
 		};
 	});
 </script>
@@ -178,7 +178,7 @@
 <div
 	{...rest}
 	bind:this={ref}
-	id={context.getItemElementId(item.node.id)}
+	id={treeContext.getItemElementId(item.node.id)}
 	role="treeitem"
 	aria-selected={item.selected}
 	aria-expanded={item.node.type === "folder" && item.node.children.length !== 0
@@ -186,8 +186,9 @@
 		: undefined}
 	aria-level={item.depth + 1}
 	aria-posinset={item.index + 1}
-	aria-setsize={item.parent?.node.children.length ?? context.root().children.length}
-	tabindex={context.tabbableId() === item.node.id ? 0 : -1}
+	aria-setsize={item.parent?.node.children.length ?? treeContext.root().children.length}
+	aria-disabled={item.disabled}
+	tabindex={treeContext.tabbableId() === item.node.id ? 0 : -1}
 	onfocusin={handleFocusIn}
 	onkeydown={handleKeyDown}
 	onclick={handleClick}

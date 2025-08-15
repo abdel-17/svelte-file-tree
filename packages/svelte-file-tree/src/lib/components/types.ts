@@ -1,4 +1,5 @@
 import type { Input as DragInput } from "@atlaskit/pragmatic-drag-and-drop/types";
+import type { ScrollToOptions, VirtualItem } from "@tanstack/virtual-core";
 import type { Snippet } from "svelte";
 import type { HTMLAttributes } from "svelte/elements";
 import type { SvelteSet } from "svelte/reactivity";
@@ -138,6 +139,7 @@ export interface TreeProps<
 	pasteOperation?: PasteOperation;
 	ref?: HTMLDivElement | null;
 	isItemDisabled?: (node: TFile | TFolder) => boolean;
+	isItemHidden?: (node: TFile | TFolder) => boolean;
 	copyNode?: (node: TFile | TFolder) => TFile | TFolder;
 	onResolveNameConflict?: (
 		args: OnResolveNameConflictArgs<TFile, TFolder, TTree>,
@@ -157,11 +159,6 @@ export interface TreeProps<
 	onDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 }
 
-export type TreeCopyToClipboardMethodOptions = {
-	pasteOperation?: PasteOperation;
-	batched?: boolean;
-};
-
 export type TreeRemoveMethodOptions = {
 	batched?: boolean;
 };
@@ -179,6 +176,7 @@ export interface TreeItemProps<
 		| "aria-level"
 		| "aria-posinset"
 		| "aria-setsize"
+		| "aria-disabled"
 		| "tabindex"
 	> {
 	children: Snippet;
@@ -189,3 +187,26 @@ export interface TreeItemProps<
 	onDrag?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 	onDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 }
+
+export type VirtualListChildrenSnippetArgs = {
+	treeSize: number;
+	virtualItems: Array<VirtualItem>;
+};
+
+export interface VirtualListProps<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+	children: Snippet<[args: VirtualListChildrenSnippetArgs]>;
+	estimateSize: (item: TreeItemState<TFile, TFolder>, index: number) => number;
+	overscan?: number;
+	paddingStart?: number;
+	paddingEnd?: number;
+	scrollPaddingStart?: number;
+	scrollPaddingEnd?: number;
+	scrollMargin?: number;
+	gap?: number;
+	ref?: HTMLDivElement | null;
+}
+
+export type VirtualListScrollToOptions = ScrollToOptions;

@@ -11,7 +11,7 @@
 		type ExternalDropTargetGetFeedbackArgs,
 	} from "@atlaskit/pragmatic-drag-and-drop/external/adapter";
 	import { DEV } from "esm-env";
-	import { getContext, hasContext, setContext } from "svelte";
+	import { getContext, hasContext, setContext, tick } from "svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import { falsePredicate, isControlOrMeta, noop, truePredicate } from "$lib/internal/helpers.js";
 	import {
@@ -21,24 +21,21 @@
 		TreeItemState,
 		type DefaultTFolder,
 	} from "$lib/tree.svelte.js";
+	import { getVirtualListContextIfExists } from "./VirtualList.svelte";
 	import { DragData } from "./data.js";
-	import type {
-		TreeCopyToClipboardMethodOptions,
-		TreeProps,
-		TreeRemoveMethodOptions,
-	} from "./types.js";
+	import type { TreeProps, TreeRemoveMethodOptions } from "./types.js";
 
-	export type TreeItemEvent<TEvent extends Event = Event> = TEvent & {
+	export type TreeItemEvent<TEvent extends Event> = TEvent & {
 		currentTarget: HTMLDivElement;
 	};
 
 	export type TreeContext<
-		TFile extends FileNode = FileNode,
-		TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-		TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
+		TFile extends FileNode,
+		TFolder extends FolderNode<TFile | TFolder>,
+		TTree extends FileTree<TFile | TFolder>,
 	> = {
 		root: () => TTree;
-		tabbableId: () => string;
+		tabbableId: () => string | undefined;
 		getItemElementId: (itemId: string) => string;
 		onFocusIn: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<FocusEvent>) => void;
 		onKeyDown: (item: TreeItemState<TFile, TFolder>, event: TreeItemEvent<KeyboardEvent>) => void;
@@ -60,9 +57,9 @@
 	const CONTEXT_KEY = Symbol("TreeContext");
 
 	export function getTreeContext<
-		TFile extends FileNode = FileNode,
-		TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-		TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
+		TFile extends FileNode,
+		TFolder extends FolderNode<TFile | TFolder>,
+		TTree extends FileTree<TFile | TFolder>,
 	>(): TreeContext<TFile, TFolder, TTree> {
 		if (DEV && !hasContext(CONTEXT_KEY)) {
 			throw new Error("No parent <Tree> found");
@@ -75,6 +72,8 @@
 	lang="ts"
 	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>, TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>"
 >
+	const virtualListContext = getVirtualListContextIfExists<TFile, TFolder>();
+
 	let {
 		children,
 		root,
@@ -87,6 +86,7 @@
 		pasteOperation = $bindable(),
 		ref = $bindable(null),
 		isItemDisabled = falsePredicate,
+		isItemHidden = falsePredicate,
 		copyNode = function copyNode(node): TFile | TFolder {
 			if (DEV && node.constructor !== FileNode && node.constructor !== FolderNode) {
 				throw new Error(
@@ -136,15 +136,22 @@
 		result: Array<TreeItemState<TFile, TFolder>> = [],
 	) {
 		for (let index = 0; index < nodes.length; index++) {
-			const node = nodes[index];
+			const node = nodes[index]!;
 			const item = new TreeItemState({
 				node,
 				index,
 				parent,
+				order: result.length,
 				selected: () => selectedIds.has(node.id),
 				expanded: () => expandedIds.has(node.id),
 				inClipboard: () => clipboardIds.has(node.id),
-				disabled: () => isItemDisabled(node),
+				disabled: () => parent?.disabled || isItemDisabled(node),
+				visible: () => {
+					if (parent !== undefined && (!parent.expanded || !parent.visible)) {
+						return false;
+					}
+					return !isItemHidden(node);
+				},
 			});
 			result.push(item);
 
@@ -154,6 +161,15 @@
 		}
 		return result;
 	});
+
+	if (virtualListContext !== undefined) {
+		$effect.pre(() => {
+			virtualListContext.setItems(items);
+			return () => {
+				virtualListContext.setItems([]);
+			};
+		});
+	}
 
 	const lookup = $derived.by(() => {
 		const result = new Map<string, TreeItemState<TFile, TFolder>>();
@@ -180,71 +196,83 @@
 		return document.getElementById(elementId);
 	}
 
-	type TreeItemPosition<TNode extends TFile | TFolder = TFile | TFolder> = {
-		node: TNode;
-		index: number;
-		parent?: TreeItemPosition<TFolder>;
-	};
-
-	function getNextNonChildItem(current: TreeItemPosition): TreeItemPosition | undefined {
-		let { index, parent } = current;
-		while (true) {
-			const siblings = parent?.node.children ?? root.children;
-			const nextIndex = index + 1;
-			if (nextIndex !== siblings.length) {
-				return {
-					node: siblings[nextIndex],
-					index: nextIndex,
-					parent,
-				};
+	function getFirstVisibleItem(item: TreeItemState<TFile, TFolder>) {
+		let current: TreeItemState<TFile, TFolder> | undefined = item;
+		while (!current.visible) {
+			if (current.node.type === "folder") {
+				current = items[current.order + current.node.count + 1];
+			} else {
+				current = items[current.order + 1];
 			}
 
-			if (parent === undefined) {
+			if (current === undefined) {
 				return;
 			}
+		}
+		return current;
+	}
 
-			index = parent.index;
-			parent = parent.parent;
+	function getNextVisibleItem(
+		item: TreeItemState<TFile, TFolder>,
+		options: { skipChildren?: boolean } = {},
+	) {
+		const { skipChildren = false } = options;
+
+		let current: TreeItemState<TFile, TFolder> | undefined = item;
+		if (current.node.type === "folder" && (skipChildren || !current.expanded)) {
+			current = items[current.order + current.node.count + 1];
+		} else {
+			current = items[current.order + 1];
+		}
+
+		if (current === undefined) {
+			return;
+		}
+
+		return getFirstVisibleItem(current);
+	}
+
+	function getPreviousVisibleItem(item: TreeItemState<TFile, TFolder>) {
+		let current: TreeItemState<TFile, TFolder> | undefined = item;
+		do {
+			current = items[current.order - 1];
+		} while (current !== undefined && !current.visible);
+		return current;
+	}
+
+	let focusItemRequestId: number | undefined;
+
+	function focusItem(item: TreeItemState<TFile, TFolder>) {
+		if (focusItemRequestId !== undefined) {
+			window.cancelAnimationFrame(focusItemRequestId);
+		}
+
+		const element = getItemElement(item.node.id);
+		if (element !== null) {
+			element.focus();
+			return;
+		}
+
+		if (virtualListContext !== undefined) {
+			virtualListContext.scrollToIndex(item.order);
+
+			let retries = 0;
+			focusItemRequestId = window.requestAnimationFrame(function callback() {
+				const element = getItemElement(item.node.id);
+				if (element !== null) {
+					element.focus();
+					return;
+				}
+
+				if (retries < 1000) {
+					retries++;
+					focusItemRequestId = window.requestAnimationFrame(callback);
+				}
+			});
 		}
 	}
 
-	function getNextItem(current: TreeItemPosition): TreeItemPosition | undefined {
-		const node = current.node;
-		if (node.type === "folder" && expandedIds.has(node.id)) {
-			const children = node.children;
-			if (children.length !== 0) {
-				return {
-					node: children[0],
-					index: 0,
-					parent: current as TreeItemPosition<TFolder>,
-				};
-			}
-		}
-		return getNextNonChildItem(current);
-	}
-
-	function getPreviousItem(current: TreeItemPosition): TreeItemPosition | undefined {
-		let { node, index, parent } = current;
-		if (index === 0) {
-			return parent;
-		}
-
-		index--;
-		node = parent?.node.children[index] ?? root.children[index];
-		while (node.type === "folder" && expandedIds.has(node.id)) {
-			const children = node.children;
-			if (children.length === 0) {
-				break;
-			}
-
-			parent = { node, index, parent };
-			index = children.length - 1;
-			node = children[index];
-		}
-		return { node, index, parent };
-	}
-
-	function selectUntil(item: TreeItemState<TFile, TFolder>, itemElement: HTMLDivElement) {
+	function selectUntil(item: TreeItemState<TFile, TFolder>) {
 		let lastSelected;
 		for (const id of selectedIds) {
 			const current = getItem(id);
@@ -254,27 +282,21 @@
 		}
 
 		if (lastSelected === undefined) {
-			let current: TreeItemPosition | undefined = items[0];
+			let current: TreeItemState<TFile, TFolder> | undefined = items[0]!;
 			do {
 				selectedIds.add(current.node.id);
 				if (current.node === item.node) {
 					break;
 				}
-				current = getNextItem(current);
+				current = getNextVisibleItem(current);
 			} while (current !== undefined);
 			return;
 		}
 
-		const lastSelectedElement = getItemElement(lastSelected.node.id);
-		if (lastSelectedElement === null) {
-			return;
-		}
+		const following = lastSelected.order < item.order;
+		const navigate = following ? getNextVisibleItem : getPreviousVisibleItem;
 
-		const positionBitmask = lastSelectedElement.compareDocumentPosition(itemElement);
-		const following = positionBitmask & Node.DOCUMENT_POSITION_FOLLOWING;
-		const navigate = following !== 0 ? getNextItem : getPreviousItem;
-
-		let current: TreeItemPosition | undefined = lastSelected;
+		let current: TreeItemState<TFile, TFolder> | undefined = lastSelected;
 		while (current.node !== item.node) {
 			current = navigate(current);
 			if (current === undefined) {
@@ -290,34 +312,6 @@
 		} else {
 			selectedIds.add(item.node.id);
 		}
-	}
-
-	function selectAll(nodes: Array<TFile | TFolder>) {
-		for (const node of nodes) {
-			selectedIds.add(node.id);
-
-			if (node.type === "folder" && expandedIds.has(node.id)) {
-				selectAll(node.children);
-			}
-		}
-	}
-
-	export function copyToClipboard(itemId: string, options: TreeCopyToClipboardMethodOptions = {}) {
-		const { pasteOperation: newPasteOperation = "copy", batched = true } = options;
-
-		clipboardIds.clear();
-		if (batched) {
-			for (const id of selectedIds) {
-				clipboardIds.add(id);
-			}
-		}
-		clipboardIds.add(itemId);
-		pasteOperation = newPasteOperation;
-	}
-
-	export function clearClipboard() {
-		clipboardIds.clear();
-		pasteOperation = undefined;
 	}
 
 	async function copy(destination: TFolder | TTree) {
@@ -381,11 +375,7 @@
 		return true;
 	}
 
-	async function move(
-		movedIds: Set<string>,
-		isItemMoved: (item: TreeItemState<TFile, TFolder>) => boolean,
-		destination: TFolder | TTree,
-	) {
+	async function move(movedIds: Set<string>, destination: TFolder | TTree) {
 		const names = new Set<string>();
 		for (const child of destination.children) {
 			names.add(child.name);
@@ -406,7 +396,7 @@
 			}
 
 			for (let ancestor = current.parent; ancestor !== undefined; ancestor = ancestor.parent) {
-				if (isItemMoved(ancestor)) {
+				if (movedIds.has(ancestor.node.id)) {
 					// If an ancestor is moved, its children are moved along with it.
 					continue outer;
 				}
@@ -465,7 +455,7 @@
 				break;
 			}
 			case "cut": {
-				didPaste = await move(clipboardIds, (item) => item.inClipboard, destination);
+				didPaste = await move(clipboardIds, destination);
 				break;
 			}
 			case undefined: {
@@ -477,7 +467,8 @@
 			return false;
 		}
 
-		clearClipboard();
+		clipboardIds.clear();
+		pasteOperation = undefined;
 		return true;
 	}
 
@@ -535,7 +526,11 @@
 			return false;
 		}
 
-		let focusTarget = getNextNonChildItem(item) ?? getPreviousItem(item);
+		let focusTarget = getNextVisibleItem(item, { skipChildren: true });
+		if (focusTarget === undefined) {
+			focusTarget = getPreviousVisibleItem(item);
+		}
+
 		while (focusTarget !== undefined) {
 			// Move to the highest selected ancestor as all its children will be removed.
 			for (let ancestor = focusTarget.parent; ancestor !== undefined; ancestor = ancestor.parent) {
@@ -545,22 +540,28 @@
 			}
 
 			// Focus the nearest remaining item after this item.
-			let nearestUnselected: TreeItemPosition | undefined = focusTarget;
-			while (nearestUnselected !== undefined && selectedIds.has(nearestUnselected.node.id)) {
+			let nearestUnselected: TreeItemState<TFile, TFolder> | undefined = focusTarget;
+			while (nearestUnselected.selected) {
 				// The current item will be removed, so we shouldn't traverse its children.
-				nearestUnselected = getNextNonChildItem(nearestUnselected);
+				nearestUnselected = getNextVisibleItem(nearestUnselected, { skipChildren: true });
+				if (nearestUnselected === undefined) {
+					break;
+				}
 			}
 
 			if (nearestUnselected === undefined) {
 				// Focus the nearest remaining item before this item.
 				nearestUnselected = focusTarget;
-				while (nearestUnselected !== undefined && selectedIds.has(nearestUnselected.node.id)) {
-					nearestUnselected = getPreviousItem(nearestUnselected);
+				while (nearestUnselected.selected) {
+					nearestUnselected = getPreviousVisibleItem(nearestUnselected);
+					if (nearestUnselected === undefined) {
+						break;
+					}
 				}
 			}
 
 			if (focusTarget === nearestUnselected) {
-				getItemElement(focusTarget.node.id)?.focus();
+				focusItem(focusTarget);
 				break;
 			}
 
@@ -679,7 +680,7 @@
 
 	const context: TreeContext<TFile, TFolder, TTree> = {
 		root: () => root,
-		tabbableId: () => tabbableId ?? root.children[0].id,
+		tabbableId: () => tabbableId ?? root.children[0]?.id,
 		getItemElementId,
 		onFocusIn: (item) => {
 			tabbableId = item.node.id;
@@ -701,9 +702,9 @@
 						break;
 					}
 
-					const children = node.children;
-					if (children.length !== 0) {
-						getItemElement(children[0].id)?.focus();
+					const next = items[item.order + 1];
+					if (next !== undefined) {
+						focusItem(next);
 					}
 					break;
 				}
@@ -716,49 +717,42 @@
 
 					const parent = item.parent;
 					if (parent !== undefined) {
-						getItemElement(parent.node.id)?.focus();
+						focusItem(parent);
 					}
 					break;
 				}
 				case "ArrowDown":
 				case "ArrowUp": {
 					const down = event.key === "ArrowDown";
-					const next = down ? getNextItem(item) : getPreviousItem(item);
+					const next = down ? getNextVisibleItem(item) : getPreviousVisibleItem(item);
 					if (next === undefined) {
 						break;
 					}
 
-					const nextId = next.node.id;
-					const nextElement = getItemElement(nextId);
-					if (nextElement === null) {
-						break;
-					}
-
 					if (event.shiftKey) {
-						selectedIds.add(item.node.id).add(nextId);
+						selectedIds.add(item.node.id).add(next.node.id);
 					} else if (!isControlOrMeta(event)) {
 						selectedIds.clear();
-						selectedIds.add(nextId);
+						selectedIds.add(next.node.id);
 					}
 
-					nextElement.focus();
+					focusItem(next);
 					break;
 				}
 				case "PageDown":
 				case "PageUp": {
 					const down = event.key === "PageDown";
-					const navigate = down ? getNextItem : getPreviousItem;
+					const navigate = down ? getNextVisibleItem : getPreviousVisibleItem;
 					const shouldSelectMultiple = event.shiftKey && isControlOrMeta(event);
 
 					const maxScrollDistance = Math.min(
 						ref!.clientHeight,
 						document.documentElement.clientHeight,
 					);
-					const itemElement = event.currentTarget;
-					const itemRect = itemElement.getBoundingClientRect();
+					const itemRect = event.currentTarget.getBoundingClientRect();
 
-					let current: TreeItemPosition = item;
-					let currentElement: HTMLElement = itemElement;
+					let current = item;
+					let currentElement: HTMLElement = event.currentTarget;
 					while (true) {
 						const next = navigate(current);
 						if (next === undefined) {
@@ -797,68 +791,48 @@
 					break;
 				}
 				case "Home": {
-					const first = root.children[0];
-					if (first === item.node) {
-						break;
-					}
-
-					const firstId = first.id;
-					const firstElement = getItemElement(firstId);
-					if (firstElement === null) {
+					const first = getFirstVisibleItem(items[0]!)!;
+					if (first === item) {
 						break;
 					}
 
 					if (event.shiftKey && isControlOrMeta(event)) {
-						let current: TreeItemPosition | undefined = item;
+						let current: TreeItemState<TFile, TFolder> | undefined = item;
 						do {
 							selectedIds.add(current.node.id);
-							current = getPreviousItem(current);
+							current = getPreviousVisibleItem(current);
 						} while (current !== undefined);
 					} else {
 						selectedIds.clear();
-						selectedIds.add(firstId);
+						selectedIds.add(first.node.id);
 					}
 
-					firstElement.focus();
+					focusItem(first);
 					break;
 				}
 				case "End": {
-					let last = root.children.at(-1)!;
-					while (last.type === "folder" && expandedIds.has(last.id)) {
-						const children = last.children;
-						if (children.length === 0) {
-							break;
-						}
-						last = children.at(-1)!;
-					}
-
-					if (last === item.node) {
-						break;
-					}
-
-					const lastId = last.id;
-					const lastElement = getItemElement(last.id);
-					if (lastElement === null) {
+					const last = getPreviousVisibleItem(items[items.length - 1]!)!;
+					if (last === item) {
 						break;
 					}
 
 					if (event.shiftKey && isControlOrMeta(event)) {
-						let current: TreeItemPosition | undefined = item;
+						let current: TreeItemState<TFile, TFolder> | undefined = item;
 						do {
 							selectedIds.add(current.node.id);
-							current = getNextItem(current);
+							current = getNextVisibleItem(current);
 						} while (current !== undefined);
 					} else {
 						selectedIds.clear();
-						selectedIds.add(lastId);
+						selectedIds.add(last.node.id);
 					}
 
-					lastElement.focus();
+					focusItem(last);
 					break;
 				}
 				case " ": {
 					if (event.shiftKey) {
-						selectUntil(item, event.currentTarget);
+						selectUntil(item);
 					} else {
 						toggleSelection(item);
 					}
@@ -866,7 +840,8 @@
 				}
 				case "Escape": {
 					selectedIds.clear();
-					clearClipboard();
+					clipboardIds.clear();
+					pasteOperation = undefined;
 					break;
 				}
 				case "*": {
@@ -887,23 +862,35 @@
 						break;
 					}
 
-					selectAll(root.children);
+					let current: TreeItemState<TFile, TFolder> | undefined = getFirstVisibleItem(items[0]!)!;
+					do {
+						selectedIds.add(current.node.id);
+						current = getNextVisibleItem(current);
+					} while (current !== undefined);
 					break;
 				}
-				case "c": {
-					if (!isControlOrMeta(event)) {
-						break;
-					}
-
-					copyToClipboard(item.node.id, { pasteOperation: "copy" });
-					break;
-				}
+				case "c":
 				case "x": {
 					if (!isControlOrMeta(event)) {
 						break;
 					}
 
-					copyToClipboard(item.node.id, { pasteOperation: "cut" });
+					clipboardIds.clear();
+					for (const id of selectedIds) {
+						clipboardIds.add(id);
+					}
+					clipboardIds.add(item.node.id);
+
+					switch (event.key) {
+						case "c": {
+							pasteOperation = "copy";
+							break;
+						}
+						case "x": {
+							pasteOperation = "cut";
+							break;
+						}
+					}
 					break;
 				}
 				case "v": {
@@ -952,7 +939,7 @@
 					const pasteDestination = pasteDestinationItem?.node ?? root;
 					paste(pasteDestination).then((didPaste) => {
 						if (didPaste) {
-							event.currentTarget.focus();
+							focusItem(item);
 						}
 					});
 					break;
@@ -972,7 +959,7 @@
 			if (isControlOrMeta(event)) {
 				toggleSelection(item);
 			} else if (event.shiftKey) {
-				selectUntil(item, event.currentTarget);
+				selectUntil(item);
 			} else {
 				selectedIds.clear();
 				selectedIds.add(item.node.id);
@@ -1109,9 +1096,9 @@
 					selectedIds.add(source.node.id);
 				}
 
-				const didMove = await move(selectedIds, (item) => item.selected, dropDestination);
+				const didMove = await move(selectedIds, dropDestination);
 				if (didMove) {
-					args.source.element.focus();
+					focusItem(source);
 				}
 			},
 		});
