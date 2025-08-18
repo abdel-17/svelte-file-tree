@@ -11,7 +11,7 @@
 		type ExternalDropTargetGetFeedbackArgs,
 	} from "@atlaskit/pragmatic-drag-and-drop/external/adapter";
 	import { DEV } from "esm-env";
-	import { getContext, hasContext, setContext, tick } from "svelte";
+	import { getContext, hasContext, setContext } from "svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import { falsePredicate, isControlOrMeta, noop, truePredicate } from "$lib/internal/helpers.js";
 	import {
@@ -196,47 +196,54 @@
 		return document.getElementById(elementId);
 	}
 
-	function getFirstVisibleItem(item: TreeItemState<TFile, TFolder>) {
-		let current: TreeItemState<TFile, TFolder> | undefined = item;
-		while (!current.visible) {
-			if (current.node.type === "folder") {
-				current = items[current.order + current.node.count + 1];
-			} else {
-				current = items[current.order + 1];
-			}
-
-			if (current === undefined) {
-				return;
-			}
-		}
-		return current;
-	}
-
 	function getNextVisibleItem(
 		item: TreeItemState<TFile, TFolder>,
 		options: { skipChildren?: boolean } = {},
 	) {
 		const { skipChildren = false } = options;
 
-		let current: TreeItemState<TFile, TFolder> | undefined = item;
-		if (current.node.type === "folder" && (skipChildren || !current.expanded)) {
-			current = items[current.order + current.node.count + 1];
+		let current: TreeItemState<TFile, TFolder> | undefined;
+		if (item.node.type === "folder" && (skipChildren || !item.expanded)) {
+			current = items[item.order + item.node.count + 1];
 		} else {
-			current = items[current.order + 1];
+			current = items[item.order + 1];
 		}
 
-		if (current === undefined) {
-			return;
+		while (current !== undefined && !current.visible) {
+			if (current.node.type === "folder") {
+				current = items[current.order + current.node.count + 1];
+			} else {
+				current = items[current.order + 1];
+			}
 		}
 
-		return getFirstVisibleItem(current);
+		return current;
 	}
 
 	function getPreviousVisibleItem(item: TreeItemState<TFile, TFolder>) {
-		let current: TreeItemState<TFile, TFolder> | undefined = item;
-		do {
+		let current = items[item.order - 1];
+		while (current !== undefined && !current.visible) {
 			current = items[current.order - 1];
-		} while (current !== undefined && !current.visible);
+		}
+		return current;
+	}
+
+	function getFirstVisibleItem() {
+		let current = items[0];
+		if (current !== undefined && !current.visible) {
+			current = getNextVisibleItem(current);
+		}
+		return current;
+	}
+
+	function getLastVisibleItem() {
+		let current = items[items.length - 1];
+		if (current !== undefined && !current.visible) {
+			while (current.parent !== undefined && !current.parent.visible) {
+				current = current.parent;
+			}
+			current = getPreviousVisibleItem(current);
+		}
 		return current;
 	}
 
@@ -281,8 +288,8 @@
 			}
 		}
 
-		if (lastSelected === undefined) {
-			let current: TreeItemState<TFile, TFolder> | undefined = items[0]!;
+		if (lastSelected === undefined || !lastSelected.visible) {
+			let current: TreeItemState<TFile, TFolder> | undefined = getFirstVisibleItem()!;
 			do {
 				selectedIds.add(current.node.id);
 				if (current.node === item.node) {
@@ -293,12 +300,10 @@
 			return;
 		}
 
-		const following = lastSelected.order < item.order;
-		const navigate = following ? getNextVisibleItem : getPreviousVisibleItem;
-
+		const down = lastSelected.order < item.order;
 		let current: TreeItemState<TFile, TFolder> | undefined = lastSelected;
 		while (current.node !== item.node) {
-			current = navigate(current);
+			current = down ? getNextVisibleItem(current) : getPreviousVisibleItem(current);
 			if (current === undefined) {
 				break;
 			}
@@ -742,7 +747,6 @@
 				case "PageDown":
 				case "PageUp": {
 					const down = event.key === "PageDown";
-					const navigate = down ? getNextVisibleItem : getPreviousVisibleItem;
 					const shouldSelectMultiple = event.shiftKey && isControlOrMeta(event);
 
 					const maxScrollDistance = Math.min(
@@ -754,7 +758,7 @@
 					let current = item;
 					let currentElement: HTMLElement = event.currentTarget;
 					while (true) {
-						const next = navigate(current);
+						const next = down ? getNextVisibleItem(current) : getPreviousVisibleItem(current);
 						if (next === undefined) {
 							break;
 						}
@@ -790,29 +794,11 @@
 					currentElement.focus();
 					break;
 				}
-				case "Home": {
-					const first = getFirstVisibleItem(items[0]!)!;
-					if (first === item) {
-						break;
-					}
-
-					if (event.shiftKey && isControlOrMeta(event)) {
-						let current: TreeItemState<TFile, TFolder> | undefined = item;
-						do {
-							selectedIds.add(current.node.id);
-							current = getPreviousVisibleItem(current);
-						} while (current !== undefined);
-					} else {
-						selectedIds.clear();
-						selectedIds.add(first.node.id);
-					}
-
-					focusItem(first);
-					break;
-				}
+				case "Home":
 				case "End": {
-					const last = getPreviousVisibleItem(items[items.length - 1]!)!;
-					if (last === item) {
+					const down = event.key === "End";
+					const last = down ? getLastVisibleItem()! : getFirstVisibleItem()!;
+					if (item === last) {
 						break;
 					}
 
@@ -820,7 +806,7 @@
 						let current: TreeItemState<TFile, TFolder> | undefined = item;
 						do {
 							selectedIds.add(current.node.id);
-							current = getNextVisibleItem(current);
+							current = down ? getNextVisibleItem(current) : getPreviousVisibleItem(current);
 						} while (current !== undefined);
 					} else {
 						selectedIds.clear();
@@ -862,7 +848,7 @@
 						break;
 					}
 
-					let current: TreeItemState<TFile, TFolder> | undefined = getFirstVisibleItem(items[0]!)!;
+					let current: TreeItemState<TFile, TFolder> | undefined = getFirstVisibleItem()!;
 					do {
 						selectedIds.add(current.node.id);
 						current = getNextVisibleItem(current);
