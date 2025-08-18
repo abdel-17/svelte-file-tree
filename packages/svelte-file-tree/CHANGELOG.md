@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.11.1
+
+### Patch Changes
+
+- 76b2091: fix: children of hidden parents are no longer forced to be hidden
+
 ## 0.11.0
 
 ### Minor Changes
