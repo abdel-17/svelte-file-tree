@@ -49,7 +49,7 @@
 	<pre class="overflow-x-auto p-4 pe-15 font-mono">{code}</pre>
 
 	<button
-		class="absolute end-3 top-1/2 -translate-y-1/2 rounded-full p-2 hover:bg-current/8 active:bg-current/12"
+		class="absolute end-3 top-1/2 -translate-y-1/2 rounded-full p-2 hover:bg-current/8 focus-visible:outline-2 focus-visible:outline-current active:bg-current/12"
 		onclick={copyCode}
 	>
 		<CopyCodeIcon role="presentation" class="size-5" />

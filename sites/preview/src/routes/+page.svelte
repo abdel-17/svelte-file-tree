@@ -139,7 +139,7 @@
 				<div class="mt-6 grid gap-4 @min-sm:grid-cols-2">
 					<a
 						href="/basic"
-						class="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-800 active:scale-95"
+						class="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 active:scale-95"
 					>
 						View Example
 					</a>
@@ -179,7 +179,7 @@
 				<div class="mt-6 grid gap-4 @min-sm:grid-cols-2">
 					<a
 						href="/virtualization"
-						class="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-800 active:scale-95"
+						class="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 active:scale-95"
 					>
 						View Example
 					</a>
