@@ -143,11 +143,16 @@
 				parent,
 				order: result.length,
 				selected: () => selectedIds.has(node.id),
-				expanded: () => expandedIds.has(node.id),
+				expanded: () => {
+					if (parent !== undefined && !parent.expanded) {
+						return false;
+					}
+					return expandedIds.has(node.id);
+				},
 				inClipboard: () => clipboardIds.has(node.id),
 				disabled: () => parent?.disabled || isItemDisabled(node),
 				visible: () => {
-					if (parent !== undefined && (!parent.expanded || !parent.visible)) {
+					if (parent !== undefined && !parent.expanded) {
 						return false;
 					}
 					return !isItemHidden(node);
@@ -210,7 +215,7 @@
 		}
 
 		while (current !== undefined && !current.visible) {
-			if (current.node.type === "folder") {
+			if (current.node.type === "folder" && !current.expanded) {
 				current = items[current.order + current.node.count + 1];
 			} else {
 				current = items[current.order + 1];
@@ -231,7 +236,7 @@
 	function getFirstVisibleItem() {
 		let current = items[0];
 		if (current !== undefined && !current.visible) {
-			current = getNextVisibleItem(current, { skipChildren: true });
+			current = getNextVisibleItem(current);
 		}
 		return current;
 	}
@@ -239,7 +244,7 @@
 	function getLastVisibleItem() {
 		let current = items[items.length - 1];
 		if (current !== undefined && !current.visible) {
-			while (current.parent !== undefined && !current.parent.visible) {
+			while (current.parent !== undefined && !current.parent.expanded) {
 				current = current.parent;
 			}
 			current = getPreviousVisibleItem(current);
