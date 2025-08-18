@@ -231,7 +231,7 @@
 	function getFirstVisibleItem() {
 		let current = items[0];
 		if (current !== undefined && !current.visible) {
-			current = getNextVisibleItem(current);
+			current = getNextVisibleItem(current, { skipChildren: true });
 		}
 		return current;
 	}
