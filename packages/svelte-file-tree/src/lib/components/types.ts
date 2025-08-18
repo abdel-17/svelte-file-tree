@@ -24,21 +24,6 @@ export type TreeChildrenSnippetArgs<
 
 export type PasteOperation = "copy" | "cut";
 
-export type OnClipboardChangeArgs = {
-	clipboardIds: SvelteSet<string>;
-	pasteOperation: PasteOperation | undefined;
-};
-
-export type OnChildrenChangeArgs<
-	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
-> = {
-	operation: "insert" | "remove";
-	target: TFolder | TTree;
-	children: Array<TFile | TFolder>;
-};
-
 export type OnResolveNameConflictArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
