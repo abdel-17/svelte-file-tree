@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.11.2
+
+### Patch Changes
+
+- 559ca08: fix: end key does not always focus the last item
+
 ## 0.11.1
 
 ### Patch Changes
