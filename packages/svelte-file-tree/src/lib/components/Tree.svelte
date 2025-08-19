@@ -243,11 +243,14 @@
 
 	function getLastVisibleItem() {
 		let current = items[items.length - 1];
-		if (current !== undefined && !current.visible) {
+		if (current !== undefined) {
 			while (current.parent !== undefined && !current.parent.expanded) {
 				current = current.parent;
 			}
-			current = getPreviousVisibleItem(current);
+
+			if (!current.visible) {
+				current = getPreviousVisibleItem(current);
+			}
 		}
 		return current;
 	}
