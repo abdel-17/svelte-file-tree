@@ -145,7 +145,7 @@
 					</a>
 
 					<GithubLink
-						href="https://github.com/abdel-17/svelte-file-tree/sites/preview/src/routes/basic/+page.svelte"
+						href="https://github.com/abdel-17/svelte-file-tree/tree/master/sites/preview/src/routes/basic/+page.svelte"
 					>
 						View Code
 					</GithubLink>
@@ -185,7 +185,7 @@
 					</a>
 
 					<GithubLink
-						href="https://github.com/abdel-17/svelte-file-tree/sites/preview/src/routes/virtualization/+page.svelte"
+						href="https://github.com/abdel-17/svelte-file-tree/tree/master/sites/preview/src/routes/virtualization/+page.svelte"
 					>
 						View Code
 					</GithubLink>
