@@ -1,5 +1,13 @@
 # svelte-file-tree
 
+## 0.12.0
+
+### Minor Changes
+
+- 6d7798c:
+  feat: add `VirtualList.measure` method to manually trigger height measurement.
+  feat: add `Tree.focusItem` method to focus an item, scrolling it into view if needed.
+
 ## 0.11.2
 
 ### Patch Changes
