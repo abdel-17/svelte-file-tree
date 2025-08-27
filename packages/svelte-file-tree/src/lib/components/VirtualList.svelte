@@ -89,7 +89,7 @@
 		return virtualItems;
 	}
 
-	export const { scrollToIndex, scrollToOffset, scrollBy } = virtualizer;
+	export const { measure, scrollToIndex, scrollToOffset, scrollBy } = virtualizer;
 
 	const context: VirtualListContext<TFile, TFolder> = {
 		scrollToIndex,
