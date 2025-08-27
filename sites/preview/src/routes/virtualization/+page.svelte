@@ -5,11 +5,11 @@
 
 	function createChild(i: number): FileTreeNode {
 		const name = `Item ${i + 1}`;
-		if ((i + 1) % 100 === 0) {
+		if ((i + 1) % 1000 === 0) {
 			return new FolderNode({
 				id: crypto.randomUUID(),
 				name,
-				children: Array(100)
+				children: Array(1000)
 					.fill(null)
 					.map((_, j) => createSubChild(i, j)),
 			});
