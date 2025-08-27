@@ -201,6 +201,38 @@
 		return document.getElementById(elementId);
 	}
 
+	let focusItemRequestId: number | undefined;
+
+	export function focusItem(item: TreeItemState<TFile, TFolder>) {
+		if (focusItemRequestId !== undefined) {
+			window.cancelAnimationFrame(focusItemRequestId);
+		}
+
+		const element = getItemElement(item.node.id);
+		if (element !== null) {
+			element.focus();
+			return;
+		}
+
+		if (virtualListContext !== undefined) {
+			virtualListContext.scrollToIndex(item.order);
+
+			let retries = 0;
+			focusItemRequestId = window.requestAnimationFrame(function callback() {
+				const element = getItemElement(item.node.id);
+				if (element !== null) {
+					element.focus();
+					return;
+				}
+
+				if (retries < 1000) {
+					retries++;
+					focusItemRequestId = window.requestAnimationFrame(callback);
+				}
+			});
+		}
+	}
+
 	function getNextVisibleItem(
 		item: TreeItemState<TFile, TFolder>,
 		options: { skipChildren?: boolean } = {},
@@ -253,38 +285,6 @@
 			}
 		}
 		return current;
-	}
-
-	let focusItemRequestId: number | undefined;
-
-	function focusItem(item: TreeItemState<TFile, TFolder>) {
-		if (focusItemRequestId !== undefined) {
-			window.cancelAnimationFrame(focusItemRequestId);
-		}
-
-		const element = getItemElement(item.node.id);
-		if (element !== null) {
-			element.focus();
-			return;
-		}
-
-		if (virtualListContext !== undefined) {
-			virtualListContext.scrollToIndex(item.order);
-
-			let retries = 0;
-			focusItemRequestId = window.requestAnimationFrame(function callback() {
-				const element = getItemElement(item.node.id);
-				if (element !== null) {
-					element.focus();
-					return;
-				}
-
-				if (retries < 1000) {
-					retries++;
-					focusItemRequestId = window.requestAnimationFrame(callback);
-				}
-			});
-		}
 	}
 
 	function selectUntil(item: TreeItemState<TFile, TFolder>) {
