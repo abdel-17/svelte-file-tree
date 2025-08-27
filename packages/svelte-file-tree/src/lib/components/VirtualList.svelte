@@ -115,7 +115,7 @@
 		options.scrollMargin = scrollMargin;
 		options.gap = gap;
 		virtualizer.setOptions(options);
-		virtualizer.measure();
+		measure();
 	});
 </script>
 
