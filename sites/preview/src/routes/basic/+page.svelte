@@ -86,10 +86,8 @@
 
 <Tree {root} class="min-h-svh p-6">
 	{#snippet children({ items })}
-		{#each items as item (item.node.id)}
-			{#if item.visible}
-				<TreeItem {item} />
-			{/if}
+		{#each items.filter((item) => item.visible) as item (item.node.id)}
+			<TreeItem {item} />
 		{/each}
 	{/snippet}
 </Tree>
