@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.13.2
+
+### Patch Changes
+
+- d5412d3: fix: the type error was not fixed in the previous version
+
 ## 0.13.1
 
 ### Patch Changes
