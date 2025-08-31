@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.13.1
+
+### Patch Changes
+
+- 968c6c9: fix: type error when extending `FileNode` or `FolderNode`
+
 ## 0.13.0
 
 ### Minor Changes
