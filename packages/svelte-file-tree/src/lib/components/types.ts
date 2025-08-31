@@ -1,5 +1,5 @@
 import type { Input as DragInput } from "@atlaskit/pragmatic-drag-and-drop/types";
-import type { ScrollToOptions, VirtualItem } from "@tanstack/virtual-core";
+import type { ScrollToOptions } from "@tanstack/virtual-core";
 import type { Snippet } from "svelte";
 import type { HTMLAttributes } from "svelte/elements";
 import type { SvelteSet } from "svelte/reactivity";
@@ -173,9 +173,20 @@ export interface TreeItemProps<
 	onDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 }
 
+export type VirtualListItem<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	item: TreeItemState<TFile, TFolder>;
+	key: string;
+	size: number;
+	start: number;
+	end: number;
+};
+
 export type VirtualListChildrenSnippetArgs = {
 	treeSize: number;
-	virtualItems: Array<VirtualItem>;
+	virtualItems: Array<VirtualListItem>;
 };
 
 export interface VirtualListProps<

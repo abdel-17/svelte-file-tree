@@ -36,7 +36,10 @@
 		role="presentation"
 		data-invisible={item.node.type === "file" ? true : undefined}
 		class="size-5 rounded-full transition-transform duration-200 group-aria-expanded:-rotate-90 hover:bg-current/8 active:bg-current/12 data-invisible:invisible"
-		onclick={(event) => treeContext.onToggleExpansion(item, event)}
+		onclick={(event) => {
+			event.preventDefault();
+			treeContext.onToggleExpansion(item);
+		}}
 	/>
 
 	<div class="ps-1 pe-2">

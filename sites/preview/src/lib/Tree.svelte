@@ -41,7 +41,7 @@
 		onDragStart: (itemId: string) => void;
 		onDragEnd: () => void;
 		onDragLeave: () => void;
-		onToggleExpansion: (item: TreeItemState, event: MouseEvent) => void;
+		onToggleExpansion: (item: TreeItemState) => void;
 	};
 
 	const CONTEXT_KEY = Symbol("TreeContext");
@@ -183,9 +183,7 @@
 		destination.children.sort(sortComparator);
 	}
 
-	function onToggleExpansion(item: TreeItemState, event: MouseEvent) {
-		event.preventDefault();
-
+	function onToggleExpansion(item: TreeItemState) {
 		if (item.expanded) {
 			expandedIds.delete(item.node.id);
 		} else {

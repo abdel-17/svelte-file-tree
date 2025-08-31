@@ -1,19 +1,11 @@
 <script lang="ts">
 	import Tree from "$lib/Tree.svelte";
 	import TreeItem from "$lib/TreeItem.svelte";
-	import {
-		FileNode,
-		FileTree,
-		FolderNode,
-		TreeItemState,
-		VirtualList,
-		type FileTreeNode,
-		type VirtualListChildrenSnippetArgs,
-	} from "svelte-file-tree";
+	import { FileNode, FileTree, FolderNode, VirtualList, type FileTreeNode } from "svelte-file-tree";
 
 	function createChild(i: number): FileTreeNode {
 		const name = `Item ${i + 1}`;
-		if ((i + 1) % 1000 === 0) {
+		if (i % 1000 === 0) {
 			return new FolderNode({
 				id: crypto.randomUUID(),
 				name,
@@ -41,20 +33,6 @@
 			.fill(null)
 			.map((_, i) => createChild(i)),
 	);
-
-	function getVisibleItems(
-		virtualItems: VirtualListChildrenSnippetArgs["virtualItems"],
-		items: Array<TreeItemState>,
-	) {
-		const result = [];
-		for (const { key, index, size, start } of virtualItems) {
-			const item = items[index];
-			if (item?.visible) {
-				result.push({ item, key, size, start });
-			}
-		}
-		return result;
-	}
 </script>
 
 <VirtualList
@@ -67,15 +45,13 @@
 >
 	{#snippet children({ treeSize, virtualItems })}
 		<Tree {root} class="relative" style="height: {treeSize}px;">
-			{#snippet children({ items })}
-				{#each getVisibleItems(virtualItems, items) as { item, key, size, start } (key)}
-					<TreeItem
-						{item}
-						class="!absolute top-0 right-0 left-0"
-						style="height: {size}px; transform: translateY({start}px);"
-					/>
-				{/each}
-			{/snippet}
+			{#each virtualItems as { item, key, size, start } (key)}
+				<TreeItem
+					{item}
+					class="!absolute top-0 right-0 left-0"
+					style="height: {size}px; transform: translateY({start}px);"
+				/>
+			{/each}
 		</Tree>
 	{/snippet}
 </VirtualList>
