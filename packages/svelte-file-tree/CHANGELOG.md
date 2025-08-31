@@ -1,5 +1,13 @@
 # svelte-file-tree
 
+## 0.13.0
+
+### Minor Changes
+
+- ce9a1b4:
+  fix: virtualization performance issues when expanding/collapsing folders
+  feat: add `item` property to virtual items
+
 ## 0.12.0
 
 ### Minor Changes
