@@ -45,7 +45,7 @@
 		gap,
 		ref = $bindable(null),
 		...rest
-	}: VirtualListProps = $props();
+	}: VirtualListProps<TFile, TFolder> = $props();
 
 	let treeSize = $state.raw(0);
 	let virtualItems: Array<VirtualListItem> = $state.raw([]);
