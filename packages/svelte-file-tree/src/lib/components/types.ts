@@ -184,16 +184,19 @@ export type VirtualListItem<
 	end: number;
 };
 
-export type VirtualListChildrenSnippetArgs = {
+export type VirtualListChildrenSnippetArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
 	treeSize: number;
-	virtualItems: Array<VirtualListItem>;
+	virtualItems: Array<VirtualListItem<TFile, TFolder>>;
 };
 
 export interface VirtualListProps<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
 > extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
-	children: Snippet<[args: VirtualListChildrenSnippetArgs]>;
+	children: Snippet<[args: VirtualListChildrenSnippetArgs<TFile, TFolder>]>;
 	estimateSize: (item: TreeItemState<TFile, TFolder>, index: number) => number;
 	overscan?: number;
 	paddingStart?: number;
