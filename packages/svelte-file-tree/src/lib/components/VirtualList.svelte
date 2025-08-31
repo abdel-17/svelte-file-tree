@@ -5,12 +5,11 @@
 		observeElementRect,
 		Virtualizer,
 		type ScrollToOptions,
-		type VirtualItem,
 		type VirtualizerOptions,
 	} from "@tanstack/virtual-core";
 	import { getContext, setContext } from "svelte";
 	import { FileNode, FolderNode, TreeItemState, type DefaultTFolder } from "$lib/tree.svelte.js";
-	import type { VirtualListProps } from "./types.js";
+	import type { VirtualListItem, VirtualListProps } from "./types.js";
 
 	export type VirtualListContext<
 		TFile extends FileNode,
@@ -49,8 +48,10 @@
 	}: VirtualListProps = $props();
 
 	let treeSize = $state.raw(0);
-	let virtualItems: Array<VirtualItem> = $state.raw([]);
+	let virtualItems: Array<VirtualListItem> = $state.raw([]);
+
 	let items: Array<TreeItemState<TFile, TFolder>> = $state.raw([]);
+	const visibleItems = $derived(items.filter((item) => item.visible));
 
 	const options: VirtualizerOptions<HTMLElement, HTMLElement> = {
 		count: 0,
@@ -62,18 +63,21 @@
 		scrollMargin,
 		gap,
 		getScrollElement: () => ref,
-		getItemKey: (index) => items[index]!.node.id,
-		estimateSize: (index) => {
-			const item = items[index]!;
-			if (!item.visible) {
-				return 0;
-			}
-			return estimateSize(item, index);
-		},
+		getItemKey: (index) => visibleItems[index]!.node.id,
+		estimateSize: (index) => estimateSize(visibleItems[index]!, index),
 		onChange: (instance) => {
 			instance._willUpdate();
 			treeSize = instance.getTotalSize();
-			virtualItems = instance.getVirtualItems();
+			virtualItems = instance.getVirtualItems().map((virtualItem) => {
+				const item = visibleItems[virtualItem.index]!;
+				return {
+					item,
+					key: virtualItem.key as string,
+					size: virtualItem.size,
+					start: virtualItem.start,
+					end: virtualItem.end,
+				};
+			});
 		},
 		scrollToFn: elementScroll,
 		observeElementOffset,
@@ -106,7 +110,7 @@
 	});
 
 	$effect(() => {
-		options.count = items.length;
+		options.count = visibleItems.length;
 		options.overscan = overscan;
 		options.paddingStart = paddingStart;
 		options.paddingEnd = paddingEnd;
