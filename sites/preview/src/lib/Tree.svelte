@@ -1,16 +1,15 @@
 <script lang="ts" module>
 	import { AlertDialog } from "bits-ui";
 	import { getContext, setContext, type Snippet } from "svelte";
-	import type { ClassValue } from "svelte/elements";
+	import type { ClassValue, EventHandler } from "svelte/elements";
 	import { SvelteSet } from "svelte/reactivity";
 	import { fade, scale } from "svelte/transition";
 	import {
 		FileNode,
-		FileTree,
-		FolderNode,
 		Tree,
-		type DragEventArgs,
+		type FileTree,
 		type FileTreeNode,
+		type FolderNode,
 		type NameConflictResolution,
 		type OnCircularReferenceArgs,
 		type OnCopyArgs,
@@ -36,12 +35,12 @@
 	};
 
 	export type TreeContext = {
-		draggedId: () => string | undefined;
-		dropDestination: () => FolderNode | FileTree | undefined;
-		onDragStart: (itemId: string) => void;
-		onDragEnd: () => void;
-		onDragLeave: () => void;
-		onToggleExpansion: (item: TreeItemState) => void;
+		getSelectedIds: () => Set<string>;
+		getExpandedIds: () => Set<string>;
+		getDraggedId: () => string | undefined;
+		setDraggedId: (value: string | undefined) => void;
+		getDropDestinationId: () => string | undefined;
+		setDropDestinationId: (value: string | undefined) => void;
 	};
 
 	const CONTEXT_KEY = Symbol("TreeContext");
@@ -54,10 +53,18 @@
 <script lang="ts">
 	const { children, root, class: className, style }: TreeProps = $props();
 
+	let tree: Tree<FileNode, FolderNode> | null = $state.raw(null);
+	const selectedIds = new SvelteSet<string>();
 	const expandedIds = new SvelteSet<string>();
 
 	let draggedId: string | undefined = $state.raw();
-	let dropDestination: FolderNode | FileTree | undefined = $state.raw();
+	let dropDestinationId: string | undefined = $state.raw();
+	const dragged = $derived.by(() =>
+		draggedId !== undefined ? tree?.getItem(draggedId) : undefined,
+	);
+	const dropDestination = $derived.by(() =>
+		dropDestinationId !== undefined ? tree?.getItem(dropDestinationId) : undefined,
+	);
 
 	let dialogOpen = $state.raw(false);
 	let dialogTitle = $state.raw("");
@@ -111,11 +118,13 @@
 	}
 
 	function onCopy({ destination }: OnCopyArgs) {
-		destination.children.sort(sortComparator);
+		const destinationChildren = destination?.node.children ?? root.children;
+		destinationChildren.sort(sortComparator);
 	}
 
 	function onMove({ destination }: OnMoveArgs) {
-		destination.children.sort(sortComparator);
+		const destinationChildren = destination?.node.children ?? root.children;
+		destinationChildren.sort(sortComparator);
 	}
 
 	function canRemove({ removed }: OnRemoveArgs) {
@@ -130,92 +139,117 @@
 		});
 	}
 
-	function onDragStart(itemId: string) {
-		draggedId = itemId;
-	}
-
-	function onDragEnd() {
-		draggedId = undefined;
-	}
-
-	function onDrag({ destination }: DragEventArgs) {
-		dropDestination = destination;
-	}
-
-	function onDragLeave() {
-		dropDestination = undefined;
-	}
-
-	function onDrop({ type, items, destination }: DragEventArgs) {
-		dropDestination = undefined;
-
-		if (type !== "external") {
+	const handleDragEnterOrOver: EventHandler<DragEvent, HTMLDivElement> = (event) => {
+		if (event.target !== event.currentTarget) {
 			return;
 		}
 
+		event.preventDefault();
+
+		if (event.dataTransfer !== null) {
+			event.dataTransfer.dropEffect = "move";
+		}
+	};
+
+	async function dropItems(dragged: TreeItemState, destination: TreeItemState | undefined) {
+		if (destination?.node.type === "file") {
+			throw new Error("Cannot drop on a file");
+		}
+
+		const movedIds = new Set(selectedIds).add(dragged.node.id);
+		const didMove = await tree!.move(movedIds, destination);
+		if (!didMove) {
+			return;
+		}
+
+		let focusTargetOrder;
+		if (destination === undefined || destination.expanded) {
+			focusTargetOrder = tree!
+				.getVisibleItems()
+				.findIndex((item) => item.node.id === dragged.node.id);
+		} else {
+			focusTargetOrder = tree!
+				.getVisibleItems()
+				.findIndex((item) => item.node.id === destination.node.id);
+		}
+
+		if (focusTargetOrder !== -1) {
+			tree!.focusItem(focusTargetOrder);
+		}
+	}
+
+	function dropFiles(files: FileList, destination: TreeItemState | undefined) {
+		if (destination?.node.type === "file") {
+			throw new Error("Cannot drop on a file");
+		}
+
+		const destinationChildren = destination?.node.children ?? root.children;
 		const uniqueNames = new Set();
-		for (const child of destination.children) {
+		for (const child of destinationChildren) {
 			uniqueNames.add(child.name);
 		}
 
-		const files: Array<FileNode> = [];
-		for (const item of items) {
-			const file = item.getAsFile();
-			if (file === null) {
-				continue;
-			}
-
-			const fileName = file.name;
-			if (uniqueNames.has(fileName)) {
-				toast.error(`An item named "${fileName}" already exists in this location`);
+		for (const file of files) {
+			if (uniqueNames.has(file.name)) {
+				toast.error(`An item named "${file.name}" already exists in this location`);
 				return;
 			}
+		}
 
-			files.push(
+		for (const file of files) {
+			destinationChildren.push(
 				new FileNode({
 					id: crypto.randomUUID(),
-					name: fileName,
+					name: file.name,
 				}),
 			);
 		}
-
-		destination.children.push(...files);
-		destination.children.sort(sortComparator);
+		destinationChildren.sort(sortComparator);
 	}
 
-	function onToggleExpansion(item: TreeItemState) {
-		if (item.expanded) {
-			expandedIds.delete(item.node.id);
-		} else {
-			expandedIds.add(item.node.id);
+	const handleDrop: EventHandler<DragEvent> = (event) => {
+		event.preventDefault();
+
+		if (dragged !== undefined) {
+			dropItems(dragged, dropDestination);
+		} else if (event.dataTransfer?.types.includes("Files")) {
+			dropFiles(event.dataTransfer.files, dropDestination);
 		}
-	}
+
+		dropDestinationId = undefined;
+	};
 
 	const context: TreeContext = {
-		draggedId: () => draggedId,
-		dropDestination: () => dropDestination,
-		onDragStart,
-		onDragLeave,
-		onDragEnd,
-		onToggleExpansion,
+		getSelectedIds: () => selectedIds,
+		getExpandedIds: () => expandedIds,
+		getDraggedId: () => draggedId,
+		setDraggedId: (value) => {
+			draggedId = value;
+		},
+		getDropDestinationId: () => dropDestinationId,
+		setDropDestinationId: (value) => {
+			dropDestinationId = value;
+		},
 	};
 	setContext(CONTEXT_KEY, context);
 </script>
 
 <Tree
+	bind:this={tree}
 	{children}
 	{root}
+	{selectedIds}
 	{expandedIds}
 	{onResolveNameConflict}
 	{onCircularReference}
 	{onCopy}
 	{onMove}
 	{canRemove}
-	{onDrag}
-	{onDragLeave}
-	{onDrop}
 	class={className}
 	{style}
+	ondragenter={handleDragEnterOrOver}
+	ondragover={handleDragEnterOrOver}
+	ondrop={handleDrop}
 />
 
 <AlertDialog.Root bind:open={dialogOpen} onOpenChangeComplete={onDialogOpenChangeComplete}>

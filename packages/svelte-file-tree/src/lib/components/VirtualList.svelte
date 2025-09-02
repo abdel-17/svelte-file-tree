@@ -8,7 +8,7 @@
 		type VirtualizerOptions,
 	} from "@tanstack/virtual-core";
 	import { getContext, setContext } from "svelte";
-	import { FileNode, FolderNode, TreeItemState, type DefaultTFolder } from "$lib/tree.svelte.js";
+	import type { FileNode, FolderNode, TreeItemState, DefaultTFolder } from "$lib/tree.svelte.js";
 	import type { VirtualListItem, VirtualListProps } from "./types.js";
 
 	export type VirtualListContext<
@@ -16,7 +16,7 @@
 		TFolder extends FolderNode<TFile | TFolder>,
 	> = {
 		scrollToIndex: (index: number, options?: ScrollToOptions) => void;
-		setItems: (value: Array<TreeItemState<TFile, TFolder>>) => void;
+		setVisibleItems: (value: Array<TreeItemState<TFile, TFolder>>) => void;
 	};
 
 	const CONTEXT_KEY = Symbol("VirtualListContext");
@@ -48,10 +48,8 @@
 	}: VirtualListProps<TFile, TFolder> = $props();
 
 	let treeSize = $state.raw(0);
-	let virtualItems: Array<VirtualListItem> = $state.raw([]);
-
-	let items: Array<TreeItemState<TFile, TFolder>> = $state.raw([]);
-	const visibleItems = $derived(items.filter((item) => item.visible));
+	let virtualItems: Array<VirtualListItem<TFile, TFolder>> = $state.raw([]);
+	let visibleItems: Array<TreeItemState<TFile, TFolder>> = $state.raw([]);
 
 	const options: VirtualizerOptions<HTMLElement, HTMLElement> = {
 		count: 0,
@@ -63,15 +61,16 @@
 		scrollMargin,
 		gap,
 		getScrollElement: () => ref,
-		getItemKey: (index) => visibleItems[index]!.node.id,
-		estimateSize: (index) => estimateSize(visibleItems[index]!, index),
+		getItemKey: (order) => visibleItems[order]!.node.id,
+		estimateSize: (order) => estimateSize(visibleItems[order]!, order),
 		onChange: (instance) => {
 			instance._willUpdate();
 			treeSize = instance.getTotalSize();
 			virtualItems = instance.getVirtualItems().map((virtualItem) => {
-				const item = visibleItems[virtualItem.index]!;
+				const order = virtualItem.index;
 				return {
-					item,
+					item: visibleItems[order]!,
+					order,
 					key: virtualItem.key as string,
 					size: virtualItem.size,
 					start: virtualItem.start,
@@ -97,8 +96,8 @@
 
 	const context: VirtualListContext<TFile, TFolder> = {
 		scrollToIndex,
-		setItems: (value) => {
-			items = value;
+		setVisibleItems: (value) => {
+			visibleItems = value;
 		},
 	};
 	setContext(CONTEXT_KEY, context);

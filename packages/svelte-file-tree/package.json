@@ -34,7 +34,6 @@
 		"svelte": "^5.31.0"
 	},
 	"dependencies": {
-		"@atlaskit/pragmatic-drag-and-drop": "^1.7.4",
 		"@tanstack/virtual-core": "^3.13.12",
 		"esm-env": "^1.2.2"
 	},

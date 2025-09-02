@@ -45,13 +45,13 @@
 					/>
 
 					<ShortcutsTableRow
-						shortcut={["Control", "ArrowUpOrDown"]}
-						description="Move up/down without affecting selection"
+						shortcut={["Shift", "ArrowUpOrDown"]}
+						description="Move up/down and select the current and next item"
 					/>
 
 					<ShortcutsTableRow
-						shortcut={["Shift", "ArrowUpOrDown"]}
-						description="Move up/down and select the current and next item"
+						shortcut={["Control", "ArrowUpOrDown"]}
+						description="Move up/down without affecting selection"
 					/>
 
 					<ShortcutsTableRow
@@ -67,8 +67,13 @@
 					<ShortcutsTableRow shortcut={["PageUpOrDown"]} description="Move one page up/down" />
 
 					<ShortcutsTableRow
-						shortcut={["Control", "Shift", "PageUpOrDown"]}
+						shortcut={["Shift", "PageUpOrDown"]}
 						description="Move one page up/down and select all visible items between"
+					/>
+
+					<ShortcutsTableRow
+						shortcut={["Control", "PageUpOrDown"]}
+						description="Move one page up/down without affecting selection"
 					/>
 
 					<ShortcutsTableRow
@@ -77,8 +82,13 @@
 					/>
 
 					<ShortcutsTableRow
-						shortcut={["Control", "Shift", "HomeOrEnd"]}
+						shortcut={["Shift", "HomeOrEnd"]}
 						description="Move to the first/last visible item and select all visible items between"
+					/>
+
+					<ShortcutsTableRow
+						shortcut={["Control", "HomeOrEnd"]}
+						description="Move to the first/last visible item without affecting selection"
 					/>
 
 					<ShortcutsTableRow shortcut={["Asterisk"]} description="Expand all siblings" />

@@ -1,15 +1,3 @@
-function getTotalCount(children: Array<FileTreeNode>) {
-	let result = 0;
-	for (const child of children) {
-		result++;
-
-		if (child.type === "folder") {
-			result += child.count;
-		}
-	}
-	return result;
-}
-
 export class FileTree<TNode extends FileNode | FolderNode<TNode> = FileTreeNode> {
 	children: Array<TNode>;
 
@@ -18,8 +6,6 @@ export class FileTree<TNode extends FileNode | FolderNode<TNode> = FileTreeNode>
 	}
 
 	readonly type = "tree";
-
-	readonly count = $derived.by(() => getTotalCount(this.children));
 }
 
 export type FileNodeProps = {
@@ -57,8 +43,6 @@ export class FolderNode<TNode extends FileNode | FolderNode<TNode> = FileTreeNod
 	}
 
 	readonly type = "folder";
-
-	readonly count = $derived.by(() => getTotalCount(this.children));
 }
 
 export type FileTreeNode = FileNode | FolderNode<FileTreeNode>;
@@ -73,9 +57,9 @@ export type TreeItemStateProps<
 	TNode extends TFile | TFolder = TFile | TFolder,
 > = {
 	node: TNode;
+	nodeIndex: number;
 	index: number;
 	parent: TreeItemState<TFile, TFolder, TFolder> | undefined;
-	order: number;
 	selected: () => boolean;
 	expanded: () => boolean;
 	inClipboard: () => boolean;
@@ -89,9 +73,9 @@ export class TreeItemState<
 	TNode extends TFile | TFolder = TFile | TFolder,
 > {
 	readonly node: TNode;
+	readonly nodeIndex: number;
 	readonly index: number;
 	readonly parent: TreeItemState<TFile, TFolder, TFolder> | undefined;
-	readonly order: number;
 	readonly depth: number;
 	readonly selected: boolean;
 	readonly expanded: boolean;
@@ -101,9 +85,9 @@ export class TreeItemState<
 
 	constructor(props: TreeItemStateProps<TFile, TFolder, TNode>) {
 		this.node = props.node;
+		this.nodeIndex = props.nodeIndex;
 		this.index = props.index;
 		this.parent = props.parent;
-		this.order = props.order;
 		this.depth = props.parent === undefined ? 0 : props.parent.depth + 1;
 		this.selected = $derived.by(props.selected);
 		this.expanded = $derived.by(props.expanded);
