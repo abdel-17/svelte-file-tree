@@ -35,7 +35,7 @@
 		selectUntil: (order: number) => void;
 		toggleSelection: (item: TreeItemState<TFile, TFolder>) => void;
 		paste: (destination?: TreeItemState<TFile, TFolder>) => Promise<boolean>;
-		remove: (order: number) => Promise<boolean>;
+		remove: (order: number, options?: TreeRemoveMethodOptions) => Promise<boolean>;
 		onCircularReference: (args: OnCircularReferenceArgs<TFile, TFolder>) => void;
 	};
 
@@ -510,6 +510,7 @@
 		}
 
 		if (batched) {
+			let focusTargetId: string | undefined;
 			for (let i = order; ; ) {
 				let found = false;
 
@@ -568,7 +569,7 @@
 				}
 
 				if (highestSelectedAncestor === undefined) {
-					focusItem(i);
+					focusTargetId = visibleItems[i]!.node.id;
 					break;
 				}
 
@@ -585,17 +586,25 @@
 					(child) => !selectedIds.has(child.id) && child !== item.node,
 				);
 			}
-		} else {
-			if (visibleItems.length > 1) {
-				if (order === visibleItems.length - 1) {
-					focusItem(order - 1);
-				} else {
-					focusItem(order + 1);
+
+			if (focusTargetId !== undefined) {
+				const focusTargetOrder = visibleItems.findIndex((item) => item.node.id === focusTargetId);
+				if (focusTargetOrder !== -1) {
+					focusItem(focusTargetOrder);
 				}
+			}
+		} else {
+			let focusTargetOrder = order;
+			if (focusTargetOrder === visibleItems.length - 1) {
+				focusTargetOrder--;
 			}
 
 			const owner = item.parent?.node ?? root;
 			owner.children = owner.children.filter((child) => child !== item.node);
+
+			if (focusTargetOrder >= 0) {
+				focusItem(focusTargetOrder);
+			}
 		}
 
 		for (const item of removed) {
