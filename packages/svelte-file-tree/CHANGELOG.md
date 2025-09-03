@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.14.0
+
+### Minor Changes
+
+- 2811c1a: rework
+
 ## 0.13.2
 
 ### Patch Changes
