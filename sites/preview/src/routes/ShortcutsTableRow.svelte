@@ -63,11 +63,11 @@
 			case "Escape": {
 				return "Esc";
 			}
-			case "PageUpOrDown": {
-				return "PgUp/PgDn";
-			}
 			case "HomeOrEnd": {
 				return "Home/End";
+			}
+			case "PageUpOrDown": {
+				return "PgUp/PgDn";
 			}
 			default: {
 				return key;
@@ -105,11 +105,11 @@
 
 <tr>
 	<td class="px-6 py-3">
-		<kbd class="flex gap-1">
+		<kbd class="flex gap-2">
 			{#each shortcut as key (key)}
 				<kbd
 					aria-label={getShortcutAriaLabel(key)}
-					class="rounded bg-slate-200 px-2 py-1 font-mono text-xs text-slate-700"
+					class="rounded border-r-2 border-b-2 border-slate-300 bg-slate-200 px-2 py-1 font-mono text-xs text-slate-700"
 				>
 					{getShortcutText(key)}
 				</kbd>
