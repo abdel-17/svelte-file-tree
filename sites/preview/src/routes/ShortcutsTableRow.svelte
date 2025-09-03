@@ -8,8 +8,6 @@
 		| "ArrowRight"
 		| "ArrowUpOrDown"
 		| "Asterisk"
-		| "Command"
-		| "Control"
 		| "ControlOrCommand"
 		| "Delete"
 		| "Escape"
@@ -34,10 +32,6 @@
 	}
 
 	function getShortcutText(key: KeyboardKey) {
-		if (key === "ControlOrCommand") {
-			key = isMac() ? "Command" : "Control";
-		}
-
 		switch (key) {
 			case "ArrowLeft": {
 				return "←";
@@ -51,11 +45,8 @@
 			case "Asterisk": {
 				return "*";
 			}
-			case "Command": {
-				return "⌘";
-			}
-			case "Control": {
-				return "Ctrl";
+			case "ControlOrCommand": {
+				return isMac() ? "⌘" : "Ctrl";
 			}
 			case "Delete": {
 				return "Del";
@@ -76,10 +67,6 @@
 	}
 
 	function getShortcutAriaLabel(key: KeyboardKey) {
-		if (key === "ControlOrCommand") {
-			key = isMac() ? "Command" : "Control";
-		}
-
 		switch (key) {
 			case "ArrowLeft": {
 				return "Arrow left";
@@ -89,6 +76,9 @@
 			}
 			case "ArrowUpOrDown": {
 				return "Arrow up or down";
+			}
+			case "ControlOrCommand": {
+				return isMac() ? "Command" : "Control";
 			}
 			case "HomeOrEnd": {
 				return "Home or end";

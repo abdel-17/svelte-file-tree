@@ -50,7 +50,7 @@
 					/>
 
 					<ShortcutsTableRow
-						shortcut={["Control", "ArrowUpOrDown"]}
+						shortcut={["ControlOrCommand", "ArrowUpOrDown"]}
 						description="Move up/down without affecting selection"
 					/>
 
@@ -70,7 +70,7 @@
 					/>
 
 					<ShortcutsTableRow
-						shortcut={["Control", "Shift", "PageUpOrDown"]}
+						shortcut={["ControlOrCommand", "Shift", "PageUpOrDown"]}
 						description="Move one page up/down and select all visible items between"
 					/>
 
@@ -80,7 +80,7 @@
 					/>
 
 					<ShortcutsTableRow
-						shortcut={["Control", "Shift", "HomeOrEnd"]}
+						shortcut={["ControlOrCommand", "Shift", "HomeOrEnd"]}
 						description="Move to the first/last visible item and select all visible items between"
 					/>
 
@@ -90,13 +90,21 @@
 
 					<ShortcutsTableRow shortcut={["Shift", "Space"]} description="Select multiple items" />
 
-					<ShortcutsTableRow shortcut={["Control", "a"]} description="Select all visible items" />
+					<ShortcutsTableRow
+						shortcut={["ControlOrCommand", "a"]}
+						description="Select all visible items"
+					/>
 
-					<ShortcutsTableRow shortcut={["Control", "c"]} description="Copy to clipboard" />
+					<ShortcutsTableRow shortcut={["ControlOrCommand", "c"]} description="Copy to clipboard" />
 
-					<ShortcutsTableRow shortcut={["Control", "x"]} description="Cut to clipboard" />
+					<ShortcutsTableRow shortcut={["ControlOrCommand", "x"]} description="Cut to clipboard" />
 
-					<ShortcutsTableRow shortcut={["Control", "v"]} description="Paste" />
+					<ShortcutsTableRow shortcut={["ControlOrCommand", "v"]} description="Paste" />
+
+					<ShortcutsTableRow
+						shortcut={["ControlOrCommand", "Shift", "v"]}
+						description="Paste into the parent folder"
+					/>
 
 					<ShortcutsTableRow shortcut={["Escape"]} description="Clear selection and clipboard" />
 

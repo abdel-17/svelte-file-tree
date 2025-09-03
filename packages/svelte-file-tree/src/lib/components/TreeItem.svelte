@@ -216,7 +216,8 @@
 				treeContext.setPasteOperation(event.key === "c" ? "copy" : "cut");
 				break;
 			}
-			case "v": {
+			case "v":
+			case "V": {
 				if (!isControlOrMeta(event)) {
 					break;
 				}
@@ -233,7 +234,11 @@
 						break;
 					}
 					case "folder": {
-						destination = item as TreeItemState<TFile, TFolder, TFolder>;
+						if (event.shiftKey) {
+							destination = item.parent;
+						} else {
+							destination = item as TreeItemState<TFile, TFolder, TFolder>;
+						}
 						break;
 					}
 				}
