@@ -1,4 +1,3 @@
-import type { Input as DragInput } from "@atlaskit/pragmatic-drag-and-drop/types";
 import type { ScrollToOptions } from "@tanstack/virtual-core";
 import type { Snippet } from "svelte";
 import type { HTMLAttributes } from "svelte/elements";
@@ -11,8 +10,6 @@ import type {
 	TreeItemState,
 } from "$lib/tree.svelte.js";
 
-export type { DragInput };
-
 export type MaybePromise<T> = T | Promise<T>;
 
 export type TreeChildrenSnippetArgs<
@@ -20,6 +17,7 @@ export type TreeChildrenSnippetArgs<
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
 > = {
 	items: Array<TreeItemState<TFile, TFolder>>;
+	visibleItems: Array<TreeItemState<TFile, TFolder>>;
 };
 
 export type PasteOperation = "copy" | "cut";
@@ -27,10 +25,9 @@ export type PasteOperation = "copy" | "cut";
 export type OnResolveNameConflictArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > = {
 	operation: "copy" | "move";
-	destination: TFolder | TTree;
+	destination: TreeItemState<TFile, TFolder, TFolder> | undefined;
 	name: string;
 };
 
@@ -41,26 +38,24 @@ export type OnCircularReferenceArgs<
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
 > = {
 	source: TreeItemState<TFile, TFolder, TFolder>;
-	destination: TFolder;
+	destination: TreeItemState<TFile, TFolder, TFolder>;
 };
 
 export type OnCopyArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > = {
 	sources: Array<TreeItemState<TFile, TFolder>>;
 	copies: Array<TFile | TFolder>;
-	destination: TFolder | TTree;
+	destination: TreeItemState<TFile, TFolder, TFolder> | undefined;
 };
 
 export type OnMoveArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > = {
 	sources: Array<TreeItemState<TFile, TFolder>>;
-	destination: TFolder | TTree;
+	destination: TreeItemState<TFile, TFolder, TFolder> | undefined;
 };
 
 export type OnRemoveArgs<
@@ -70,51 +65,12 @@ export type OnRemoveArgs<
 	removed: Array<TreeItemState<TFile, TFolder>>;
 };
 
-export type CanDragArgs<
-	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-> = {
-	input: DragInput;
-	source: TreeItemState<TFile, TFolder>;
-};
-
-export type ItemDragEventArgs<
-	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
-> = {
-	type: "item";
-	input: DragInput;
-	source: TreeItemState<TFile, TFolder>;
-	items?: never;
-	destination: TFolder | TTree;
-};
-
-export type ExternalDragEventArgs<
-	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
-> = {
-	type: "external";
-	input: DragInput;
-	source?: never;
-	items: Array<DataTransferItem>;
-	destination: TFolder | TTree;
-};
-
-export type DragEventArgs<
-	TFile extends FileNode = FileNode,
-	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
-> = ItemDragEventArgs<TFile, TFolder, TTree> | ExternalDragEventArgs<TFile, TFolder, TTree>;
-
 export interface TreeProps<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > extends Omit<HTMLAttributes<HTMLDivElement>, "children" | "role" | "aria-multiselectable"> {
 	children: Snippet<[args: TreeChildrenSnippetArgs<TFile, TFolder>]>;
-	root: TTree;
+	root: FileTree<TFile | TFolder>;
 	defaultSelectedIds?: Iterable<string>;
 	selectedIds?: SvelteSet<string>;
 	defaultExpandedIds?: Iterable<string>;
@@ -127,21 +83,15 @@ export interface TreeProps<
 	isItemHidden?: (node: TFile | TFolder) => boolean;
 	copyNode?: (node: TFile | TFolder) => TFile | TFolder;
 	onResolveNameConflict?: (
-		args: OnResolveNameConflictArgs<TFile, TFolder, TTree>,
+		args: OnResolveNameConflictArgs<TFile, TFolder>,
 	) => MaybePromise<NameConflictResolution>;
 	onCircularReference?: (args: OnCircularReferenceArgs<TFile, TFolder>) => void;
-	canCopy?: (args: OnCopyArgs<TFile, TFolder, TTree>) => MaybePromise<boolean>;
-	onCopy?: (args: OnCopyArgs<TFile, TFolder, TTree>) => void;
-	canMove?: (args: OnMoveArgs<TFile, TFolder, TTree>) => MaybePromise<boolean>;
-	onMove?: (args: OnMoveArgs<TFile, TFolder, TTree>) => void;
+	canCopy?: (args: OnCopyArgs<TFile, TFolder>) => MaybePromise<boolean>;
+	onCopy?: (args: OnCopyArgs<TFile, TFolder>) => void;
+	canMove?: (args: OnMoveArgs<TFile, TFolder>) => MaybePromise<boolean>;
+	onMove?: (args: OnMoveArgs<TFile, TFolder>) => void;
 	canRemove?: (args: OnRemoveArgs<TFile, TFolder>) => MaybePromise<boolean>;
 	onRemove?: (args: OnRemoveArgs<TFile, TFolder>) => void;
-	onDragEnter?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
-	onDragLeave?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
-	canDrag?: (args: CanDragArgs<TFile, TFolder>) => boolean;
-	onDrag?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
-	canDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => boolean;
-	onDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 }
 
 export type TreeRemoveMethodOptions = {
@@ -151,7 +101,6 @@ export type TreeRemoveMethodOptions = {
 export interface TreeItemProps<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
-	TTree extends FileTree<TFile | TFolder> = FileTree<TFile | TFolder>,
 > extends Omit<
 		HTMLAttributes<HTMLDivElement>,
 		| "id"
@@ -166,11 +115,8 @@ export interface TreeItemProps<
 	> {
 	children: Snippet;
 	item: TreeItemState<TFile, TFolder>;
+	order: number;
 	ref?: HTMLDivElement | null;
-	onDragEnter?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
-	onDragLeave?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
-	onDrag?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
-	onDrop?: (args: DragEventArgs<TFile, TFolder, TTree>) => void;
 }
 
 export type VirtualListItem<
@@ -178,6 +124,7 @@ export type VirtualListItem<
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
 > = {
 	item: TreeItemState<TFile, TFolder>;
+	order: number;
 	key: string;
 	size: number;
 	start: number;
@@ -197,7 +144,7 @@ export interface VirtualListProps<
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
 > extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
 	children: Snippet<[args: VirtualListChildrenSnippetArgs<TFile, TFolder>]>;
-	estimateSize: (item: TreeItemState<TFile, TFolder>, index: number) => number;
+	estimateSize: (item: TreeItemState<TFile, TFolder>, order: number) => number;
 	overscan?: number;
 	paddingStart?: number;
 	paddingEnd?: number;

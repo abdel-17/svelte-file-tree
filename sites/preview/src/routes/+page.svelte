@@ -41,17 +41,17 @@
 				<tbody class="divide-y divide-slate-200">
 					<ShortcutsTableRow
 						shortcut={["ArrowUpOrDown"]}
-						description="Move up/down and select only the next item"
-					/>
-
-					<ShortcutsTableRow
-						shortcut={["Control", "ArrowUpOrDown"]}
-						description="Move up/down without affecting selection"
+						description="Move up/down and select only the focused item"
 					/>
 
 					<ShortcutsTableRow
 						shortcut={["Shift", "ArrowUpOrDown"]}
-						description="Move up/down and select the current and next item"
+						description="Move up/down and select the current and focused item"
+					/>
+
+					<ShortcutsTableRow
+						shortcut={["ControlOrCommand", "ArrowUpOrDown"]}
+						description="Move up/down without affecting selection"
 					/>
 
 					<ShortcutsTableRow
@@ -64,20 +64,23 @@
 						description="Collapse folder or move to the parent"
 					/>
 
-					<ShortcutsTableRow shortcut={["PageUpOrDown"]} description="Move one page up/down" />
+					<ShortcutsTableRow
+						shortcut={["PageUpOrDown"]}
+						description="Move one page up/down and select only the focused item"
+					/>
 
 					<ShortcutsTableRow
-						shortcut={["Control", "Shift", "PageUpOrDown"]}
+						shortcut={["ControlOrCommand", "Shift", "PageUpOrDown"]}
 						description="Move one page up/down and select all visible items between"
 					/>
 
 					<ShortcutsTableRow
 						shortcut={["HomeOrEnd"]}
-						description="Move to the first/last visible item"
+						description="Move to the first/last visible item and select only the focused item"
 					/>
 
 					<ShortcutsTableRow
-						shortcut={["Control", "Shift", "HomeOrEnd"]}
+						shortcut={["ControlOrCommand", "Shift", "HomeOrEnd"]}
 						description="Move to the first/last visible item and select all visible items between"
 					/>
 
@@ -87,16 +90,19 @@
 
 					<ShortcutsTableRow shortcut={["Shift", "Space"]} description="Select multiple items" />
 
-					<ShortcutsTableRow shortcut={["Control", "a"]} description="Select all visible items" />
+					<ShortcutsTableRow
+						shortcut={["ControlOrCommand", "a"]}
+						description="Select all visible items"
+					/>
 
-					<ShortcutsTableRow shortcut={["Control", "c"]} description="Copy to clipboard" />
+					<ShortcutsTableRow shortcut={["ControlOrCommand", "c"]} description="Copy to clipboard" />
 
-					<ShortcutsTableRow shortcut={["Control", "x"]} description="Cut to clipboard" />
+					<ShortcutsTableRow shortcut={["ControlOrCommand", "x"]} description="Cut to clipboard" />
 
-					<ShortcutsTableRow shortcut={["Control", "v"]} description="Paste" />
+					<ShortcutsTableRow shortcut={["ControlOrCommand", "v"]} description="Paste" />
 
 					<ShortcutsTableRow
-						shortcut={["Control", "Shift", "v"]}
+						shortcut={["ControlOrCommand", "Shift", "v"]}
 						description="Paste into the parent folder"
 					/>
 

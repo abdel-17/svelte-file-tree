@@ -84,12 +84,10 @@
 	]);
 </script>
 
-<Tree {root} class="min-h-svh p-6">
-	{#snippet children({ items })}
-		{#each items as item (item.node.id)}
-			{#if item.visible}
-				<TreeItem {item} />
-			{/if}
+<Tree {root} class="min-h-svh scroll-p-6 p-6">
+	{#snippet children({ visibleItems })}
+		{#each visibleItems as item, order (item.node.id)}
+			<TreeItem {item} {order} />
 		{/each}
 	{/snippet}
 </Tree>

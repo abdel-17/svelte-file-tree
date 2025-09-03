@@ -8,7 +8,7 @@
 		| "ArrowRight"
 		| "ArrowUpOrDown"
 		| "Asterisk"
-		| "Control"
+		| "ControlOrCommand"
 		| "Delete"
 		| "Escape"
 		| "HomeOrEnd"
@@ -24,12 +24,14 @@
 		description: string;
 	} = $props();
 
-	function getShortcutText(key: KeyboardKey) {
-		let isMac = false;
-		if (typeof navigator !== "undefined") {
-			isMac = navigator.platform.startsWith("Mac") || navigator.platform === "iPhone";
+	function isMac() {
+		if (typeof navigator === "undefined") {
+			return false;
 		}
+		return navigator.platform.startsWith("Mac") || navigator.platform === "iPhone";
+	}
 
+	function getShortcutText(key: KeyboardKey) {
 		switch (key) {
 			case "ArrowLeft": {
 				return "←";
@@ -43,8 +45,8 @@
 			case "Asterisk": {
 				return "*";
 			}
-			case "Control": {
-				return isMac ? "⌘" : "Ctrl";
+			case "ControlOrCommand": {
+				return isMac() ? "⌘" : "Ctrl";
 			}
 			case "Delete": {
 				return "Del";
@@ -52,11 +54,11 @@
 			case "Escape": {
 				return "Esc";
 			}
-			case "PageUpOrDown": {
-				return "PgUp/PgDn";
-			}
 			case "HomeOrEnd": {
 				return "Home/End";
+			}
+			case "PageUpOrDown": {
+				return "PgUp/PgDn";
 			}
 			default: {
 				return key;
@@ -75,6 +77,9 @@
 			case "ArrowUpOrDown": {
 				return "Arrow up or down";
 			}
+			case "ControlOrCommand": {
+				return isMac() ? "Command" : "Control";
+			}
 			case "HomeOrEnd": {
 				return "Home or end";
 			}
@@ -90,11 +95,11 @@
 
 <tr>
 	<td class="px-6 py-3">
-		<kbd class="flex gap-1">
+		<kbd class="flex gap-2">
 			{#each shortcut as key (key)}
 				<kbd
 					aria-label={getShortcutAriaLabel(key)}
-					class="rounded bg-slate-200 px-2 py-1 font-mono text-xs text-slate-700"
+					class="rounded border-r-2 border-b-2 border-slate-300 bg-slate-200 px-2 py-1 font-mono text-xs text-slate-700"
 				>
 					{getShortcutText(key)}
 				</kbd>

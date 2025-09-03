@@ -45,9 +45,10 @@
 >
 	{#snippet children({ treeSize, virtualItems })}
 		<Tree {root} class="relative" style="height: {treeSize}px;">
-			{#each virtualItems as { item, key, size, start } (key)}
+			{#each virtualItems as { item, order, key, size, start } (key)}
 				<TreeItem
 					{item}
+					{order}
 					class="!absolute top-0 right-0 left-0"
 					style="height: {size}px; transform: translateY({start}px);"
 				/>
