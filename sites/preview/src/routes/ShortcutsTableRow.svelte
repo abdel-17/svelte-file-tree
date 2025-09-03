@@ -8,7 +8,9 @@
 		| "ArrowRight"
 		| "ArrowUpOrDown"
 		| "Asterisk"
+		| "Command"
 		| "Control"
+		| "ControlOrCommand"
 		| "Delete"
 		| "Escape"
 		| "HomeOrEnd"
@@ -24,10 +26,16 @@
 		description: string;
 	} = $props();
 
+	function isMac() {
+		if (typeof navigator === "undefined") {
+			return false;
+		}
+		return navigator.platform.startsWith("Mac") || navigator.platform === "iPhone";
+	}
+
 	function getShortcutText(key: KeyboardKey) {
-		let isMac = false;
-		if (typeof navigator !== "undefined") {
-			isMac = navigator.platform.startsWith("Mac") || navigator.platform === "iPhone";
+		if (key === "ControlOrCommand") {
+			key = isMac() ? "Command" : "Control";
 		}
 
 		switch (key) {
@@ -43,8 +51,11 @@
 			case "Asterisk": {
 				return "*";
 			}
+			case "Command": {
+				return "⌘";
+			}
 			case "Control": {
-				return isMac ? "⌘" : "Ctrl";
+				return "Ctrl";
 			}
 			case "Delete": {
 				return "Del";
@@ -65,6 +76,10 @@
 	}
 
 	function getShortcutAriaLabel(key: KeyboardKey) {
+		if (key === "ControlOrCommand") {
+			key = isMac() ? "Command" : "Control";
+		}
+
 		switch (key) {
 			case "ArrowLeft": {
 				return "Arrow left";

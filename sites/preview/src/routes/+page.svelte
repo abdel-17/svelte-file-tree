@@ -41,12 +41,12 @@
 				<tbody class="divide-y divide-slate-200">
 					<ShortcutsTableRow
 						shortcut={["ArrowUpOrDown"]}
-						description="Move up/down and select only the next item"
+						description="Move up/down and select only the focused item"
 					/>
 
 					<ShortcutsTableRow
 						shortcut={["Shift", "ArrowUpOrDown"]}
-						description="Move up/down and select the current and next item"
+						description="Move up/down and select the current and focused item"
 					/>
 
 					<ShortcutsTableRow
@@ -64,31 +64,24 @@
 						description="Collapse folder or move to the parent"
 					/>
 
-					<ShortcutsTableRow shortcut={["PageUpOrDown"]} description="Move one page up/down" />
+					<ShortcutsTableRow
+						shortcut={["PageUpOrDown"]}
+						description="Move one page up/down and select only the focused item"
+					/>
 
 					<ShortcutsTableRow
-						shortcut={["Shift", "PageUpOrDown"]}
+						shortcut={["Control", "Shift", "PageUpOrDown"]}
 						description="Move one page up/down and select all visible items between"
 					/>
 
 					<ShortcutsTableRow
-						shortcut={["Control", "PageUpOrDown"]}
-						description="Move one page up/down without affecting selection"
-					/>
-
-					<ShortcutsTableRow
 						shortcut={["HomeOrEnd"]}
-						description="Move to the first/last visible item"
+						description="Move to the first/last visible item and select only the focused item"
 					/>
 
 					<ShortcutsTableRow
-						shortcut={["Shift", "HomeOrEnd"]}
+						shortcut={["Control", "Shift", "HomeOrEnd"]}
 						description="Move to the first/last visible item and select all visible items between"
-					/>
-
-					<ShortcutsTableRow
-						shortcut={["Control", "HomeOrEnd"]}
-						description="Move to the first/last visible item without affecting selection"
 					/>
 
 					<ShortcutsTableRow shortcut={["Asterisk"]} description="Expand all siblings" />
@@ -104,11 +97,6 @@
 					<ShortcutsTableRow shortcut={["Control", "x"]} description="Cut to clipboard" />
 
 					<ShortcutsTableRow shortcut={["Control", "v"]} description="Paste" />
-
-					<ShortcutsTableRow
-						shortcut={["Control", "Shift", "v"]}
-						description="Paste into the parent folder"
-					/>
 
 					<ShortcutsTableRow shortcut={["Escape"]} description="Clear selection and clipboard" />
 
