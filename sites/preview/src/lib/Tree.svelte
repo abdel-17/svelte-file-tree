@@ -5,11 +5,7 @@
 	import { SvelteSet } from "svelte/reactivity";
 	import { fade, scale } from "svelte/transition";
 	import {
-		FileNode,
 		Tree,
-		type FileTree,
-		type FileTreeNode,
-		type FolderNode,
 		type NameConflictResolution,
 		type OnCircularReferenceArgs,
 		type OnCopyArgs,
@@ -17,9 +13,15 @@
 		type OnRemoveArgs,
 		type OnResolveNameConflictArgs,
 		type TreeChildrenSnippetArgs,
-		type TreeItemState,
 	} from "svelte-file-tree";
 	import { toast } from "svelte-sonner";
+	import {
+		FileNode,
+		FolderNode,
+		type FileTree,
+		type FileTreeNode,
+		type TreeItemState,
+	} from "./tree.svelte.js";
 
 	const sortCollator = new Intl.Collator();
 
@@ -28,7 +30,7 @@
 	}
 
 	export type TreeProps = {
-		children: Snippet<[args: TreeChildrenSnippetArgs]>;
+		children: Snippet<[args: TreeChildrenSnippetArgs<FileNode, FolderNode>]>;
 		root: FileTree;
 		class?: ClassValue;
 		style?: string;
@@ -59,12 +61,6 @@
 
 	let draggedId: string | undefined = $state.raw();
 	let dropDestinationId: string | undefined = $state.raw();
-	const dragged = $derived.by(() =>
-		draggedId !== undefined ? tree?.getItem(draggedId) : undefined,
-	);
-	const dropDestination = $derived.by(() =>
-		dropDestinationId !== undefined ? tree?.getItem(dropDestinationId) : undefined,
-	);
 
 	let dialogOpen = $state.raw(false);
 	let dialogTitle = $state.raw("");
@@ -89,7 +85,29 @@
 		dialogDidConfirm = true;
 	}
 
-	async function onResolveNameConflict({ operation, name }: OnResolveNameConflictArgs) {
+	function copyNode(node: FileNode | FolderNode): FileNode | FolderNode {
+		switch (node.type) {
+			case "file": {
+				return new FileNode({
+					id: crypto.randomUUID(),
+					name: node.name,
+					size: node.size,
+				});
+			}
+			case "folder": {
+				return new FolderNode({
+					id: crypto.randomUUID(),
+					name: node.name,
+					children: node.children.map(copyNode),
+				});
+			}
+		}
+	}
+
+	async function onResolveNameConflict({
+		operation,
+		name,
+	}: OnResolveNameConflictArgs<FileNode, FolderNode>) {
 		return new Promise<NameConflictResolution>((resolve) => {
 			let title;
 			switch (operation) {
@@ -113,21 +131,21 @@
 		});
 	}
 
-	function onCircularReference({ source }: OnCircularReferenceArgs) {
+	function onCircularReference({ source }: OnCircularReferenceArgs<FileNode, FolderNode>) {
 		toast.error(`Cannot move "${source.node.name}" inside itself`);
 	}
 
-	function onCopy({ destination }: OnCopyArgs) {
-		const destinationChildren = destination?.node.children ?? root.children;
-		destinationChildren.sort(sortComparator);
+	function onCopy({ destination }: OnCopyArgs<FileNode, FolderNode>) {
+		const owner = destination?.node ?? root;
+		owner.children.sort(sortComparator);
 	}
 
-	function onMove({ destination }: OnMoveArgs) {
-		const destinationChildren = destination?.node.children ?? root.children;
-		destinationChildren.sort(sortComparator);
+	function onMove({ destination }: OnMoveArgs<FileNode, FolderNode>) {
+		const owner = destination?.node ?? root;
+		owner.children.sort(sortComparator);
 	}
 
-	function canRemove({ removed }: OnRemoveArgs) {
+	function canRemove({ removed }: OnRemoveArgs<FileNode, FolderNode>) {
 		return new Promise<boolean>((resolve) => {
 			dialogOpen = true;
 			dialogTitle = `Are you sure you want to delete ${removed.length} item(s)?`;
@@ -146,7 +164,7 @@
 
 		event.preventDefault();
 
-		if (event.dataTransfer !== null) {
+		if (draggedId !== undefined && event.dataTransfer !== null) {
 			event.dataTransfer.dropEffect = "move";
 		}
 	};
@@ -178,42 +196,123 @@
 		}
 	}
 
-	function dropFiles(files: FileList, destination: TreeItemState | undefined) {
+	async function dropFiles(items: DataTransferItemList, destination: TreeItemState | undefined) {
 		if (destination?.node.type === "file") {
 			throw new Error("Cannot drop on a file");
 		}
 
-		const destinationChildren = destination?.node.children ?? root.children;
+		const owner = destination?.node ?? root;
 		const uniqueNames = new Set();
-		for (const child of destinationChildren) {
+		for (const child of owner.children) {
 			uniqueNames.add(child.name);
 		}
 
-		for (const file of files) {
-			if (uniqueNames.has(file.name)) {
-				toast.error(`An item named "${file.name}" already exists in this location`);
+		const entries: Array<FileSystemEntry> = [];
+		for (const item of items) {
+			const entry = item.webkitGetAsEntry();
+			if (entry === null) {
+				continue;
+			}
+
+			const firstSegment = entry.name.split("/")[0];
+			if (uniqueNames.has(firstSegment)) {
+				toast.error(`An item named "${firstSegment}" already exists in this location`);
 				return;
+			}
+
+			entries.push(entry);
+		}
+
+		const files: Array<{
+			file: File;
+			relativePath: string;
+		}> = [];
+
+		async function readEntry(entry: FileSystemEntry) {
+			if (entry.isFile) {
+				files.push({
+					file: await new Promise((resolve, reject) => {
+						(entry as FileSystemFileEntry).file(resolve, reject);
+					}),
+					relativePath: entry.fullPath.slice(1),
+				});
+			} else if (entry.isDirectory) {
+				const reader = (entry as FileSystemDirectoryEntry).createReader();
+				let entries: Array<FileSystemEntry>;
+				do {
+					entries = await new Promise((resolve, reject) => {
+						reader.readEntries(resolve, reject);
+					});
+					await Promise.all(entries.map(readEntry));
+				} while (entries.length > 0);
 			}
 		}
 
-		for (const file of files) {
-			destinationChildren.push(
-				new FileNode({
-					id: crypto.randomUUID(),
-					name: file.name,
-				}),
-			);
+		try {
+			await Promise.all(entries.map(readEntry));
+		} catch (error) {
+			console.error(error);
+			toast.error("Failed to read uploaded files");
+			return;
 		}
-		destinationChildren.sort(sortComparator);
+
+		const nodes = new Map<string, FileNode | FolderNode>();
+		const uniqueOwners = new Set<FolderNode | FileTree>().add(owner);
+		for (const { file, relativePath } of files) {
+			const segments = relativePath.split("/");
+			let currentOwner = owner;
+			for (let i = 0; i < segments.length; i++) {
+				const segment = segments[i]!;
+
+				let node = nodes.get(segment);
+				if (node === undefined) {
+					if (i === segments.length - 1) {
+						node = new FileNode({
+							id: crypto.randomUUID(),
+							name: segment,
+							size: file.size,
+						});
+					} else {
+						node = new FolderNode({
+							id: crypto.randomUUID(),
+							name: segment,
+							children: [],
+						});
+						uniqueOwners.add(node);
+					}
+
+					nodes.set(segment, node);
+					currentOwner.children.push(node);
+				}
+
+				if (node.type === "folder") {
+					currentOwner = node;
+				}
+			}
+		}
+
+		for (const owner of uniqueOwners) {
+			owner.children.sort(sortComparator);
+		}
 	}
 
 	const handleDrop: EventHandler<DragEvent> = (event) => {
 		event.preventDefault();
 
+		let dragged;
+		if (draggedId !== undefined) {
+			dragged = tree!.getItem(draggedId);
+		}
+
+		let dropDestination;
+		if (dropDestinationId !== undefined) {
+			dropDestination = tree!.getItem(dropDestinationId);
+		}
+
 		if (dragged !== undefined) {
 			dropItems(dragged, dropDestination);
 		} else if (event.dataTransfer?.types.includes("Files")) {
-			dropFiles(event.dataTransfer.files, dropDestination);
+			dropFiles(event.dataTransfer.items, dropDestination);
 		}
 
 		dropDestinationId = undefined;
@@ -240,6 +339,7 @@
 	{root}
 	{selectedIds}
 	{expandedIds}
+	{copyNode}
 	{onResolveNameConflict}
 	{onCircularReference}
 	{onCopy}

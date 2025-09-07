@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { VirtualList as BaseVirtualList } from "svelte-file-tree";
 	import Tree from "$lib/Tree.svelte";
 	import TreeItem from "$lib/TreeItem.svelte";
-	import { FileNode, FileTree, FolderNode, VirtualList, type FileTreeNode } from "svelte-file-tree";
+	import { FileNode, FileTree, FolderNode } from "$lib/tree.svelte.js";
 
-	function createChild(i: number): FileTreeNode {
+	const VirtualList = BaseVirtualList<FileNode, FolderNode>;
+
+	function createChild(i: number) {
 		const name = `Item ${i + 1}`;
 		if (i % 1000 === 0) {
 			return new FolderNode({
@@ -17,6 +20,7 @@
 			return new FileNode({
 				id: crypto.randomUUID(),
 				name,
+				size: 1024,
 			});
 		}
 	}
@@ -25,6 +29,7 @@
 		return new FileNode({
 			id: crypto.randomUUID(),
 			name: `Item ${i + 1}.${j + 1}`,
+			size: 1024,
 		});
 	}
 

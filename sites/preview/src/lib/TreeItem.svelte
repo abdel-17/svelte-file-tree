@@ -1,8 +1,9 @@
 <script lang="ts" module>
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import type { ClassValue, EventHandler } from "svelte/elements";
-	import { TreeItem, type TreeItemState } from "svelte-file-tree";
+	import { TreeItem } from "svelte-file-tree";
 	import { getTreeContext } from "./Tree.svelte";
+	import type { TreeItemState } from "./tree.svelte.js";
 
 	export type TreeItemProps = {
 		item: TreeItemState;
@@ -10,6 +11,21 @@
 		class?: ClassValue;
 		style?: string;
 	};
+
+	const UNITS = ["B", "KB", "MB", "GB", "TB"];
+
+	const formatter = new Intl.NumberFormat(undefined, {
+		maximumFractionDigits: 2,
+	});
+
+	function formatSize(size: number) {
+		let unit = UNITS[0];
+		for (let i = 1; i < UNITS.length && size >= 1024; i++) {
+			unit = UNITS[i];
+			size /= 1024;
+		}
+		return formatter.format(size) + " " + unit;
+	}
 </script>
 
 <script lang="ts">
@@ -55,17 +71,19 @@
 			}
 		}
 
-		for (let current = destination; current !== undefined; current = current.parent) {
-			if (current.node.id === draggedId || current.selected) {
-				// Prevent moving a folder into itself.
-				treeContext.setDropDestinationId(undefined);
-				return;
+		if (draggedId !== undefined) {
+			for (let current = destination; current !== undefined; current = current.parent) {
+				if (current.node.id === draggedId || current.selected) {
+					// Prevent moving a folder into itself.
+					treeContext.setDropDestinationId(undefined);
+					return;
+				}
 			}
 		}
 
 		event.preventDefault();
 
-		if (event.dataTransfer !== null) {
+		if (draggedId !== undefined && event.dataTransfer !== null) {
 			event.dataTransfer.dropEffect = "move";
 		}
 
@@ -131,5 +149,9 @@
 		{/if}
 	</div>
 
-	{item.node.name}
+	<div class="grow">
+		{item.node.name}
+	</div>
+
+	{formatSize(item.node.size)}
 </TreeItem>
