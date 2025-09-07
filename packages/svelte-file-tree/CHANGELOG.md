@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.14.1
+
+### Patch Changes
+
+- 8f27efd: fix: infinite loop when removing items
+
 ## 0.14.0
 
 ### Minor Changes
