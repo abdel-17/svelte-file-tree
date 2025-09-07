@@ -9,6 +9,7 @@
 		"build:packages": "pnpm -F \"./packages/**\" -r build",
 		"build:preview": "pnpm build:packages && pnpm -F preview build",
 		"check": "pnpm --parallel --color check",
+		"ci:publish": "pnpm build:packages && changeset publish",
 		"format": "pnpm --parallel --color format",
 		"format:check": "pnpm --parallel --color format:check"
 	},
