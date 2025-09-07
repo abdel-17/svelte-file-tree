@@ -512,12 +512,13 @@
 		if (batched) {
 			let focusTargetId: string | undefined;
 			for (let i = order; ; ) {
-				let found = false;
+				let nearestRemaining;
 
-				// Find the nearest unselected non-child item after.
+				// Find the nearest remaining item after.
 				for (let j = i; ; ) {
 					const current = visibleItems[j]!;
 
+					// Because the current item will be removed, its children will also be removed.
 					let nextNonChild;
 					let nextNonChildOrder = -1;
 					for (let k = j + 1; k < visibleItems.length; k++) {
@@ -533,51 +534,51 @@
 						break;
 					}
 
-					if (!nextNonChild.selected) {
-						i = nextNonChildOrder;
-						found = true;
+					if (nextNonChild.node.id !== item.node.id && !nextNonChild.selected) {
+						nearestRemaining = nextNonChild;
 						break;
 					}
+
+					j = nextNonChildOrder;
 				}
 
-				if (!found) {
-					// Find the nearest unselected item before.
+				if (nearestRemaining === undefined) {
+					// Find the nearest remaining item before.
 					for (let j = i - 1; j >= 0; j--) {
 						const current = visibleItems[j]!;
-						if (!current.selected) {
-							i = j;
-							found = true;
+						if (current.node.id !== item.node.id && !current.selected) {
+							nearestRemaining = current;
 							break;
 						}
 					}
 				}
 
-				if (!found) {
+				if (nearestRemaining === undefined) {
 					break;
 				}
 
-				// If any of the ancestors are selected, the item at `i` will not remain.
-				let highestSelectedAncestor: TreeItemState<TFile, TFolder, TFolder> | undefined;
+				// If an ancestor is removed, all its children will also be removed.
+				let highestRemovedAncestor;
 				for (
-					let ancestor = visibleItems[i]!.parent;
+					let ancestor = nearestRemaining.parent;
 					ancestor !== undefined;
 					ancestor = ancestor.parent
 				) {
-					if (ancestor.selected) {
-						highestSelectedAncestor = ancestor;
+					if (ancestor.node.id === item.node.id || ancestor.selected) {
+						highestRemovedAncestor = ancestor;
 					}
 				}
 
-				if (highestSelectedAncestor === undefined) {
-					focusTargetId = visibleItems[i]!.node.id;
+				if (highestRemovedAncestor === undefined) {
+					focusTargetId = nearestRemaining.node.id;
 					break;
 				}
 
-				if (!highestSelectedAncestor.visible) {
+				if (!highestRemovedAncestor.visible) {
 					break;
 				}
 
-				i = visibleItems.indexOf(highestSelectedAncestor);
+				i = visibleItems.indexOf(highestRemovedAncestor);
 			}
 
 			for (const parent of removedParents) {
