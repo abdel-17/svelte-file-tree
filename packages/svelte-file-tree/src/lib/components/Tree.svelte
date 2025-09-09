@@ -94,6 +94,7 @@
 				}
 			}
 		},
+		shouldClearClipboard = (operation) => operation === "cut",
 		onResolveNameConflict = () => "cancel",
 		onCircularReference = noop,
 		canCopy = truePredicate,
@@ -429,7 +430,11 @@
 	}
 
 	export async function paste(destination?: TreeItemState<TFile, TFolder>) {
-		let didPaste = false;
+		if (pasteOperation === undefined) {
+			return false;
+		}
+
+		let didPaste;
 		switch (pasteOperation) {
 			case "copy": {
 				didPaste = await copy(destination);
@@ -445,8 +450,11 @@
 			return false;
 		}
 
-		clipboardIds.clear();
-		pasteOperation = undefined;
+		if (shouldClearClipboard(pasteOperation)) {
+			clipboardIds.clear();
+			pasteOperation = undefined;
+		}
+
 		return true;
 	}
 
