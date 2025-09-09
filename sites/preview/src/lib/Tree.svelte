@@ -66,17 +66,39 @@
 	let dialogTitle = $state.raw("");
 	let dialogDescription = $state.raw("");
 	let dialogConfirmLabel = $state.raw("");
-	let dialogOnClose: (() => void) | undefined;
+	let dialogTrigger: HTMLElement | null = null;
 	let dialogDidConfirm = false;
+	let dialogOnClose: (() => void) | undefined;
+
+	function showDialog({
+		title,
+		description,
+		confirmLabel,
+		onClose,
+	}: {
+		title: string;
+		description: string;
+		confirmLabel: string;
+		onClose: () => void;
+	}) {
+		dialogOpen = true;
+		dialogTitle = title;
+		dialogDescription = description;
+		dialogConfirmLabel = confirmLabel;
+		dialogTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		dialogDidConfirm = false;
+		dialogOnClose = onClose;
+	}
 
 	function onDialogOpenChangeComplete(open: boolean) {
 		if (!open) {
 			dialogTitle = "";
 			dialogDescription = "";
 			dialogConfirmLabel = "";
+			dialogTrigger?.focus();
+			dialogTrigger = null;
 			dialogOnClose?.();
 			dialogOnClose = undefined;
-			dialogDidConfirm = false;
 		}
 	}
 
@@ -121,13 +143,14 @@
 				}
 			}
 
-			dialogOpen = true;
-			dialogTitle = title;
-			dialogDescription = `An item named "${name}" already exists in this location. Do you want to skip it or cancel the operation entirely?`;
-			dialogConfirmLabel = "Skip";
-			dialogOnClose = () => {
-				resolve(dialogDidConfirm ? "skip" : "cancel");
-			};
+			showDialog({
+				title,
+				description: `An item named "${name}" already exists in this location. Do you want to skip it or cancel the operation entirely?`,
+				confirmLabel: "Skip",
+				onClose: () => {
+					resolve(dialogDidConfirm ? "skip" : "cancel");
+				},
+			});
 		});
 	}
 
@@ -147,13 +170,14 @@
 
 	function canRemove({ removed }: OnRemoveArgs<FileNode, FolderNode>) {
 		return new Promise<boolean>((resolve) => {
-			dialogOpen = true;
-			dialogTitle = `Are you sure you want to delete ${removed.length} item(s)?`;
-			dialogDescription = "They will be permanently deleted. This action cannot be undone.";
-			dialogConfirmLabel = "Confirm";
-			dialogOnClose = () => {
-				resolve(dialogDidConfirm);
-			};
+			showDialog({
+				title: `Are you sure you want to delete ${removed.length} item(s)?`,
+				description: "They will be permanently deleted. This action cannot be undone.",
+				confirmLabel: "Confirm",
+				onClose: () => {
+					resolve(dialogDidConfirm);
+				},
+			});
 		});
 	}
 
@@ -169,12 +193,12 @@
 		}
 	};
 
-	async function dropItems(dragged: TreeItemState, destination: TreeItemState | undefined) {
+	async function dropItems(draggedId: string, destination: TreeItemState | undefined) {
 		if (destination?.node.type === "file") {
 			throw new Error("Cannot drop on a file");
 		}
 
-		const movedIds = new Set(selectedIds).add(dragged.node.id);
+		const movedIds = new Set(selectedIds).add(draggedId);
 		const didMove = await tree!.move(movedIds, destination);
 		if (!didMove) {
 			return;
@@ -182,9 +206,7 @@
 
 		let focusTargetOrder;
 		if (destination === undefined || destination.expanded) {
-			focusTargetOrder = tree!
-				.getVisibleItems()
-				.findIndex((item) => item.node.id === dragged.node.id);
+			focusTargetOrder = tree!.getVisibleItems().findIndex((item) => item.node.id === draggedId);
 		} else {
 			focusTargetOrder = tree!
 				.getVisibleItems()
@@ -299,18 +321,13 @@
 	const handleDrop: EventHandler<DragEvent> = (event) => {
 		event.preventDefault();
 
-		let dragged;
-		if (draggedId !== undefined) {
-			dragged = tree!.getItem(draggedId);
-		}
-
 		let dropDestination;
 		if (dropDestinationId !== undefined) {
 			dropDestination = tree!.getItem(dropDestinationId);
 		}
 
-		if (dragged !== undefined) {
-			dropItems(dragged, dropDestination);
+		if (draggedId !== undefined) {
+			dropItems(draggedId, dropDestination);
 		} else if (event.dataTransfer?.types.includes("Files")) {
 			dropFiles(event.dataTransfer.items, dropDestination);
 		}
