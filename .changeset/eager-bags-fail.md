@@ -1,5 +1,5 @@
 ---
-"svelte-file-tree": patch
+"svelte-file-tree": minor
 ---
 
 breaking: preserve clipboard after copy
