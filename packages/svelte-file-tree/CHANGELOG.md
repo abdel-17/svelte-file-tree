@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.15.0
+
+### Minor Changes
+
+- afb55be: breaking: preserve clipboard after copy
+
 ## 0.14.1
 
 ### Patch Changes
