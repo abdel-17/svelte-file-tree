@@ -1,6 +1,6 @@
 {
 	"name": "svelte-file-tree",
-	"version": "0.14.2",
+	"version": "0.14.1",
 	"type": "module",
 	"scripts": {
 		"dev": "svelte-kit sync && svelte-package --watch",
