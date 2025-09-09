@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.14.2
+
+### Patch Changes
+
+- 869fb53: breaking: preserve clipboard after copy
+
 ## 0.14.1
 
 ### Patch Changes
