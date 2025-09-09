@@ -82,6 +82,7 @@ export interface TreeProps<
 	isItemDisabled?: (node: TFile | TFolder) => boolean;
 	isItemHidden?: (node: TFile | TFolder) => boolean;
 	copyNode?: (node: TFile | TFolder) => TFile | TFolder;
+	shouldClearClipboard?: (operation: PasteOperation) => boolean;
 	onResolveNameConflict?: (
 		args: OnResolveNameConflictArgs<TFile, TFolder>,
 	) => MaybePromise<NameConflictResolution>;
