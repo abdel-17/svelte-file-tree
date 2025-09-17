@@ -1,5 +1,6 @@
 <script lang="ts" module>
 	import {
+		defaultRangeExtractor,
 		elementScroll,
 		observeElementOffset,
 		observeElementRect,
@@ -36,6 +37,7 @@
 	let {
 		children,
 		estimateSize,
+		rangeExtractor = defaultRangeExtractor,
 		overscan = 1,
 		paddingStart,
 		paddingEnd,
@@ -63,6 +65,7 @@
 		getScrollElement: () => ref,
 		getItemKey: (order) => visibleItems[order]!.node.id,
 		estimateSize: (order) => estimateSize(visibleItems[order]!, order),
+		rangeExtractor: (range) => rangeExtractor(range),
 		onChange: (instance) => {
 			instance._willUpdate();
 			treeSize = instance.getTotalSize();
