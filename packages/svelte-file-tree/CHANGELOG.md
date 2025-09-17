@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.16.0
+
+### Minor Changes
+
+- d74249e: feat: add `rangeExtractor` prop to `VirtualList`
+
 ## 0.15.0
 
 ### Minor Changes
