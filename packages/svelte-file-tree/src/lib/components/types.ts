@@ -1,4 +1,4 @@
-import type { ScrollToOptions } from "@tanstack/virtual-core";
+import type { Range, ScrollToOptions } from "@tanstack/virtual-core";
 import type { Snippet } from "svelte";
 import type { HTMLAttributes } from "svelte/elements";
 import type { SvelteSet } from "svelte/reactivity";
@@ -132,6 +132,8 @@ export type VirtualListItem<
 	end: number;
 };
 
+export type VirtualListRange = Range;
+
 export type VirtualListChildrenSnippetArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
@@ -146,6 +148,7 @@ export interface VirtualListProps<
 > extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
 	children: Snippet<[args: VirtualListChildrenSnippetArgs<TFile, TFolder>]>;
 	estimateSize: (item: TreeItemState<TFile, TFolder>, order: number) => number;
+	rangeExtractor?: (range: VirtualListRange) => Array<number>;
 	overscan?: number;
 	paddingStart?: number;
 	paddingEnd?: number;

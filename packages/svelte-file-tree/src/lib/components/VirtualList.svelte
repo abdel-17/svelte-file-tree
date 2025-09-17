@@ -36,6 +36,7 @@
 	let {
 		children,
 		estimateSize,
+		rangeExtractor,
 		overscan = 1,
 		paddingStart,
 		paddingEnd,
@@ -109,6 +110,7 @@
 	});
 
 	$effect(() => {
+		options.rangeExtractor = rangeExtractor;
 		options.count = visibleItems.length;
 		options.overscan = overscan;
 		options.paddingStart = paddingStart;
