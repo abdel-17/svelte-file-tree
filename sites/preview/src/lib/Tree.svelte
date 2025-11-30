@@ -22,6 +22,7 @@
 		type FileTreeNode,
 		type TreeItemState,
 	} from "./tree.svelte.js";
+	import { arabicNumbers } from "./utils.js";
 
 	const sortCollator = new Intl.Collator();
 
@@ -29,14 +30,70 @@
 		return sortCollator.compare(x.name, y.name);
 	}
 
+	const translations = {
+		toast: {
+			cannotMoveInsideItself: {
+				en: (name: string) => `Cannot move "${name}" inside itself`,
+				ar: (name: string) => `لا يمكن نقل "${name}" داخل نفسه`,
+			},
+			itemAlreadyExists: {
+				en: (name: string) => `An item named "${name}" already exists in this location`,
+				ar: (name: string) => `عنصر باسم "${name}" موجود بالفعل في هذا الموقع`,
+			},
+			failedToReadFiles: {
+				en: "Failed to read uploaded files",
+				ar: "فشل قراءة الملفات المرفوعة",
+			},
+		},
+		dialog: {
+			failedToCopyItems: {
+				en: "Failed to copy items",
+				ar: "فشل نسخ العناصر",
+			},
+			failedToMoveItems: {
+				en: "Failed to move items",
+				ar: "فشل نقل العناصر",
+			},
+			nameConflictDescription: {
+				en: (name: string) =>
+					`An item named "${name}" already exists in this location. Do you want to skip it or cancel the operation entirely?`,
+				ar: (name: string) =>
+					`عنصر باسم "${name}" موجود بالفعل في هذا الموقع. هل تريد تخطيه أو إلغاء العملية بالكامل؟`,
+			},
+			skip: {
+				en: "Skip",
+				ar: "تخطي",
+			},
+			deleteConfirmTitle: {
+				en: (count: number) => `Are you sure you want to delete ${count} item(s)?`,
+				ar: (count: number) =>
+					`هل أنت متأكد أنك تريد حذف ${arabicNumbers(count.toString())} عناصر؟`,
+			},
+			deleteConfirmDescription: {
+				en: "They will be permanently deleted. This action cannot be undone.",
+				ar: "سيتم حذفها نهائياً. لا يمكن التراجع عن هذا الإجراء.",
+			},
+			confirm: {
+				en: "Confirm",
+				ar: "تأكيد",
+			},
+			cancel: {
+				en: "Cancel",
+				ar: "إلغاء",
+			},
+		},
+	};
+
 	export type TreeProps = {
 		children: Snippet<[args: TreeChildrenSnippetArgs<FileNode, FolderNode>]>;
 		root: FileTree;
+		lang?: "en" | "ar";
 		class?: ClassValue;
 		style?: string;
 	};
 
 	export type TreeContext = {
+		getLang: () => "en" | "ar";
 		getSelectedIds: () => Set<string>;
 		getExpandedIds: () => Set<string>;
 		getDraggedId: () => string | undefined;
@@ -53,7 +110,7 @@
 </script>
 
 <script lang="ts">
-	const { children, root, class: className, style }: TreeProps = $props();
+	const { children, root, lang = "en", class: className, style }: TreeProps = $props();
 
 	let tree: Tree<FileNode, FolderNode> | null = $state.raw(null);
 	const selectedIds = new SvelteSet<string>();
@@ -66,6 +123,7 @@
 	let dialogTitle = $state.raw("");
 	let dialogDescription = $state.raw("");
 	let dialogConfirmLabel = $state.raw("");
+	let dialogCancelLabel = $state.raw("");
 	let dialogTrigger: HTMLElement | null = null;
 	let dialogDidConfirm = false;
 	let dialogOnClose: (() => void) | undefined;
@@ -74,17 +132,20 @@
 		title,
 		description,
 		confirmLabel,
+		cancelLabel,
 		onClose,
 	}: {
 		title: string;
 		description: string;
 		confirmLabel: string;
+		cancelLabel: string;
 		onClose: () => void;
 	}) {
 		dialogOpen = true;
 		dialogTitle = title;
 		dialogDescription = description;
 		dialogConfirmLabel = confirmLabel;
+		dialogCancelLabel = cancelLabel;
 		dialogTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		dialogDidConfirm = false;
 		dialogOnClose = onClose;
@@ -95,6 +156,7 @@
 			dialogTitle = "";
 			dialogDescription = "";
 			dialogConfirmLabel = "";
+			dialogCancelLabel = "";
 			dialogTrigger?.focus();
 			dialogTrigger = null;
 			dialogOnClose?.();
@@ -134,19 +196,20 @@
 			let title;
 			switch (operation) {
 				case "copy": {
-					title = "Failed to copy items";
+					title = translations.dialog.failedToCopyItems[lang];
 					break;
 				}
 				case "move": {
-					title = "Failed to move items";
+					title = translations.dialog.failedToMoveItems[lang];
 					break;
 				}
 			}
 
 			showDialog({
 				title,
-				description: `An item named "${name}" already exists in this location. Do you want to skip it or cancel the operation entirely?`,
-				confirmLabel: "Skip",
+				description: translations.dialog.nameConflictDescription[lang](name),
+				confirmLabel: translations.dialog.skip[lang],
+				cancelLabel: translations.dialog.cancel[lang],
 				onClose: () => {
 					resolve(dialogDidConfirm ? "skip" : "cancel");
 				},
@@ -155,7 +218,7 @@
 	}
 
 	function onCircularReference({ source }: OnCircularReferenceArgs<FileNode, FolderNode>) {
-		toast.error(`Cannot move "${source.node.name}" inside itself`);
+		toast.error(translations.toast.cannotMoveInsideItself[lang](source.node.name));
 	}
 
 	function onCopy({ destination }: OnCopyArgs<FileNode, FolderNode>) {
@@ -171,9 +234,10 @@
 	function canRemove({ removed }: OnRemoveArgs<FileNode, FolderNode>) {
 		return new Promise<boolean>((resolve) => {
 			showDialog({
-				title: `Are you sure you want to delete ${removed.length} item(s)?`,
-				description: "They will be permanently deleted. This action cannot be undone.",
-				confirmLabel: "Confirm",
+				title: translations.dialog.deleteConfirmTitle[lang](removed.length),
+				description: translations.dialog.deleteConfirmDescription[lang],
+				confirmLabel: translations.dialog.confirm[lang],
+				cancelLabel: translations.dialog.cancel[lang],
 				onClose: () => {
 					resolve(dialogDidConfirm);
 				},
@@ -236,9 +300,9 @@
 				continue;
 			}
 
-			const firstSegment = entry.name.split("/")[0];
+			const firstSegment = entry.name.split("/")[0]!;
 			if (uniqueNames.has(firstSegment)) {
-				toast.error(`An item named "${firstSegment}" already exists in this location`);
+				toast.error(translations.toast.itemAlreadyExists[lang](firstSegment));
 				return;
 			}
 
@@ -274,7 +338,7 @@
 			await Promise.all(entries.map(readEntry));
 		} catch (error) {
 			console.error(error);
-			toast.error("Failed to read uploaded files");
+			toast.error(translations.toast.failedToReadFiles[lang]);
 			return;
 		}
 
@@ -336,6 +400,7 @@
 	};
 
 	const context: TreeContext = {
+		getLang: () => lang,
 		getSelectedIds: () => selectedIds,
 		getExpandedIds: () => expandedIds,
 		getDraggedId: () => draggedId,
@@ -362,6 +427,8 @@
 	{onCopy}
 	{onMove}
 	{canRemove}
+	{lang}
+	dir="auto"
 	class={className}
 	{style}
 	ondragenter={handleDragEnterOrOver}
@@ -405,7 +472,7 @@
 							<AlertDialog.Cancel
 								class="inline-flex h-10 items-center justify-center rounded bg-gray-200 px-6 text-sm font-medium hover:bg-gray-300 focus-visible:outline-2 focus-visible:outline-current active:scale-95"
 							>
-								Cancel
+								{dialogCancelLabel}
 							</AlertDialog.Cancel>
 						</div>
 					</div>

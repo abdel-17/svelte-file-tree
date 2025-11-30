@@ -38,8 +38,12 @@
 			return;
 		}
 
+		const isRtl = getComputedStyle(event.currentTarget).direction === "rtl";
+		const arrowRight = isRtl ? "ArrowLeft" : "ArrowRight";
+		const arrowLeft = isRtl ? "ArrowRight" : "ArrowLeft";
+
 		switch (event.key) {
-			case "ArrowRight": {
+			case arrowRight: {
 				if (item.node.type === "file") {
 					break;
 				}
@@ -55,7 +59,7 @@
 				}
 				break;
 			}
-			case "ArrowLeft": {
+			case arrowLeft: {
 				if (item.node.type === "folder" && item.expanded) {
 					treeContext.getExpandedIds().delete(item.node.id);
 					break;
