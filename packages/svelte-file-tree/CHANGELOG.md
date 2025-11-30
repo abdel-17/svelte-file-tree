@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.16.1
+
+### Patch Changes
+
+- 07eb811: fix: swap arrow left/right in rtl
+
 ## 0.16.0
 
 ### Minor Changes
