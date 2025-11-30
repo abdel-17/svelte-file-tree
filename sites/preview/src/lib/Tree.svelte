@@ -46,10 +46,6 @@
 			},
 		},
 		dialog: {
-			failedToCopyItems: {
-				en: "Failed to copy items",
-				ar: "فشل نسخ العناصر",
-			},
 			failedToMoveItems: {
 				en: "Failed to move items",
 				ar: "فشل نقل العناصر",
@@ -192,21 +188,13 @@
 		operation,
 		name,
 	}: OnResolveNameConflictArgs<FileNode, FolderNode>) {
-		return new Promise<NameConflictResolution>((resolve) => {
-			let title;
-			switch (operation) {
-				case "copy": {
-					title = translations.dialog.failedToCopyItems[lang];
-					break;
-				}
-				case "move": {
-					title = translations.dialog.failedToMoveItems[lang];
-					break;
-				}
-			}
+		if (operation === "copy") {
+			return "default";
+		}
 
+		return new Promise<NameConflictResolution>((resolve) => {
 			showDialog({
-				title,
+				title: translations.dialog.failedToMoveItems[lang],
 				description: translations.dialog.nameConflictDescription[lang](name),
 				confirmLabel: translations.dialog.skip[lang],
 				cancelLabel: translations.dialog.cancel[lang],
