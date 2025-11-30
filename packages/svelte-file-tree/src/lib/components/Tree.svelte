@@ -322,6 +322,9 @@
 					case "cancel": {
 						return false;
 					}
+					case "allow": {
+						break;
+					}
 				}
 			}
 
@@ -397,6 +400,9 @@
 					}
 					case "cancel": {
 						return false;
+					}
+					case "allow": {
+						break;
 					}
 				}
 			}

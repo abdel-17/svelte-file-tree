@@ -31,7 +31,7 @@ export type OnResolveNameConflictArgs<
 	name: string;
 };
 
-export type NameConflictResolution = "skip" | "cancel";
+export type NameConflictResolution = "skip" | "cancel" | "allow";
 
 export type OnCircularReferenceArgs<
 	TFile extends FileNode = FileNode,
