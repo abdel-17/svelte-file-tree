@@ -328,7 +328,6 @@
 						for (let i = 2; uniqueNames.has(name); i++) {
 							name = `${node.name} copy ${i}`;
 						}
-						node.name = name;
 						break;
 					}
 				}
@@ -336,7 +335,9 @@
 
 			uniqueNames.add(name);
 			sources.push(current);
-			copies.push(copyNode(node));
+			const copy = copyNode(node);
+			copy.name = name;
+			copies.push(copy);
 		}
 
 		if (sources.length === 0) {
