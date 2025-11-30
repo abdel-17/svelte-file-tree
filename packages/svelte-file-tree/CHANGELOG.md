@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.17.0
+
+### Minor Changes
+
+- c73c509: breaking: append copy to the name of conflicting copies
+
 ## 0.16.1
 
 ### Patch Changes
