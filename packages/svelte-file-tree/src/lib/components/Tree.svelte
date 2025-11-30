@@ -95,7 +95,7 @@
 			}
 		},
 		shouldClearClipboard = (operation) => operation === "cut",
-		onResolveNameConflict = () => "cancel",
+		onResolveNameConflict = () => "default",
 		onCircularReference = noop,
 		canCopy = truePredicate,
 		onCopy = noop,
@@ -308,7 +308,8 @@
 				}
 			}
 
-			const name = current.node.name;
+			const node = current.node;
+			let name = node.name;
 			if (uniqueNames.has(name)) {
 				const resolution = await onResolveNameConflict({
 					operation: "copy",
@@ -322,12 +323,21 @@
 					case "cancel": {
 						return false;
 					}
+					case "default": {
+						name = `${node.name} copy`;
+						for (let i = 2; uniqueNames.has(name); i++) {
+							name = `${node.name} copy ${i}`;
+						}
+						break;
+					}
 				}
 			}
 
 			uniqueNames.add(name);
 			sources.push(current);
-			copies.push(copyNode(current.node));
+			const copy = copyNode(node);
+			copy.name = name;
+			copies.push(copy);
 		}
 
 		if (sources.length === 0) {
@@ -384,7 +394,8 @@
 				}
 			}
 
-			const name = current.node.name;
+			const node = current.node;
+			const name = node.name;
 			if (uniqueNames.has(name)) {
 				const resolution = await onResolveNameConflict({
 					operation: "move",
@@ -395,7 +406,8 @@
 					case "skip": {
 						continue;
 					}
-					case "cancel": {
+					case "cancel":
+					case "default": {
 						return false;
 					}
 				}
@@ -403,7 +415,7 @@
 
 			uniqueNames.add(name);
 			sources.push(current);
-			sourceIds.add(current.node.id);
+			sourceIds.add(node.id);
 			sourceParents.add(current.parent);
 		}
 
