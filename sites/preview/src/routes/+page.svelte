@@ -3,6 +3,7 @@
 		AlignVerticalSpaceAroundIcon,
 		HandIcon,
 		KeyboardIcon,
+		LanguagesIcon,
 		ScrollIcon,
 		UploadIcon,
 		ZapIcon,
@@ -192,6 +193,43 @@
 
 					<GithubLink
 						href="https://github.com/abdel-17/svelte-file-tree/tree/master/sites/preview/src/routes/virtualization/+page.svelte"
+					>
+						View Code
+					</GithubLink>
+				</div>
+			</section>
+
+			<section
+				class="@container flex flex-col rounded-xl border border-slate-300 bg-slate-50 p-6 @min-4xl:col-span-2"
+			>
+				<h3 class="text-xl font-semibold text-slate-800">RTL Support</h3>
+
+				<p class="mt-3 text-slate-700">Right-to-left language support</p>
+
+				<div class="grow"></div>
+
+				<ul class="mt-6 space-y-3">
+					<li class="flex items-center gap-2 text-sm text-slate-600">
+						<LanguagesIcon role="presentation" class="size-4" />
+						RTL Layout
+					</li>
+
+					<li class="flex items-center gap-2 text-sm text-slate-600">
+						<KeyboardIcon role="presentation" class="size-4" />
+						Keyboard Navigation
+					</li>
+				</ul>
+
+				<div class="mt-6 grid gap-4 @min-sm:grid-cols-2">
+					<a
+						href="/rtl"
+						class="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 active:scale-95"
+					>
+						View Example
+					</a>
+
+					<GithubLink
+						href="https://github.com/abdel-17/svelte-file-tree/tree/master/sites/preview/src/routes/rtl/+page.svelte"
 					>
 						View Code
 					</GithubLink>

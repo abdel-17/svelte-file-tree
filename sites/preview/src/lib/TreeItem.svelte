@@ -4,6 +4,7 @@
 	import { TreeItem } from "svelte-file-tree";
 	import { getTreeContext } from "./Tree.svelte";
 	import type { TreeItemState } from "./tree.svelte.js";
+	import { arabicNumbers } from "./utils.js";
 
 	export type TreeItemProps = {
 		item: TreeItemState;
@@ -12,26 +13,38 @@
 		style?: string;
 	};
 
-	const UNITS = ["B", "KB", "MB", "GB", "TB"];
+	const UNITS = [
+		{ en: "B", ar: "ب" },
+		{ en: "KB", ar: "ك.ب" },
+		{ en: "MB", ar: "م.ب" },
+		{ en: "GB", ar: "ج.ب" },
+		{ en: "TB", ar: "ت.ب" },
+	];
 
-	const formatter = new Intl.NumberFormat(undefined, {
+	const sizeFormatter = new Intl.NumberFormat("en", {
 		maximumFractionDigits: 2,
 	});
-
-	function formatSize(size: number) {
-		let unit = UNITS[0];
-		for (let i = 1; i < UNITS.length && size >= 1024; i++) {
-			unit = UNITS[i];
-			size /= 1024;
-		}
-		return formatter.format(size) + " " + unit;
-	}
 </script>
 
 <script lang="ts">
 	const treeContext = getTreeContext();
 
 	const { item, order, class: className, style }: TreeItemProps = $props();
+
+	function formatSize(size: number) {
+		let unit = UNITS[0]!;
+		for (let i = 1; i < UNITS.length && size >= 1024; i++) {
+			unit = UNITS[i]!;
+			size /= 1024;
+		}
+
+		const lang = treeContext.getLang();
+		let formattedSize = sizeFormatter.format(size);
+		if (lang === "ar") {
+			formattedSize = arabicNumbers(formattedSize);
+		}
+		return formattedSize + " " + unit[lang];
+	}
 
 	const handleDragStart: EventHandler<DragEvent, HTMLDivElement> = (event) => {
 		if (item.disabled) {
@@ -135,7 +148,7 @@
 	<ChevronDownIcon
 		role="presentation"
 		data-invisible={item.node.type === "file" ? true : undefined}
-		class="size-5 rounded-full transition-transform duration-200 group-aria-expanded:-rotate-90 hover:bg-current/8 active:bg-current/12 data-invisible:invisible"
+		class="size-5 rounded-full transition-transform duration-200 group-aria-expanded:-rotate-90 hover:bg-current/8 active:bg-current/12 data-invisible:invisible group-aria-expanded:rtl:rotate-90"
 		onclick={handleToggleClick}
 	/>
 
