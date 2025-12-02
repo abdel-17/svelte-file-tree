@@ -97,4 +97,12 @@ export class TreeItemState<
 	}
 
 	readonly type = "item";
+
+	readonly path: string = $derived.by(() => {
+		const parent = this.parent;
+		if (parent === undefined) {
+			return this.node.name;
+		}
+		return `${parent.path}/${this.node.name}`;
+	});
 }
