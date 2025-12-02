@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.18.0
+
+### Minor Changes
+
+- ae8ce5b: feat: add `TreeItemState.path` property
+
 ## 0.17.0
 
 ### Minor Changes
