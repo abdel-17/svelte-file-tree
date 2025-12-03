@@ -22,6 +22,22 @@ export type TreeChildrenSnippetArgs<
 
 export type PasteOperation = "copy" | "cut";
 
+export type IsItemDisabledArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	parent: TreeItemState<TFile, TFolder, TFolder> | undefined;
+	node: TFile | TFolder;
+};
+
+export type IsItemHiddenArgs<
+	TFile extends FileNode = FileNode,
+	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
+> = {
+	parent: TreeItemState<TFile, TFolder, TFolder> | undefined;
+	node: TFile | TFolder;
+};
+
 export type OnResolveNameConflictArgs<
 	TFile extends FileNode = FileNode,
 	TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>,
@@ -79,8 +95,8 @@ export interface TreeProps<
 	clipboardIds?: SvelteSet<string>;
 	pasteOperation?: PasteOperation;
 	ref?: HTMLDivElement | null;
-	isItemDisabled?: (node: TFile | TFolder) => boolean;
-	isItemHidden?: (node: TFile | TFolder) => boolean;
+	isItemDisabled?: (args: IsItemDisabledArgs<TFile, TFolder>) => boolean;
+	isItemHidden?: (args: IsItemHiddenArgs<TFile, TFolder>) => boolean;
 	copyNode?: (node: TFile | TFolder) => TFile | TFolder;
 	shouldClearClipboard?: (operation: PasteOperation) => boolean;
 	onResolveNameConflict?: (

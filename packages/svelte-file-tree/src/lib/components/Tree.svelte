@@ -129,8 +129,8 @@
 					return expandedIds.has(node.id);
 				},
 				inClipboard: () => clipboardIds.has(node.id),
-				disabled: () => parent?.disabled || isItemDisabled(node),
-				visible: () => (parent === undefined || parent.expanded) && !isItemHidden(node),
+				disabled: () => parent?.disabled || isItemDisabled({ parent, node }),
+				visible: () => (parent === undefined || parent.expanded) && !isItemHidden({ parent, node }),
 			});
 			result.push(item);
 
