@@ -1,5 +1,11 @@
 # svelte-file-tree
 
+## 0.19.0
+
+### Minor Changes
+
+- e2c043a: breaking: pass {parent, node} to `isItemDisabled` and `isItemHidden`
+
 ## 0.18.0
 
 ### Minor Changes
