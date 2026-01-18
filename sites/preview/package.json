@@ -14,21 +14,21 @@
 		"format:check": "prettier --check ."
 	},
 	"devDependencies": {
-		"@internationalized/date": "^3.8.2",
-		"@lucide/svelte": "^0.536.0",
-		"@sveltejs/adapter-static": "^3.0.6",
-		"@sveltejs/kit": "^2.27.1",
-		"@sveltejs/vite-plugin-svelte": "6.1.0",
-		"@tailwindcss/vite": "4.1.11",
-		"bits-ui": "^2.9.2",
-		"prettier": "^3.6.2",
-		"prettier-plugin-svelte": "^3.4.0",
-		"prettier-plugin-tailwindcss": "^0.6.14",
-		"svelte": "5.38.0",
-		"svelte-check": "^4.3.1",
+		"@internationalized/date": "^3.10.1",
+		"@lucide/svelte": "^0.562.0",
+		"@sveltejs/adapter-static": "^3.0.10",
+		"@sveltejs/kit": "^2.50.0",
+		"@sveltejs/vite-plugin-svelte": "6.2.4",
+		"@tailwindcss/vite": "4.1.18",
+		"bits-ui": "^2.15.4",
+		"prettier": "^3.8.0",
+		"prettier-plugin-svelte": "^3.4.1",
+		"prettier-plugin-tailwindcss": "^0.7.2",
+		"svelte": "5.46.4",
+		"svelte-check": "^4.3.5",
 		"svelte-file-tree": "workspace:^",
-		"svelte-sonner": "^1.0.5",
-		"tailwindcss": "4.1.11",
-		"vite": "^7.0.6"
+		"svelte-sonner": "^1.0.7",
+		"tailwindcss": "4.1.18",
+		"vite": "^7.3.1"
 	}
 }

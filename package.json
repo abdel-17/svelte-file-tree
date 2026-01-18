@@ -14,9 +14,7 @@
 		"format:check": "pnpm --parallel --color format:check"
 	},
 	"devDependencies": {
-		"@changesets/cli": "^2.29.5",
-		"playwright": "^1.54.2",
-		"prettier-plugin-svelte": "^3.4.0"
+		"@changesets/cli": "^2.29.8"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [

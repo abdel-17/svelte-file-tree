@@ -34,24 +34,20 @@
 		"svelte": "^5.31.0"
 	},
 	"dependencies": {
-		"@tanstack/virtual-core": "^3.13.12",
+		"@tanstack/virtual-core": "^3.13.18",
 		"esm-env": "^1.2.2"
 	},
 	"devDependencies": {
-		"@sveltejs/kit": "^2.27.1",
-		"@sveltejs/package": "^2.4.0",
-		"@sveltejs/vite-plugin-svelte": "6.1.0",
-		"@types/node": "^24.2.0",
-		"@vitest/browser": "^3.2.4",
-		"jsdom": "^26.1.0",
-		"prettier": "^3.6.2",
-		"prettier-plugin-svelte": "^3.4.0",
-		"publint": "^0.3.12",
-		"svelte": "5.38.0",
-		"svelte-check": "^4.3.1",
-		"vite": "^7.0.6",
-		"vitest": "3.2.4",
-		"vitest-browser-svelte": "^1.1.0"
+		"@sveltejs/kit": "^2.50.0",
+		"@sveltejs/package": "^2.5.7",
+		"@sveltejs/vite-plugin-svelte": "6.2.4",
+		"@types/node": "^24.10.9",
+		"prettier": "^3.8.0",
+		"prettier-plugin-svelte": "^3.4.1",
+		"publint": "^0.3.16",
+		"svelte": "5.46.4",
+		"svelte-check": "^4.3.5",
+		"vite": "^7.3.1"
 	},
 	"repository": {
 		"type": "git",
