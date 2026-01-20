@@ -132,7 +132,7 @@
 >
 	{#snippet children({ items })}
 		{#each items as item (item.id)}
-			{@const has_children = item.data.children !== undefined && item.data.children.length !== 0}
+			{@const children = item.data.children}
 			<TreeItem
 				{item}
 				class="group flex items-center p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300"
@@ -140,15 +140,15 @@
 			>
 				<ChevronDownIcon
 					role="presentation"
-					data-visible={has_children}
+					data-visible={children !== undefined && children.length !== 0}
 					class="size-6 p-0.5 transition-transform duration-200 group-aria-expanded:-rotate-90 data-[visible=false]:invisible"
 					onclick={(event) => on_toggle_click(event, item)}
 				/>
 
 				<div class="ps-1 pe-2">
-					{#if has_children && item.expanded}
+					{#if children !== undefined && item.expanded}
 						<FolderOpenIcon role="presentation" class="fill-blue-300" />
-					{:else if has_children}
+					{:else if children !== undefined}
 						<FolderIcon role="presentation" class="fill-blue-300" />
 					{:else}
 						<FileIcon role="presentation" />
