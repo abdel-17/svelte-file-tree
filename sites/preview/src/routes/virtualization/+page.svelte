@@ -9,8 +9,18 @@
 	} from "@tanstack/virtual-core";
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { SvelteSet } from "svelte/reactivity";
-	import { Tree, TreeItem, type TreeItemState } from "svelte-file-tree";
+	import {
+		Tree,
+		TreeItem,
+		type OnCircularReferenceArgs,
+		type OnCopyArgs,
+		type OnMoveArgs,
+		type OnRemoveArgs,
+		type TreeItemState,
+	} from "svelte-file-tree";
+	import { toast } from "svelte-sonner";
 
+	let tree: Tree<TreeItemData> | null = $state.raw(null);
 	const root = $state(
 		Array(10_000)
 			.fill(null)
@@ -24,18 +34,7 @@
 				return new TreeItemData(`Item ${i + 1}`, children);
 			}),
 	);
-
-	let tree: Tree<TreeItemData> | null = $state.raw(null);
 	const expanded_ids = new SvelteSet<string>();
-
-	function on_toggle_click(event: MouseEvent, item: TreeItemState<TreeItemData>) {
-		if (item.expanded) {
-			expanded_ids.delete(item.id);
-		} else {
-			expanded_ids.add(item.id);
-		}
-		event.preventDefault();
-	}
 
 	type VirtualItem = {
 		item: TreeItemState<TreeItemData>;
@@ -106,6 +105,47 @@
 			}
 		});
 	}
+
+	function on_circular_reference({ source }: OnCircularReferenceArgs<TreeItemData>) {
+		toast.error(`Cannot move "${source.data.name}" inside itself`);
+	}
+
+	function on_copy({ sources, destination }: OnCopyArgs<TreeItemData>) {
+		const destination_children = destination?.data.children ?? root;
+		for (const source of sources) {
+			const copy = source.data.copy();
+			destination_children.push(copy);
+		}
+	}
+
+	function on_move({ sources, destination }: OnMoveArgs<TreeItemData>) {
+		const destination_children = destination?.data.children ?? root;
+		for (const source of sources) {
+			const index = source.parentChildren.findIndex((data) => data.id === source.id);
+			source.parentChildren.splice(index, 1);
+			destination_children.push(source.data);
+		}
+	}
+
+	function on_remove({ removed, nearestRemaining }: OnRemoveArgs<TreeItemData>) {
+		for (const item of removed) {
+			const index = item.parentChildren.findIndex((data) => data.id === item.id);
+			item.parentChildren.splice(index, 1);
+		}
+
+		if (nearestRemaining !== undefined) {
+			on_focus(nearestRemaining);
+		}
+	}
+
+	function on_toggle_click(event: MouseEvent, item: TreeItemState<TreeItemData>) {
+		if (item.expanded) {
+			expanded_ids.delete(item.id);
+		} else {
+			expanded_ids.add(item.id);
+		}
+		event.preventDefault();
+	}
 </script>
 
 <div bind:this={scroll_element} class="h-svh overflow-y-auto">
@@ -114,6 +154,10 @@
 		{root}
 		expandedIds={expanded_ids}
 		onFocus={on_focus}
+		onCircularReference={on_circular_reference}
+		onCopy={on_copy}
+		onMove={on_move}
+		onRemove={on_remove}
 		class="relative"
 		style="height: {tree_height}px;"
 	>
