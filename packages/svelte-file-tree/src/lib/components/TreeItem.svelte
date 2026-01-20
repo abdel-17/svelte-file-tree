@@ -136,7 +136,8 @@
 				}
 
 				if (event.shiftKey && is_control_or_meta(event)) {
-					for (let i = item.index; i !== found.index; i += offset) {
+					const stop_index = found.index + offset;
+					for (let i = item.index; i !== stop_index; i += offset) {
 						selected_ids.add(items[i].id);
 					}
 				} else {
