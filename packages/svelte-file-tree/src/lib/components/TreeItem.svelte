@@ -219,7 +219,7 @@
 				}
 
 				clipboard_ids.clear();
-				if (selected_ids.has(item.id)) {
+				if (selected) {
 					for (const id of selected_ids) {
 						clipboard_ids.add(id);
 					}
