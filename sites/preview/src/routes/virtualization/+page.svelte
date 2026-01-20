@@ -121,7 +121,7 @@
 			{@const has_children = item.data.children !== undefined && item.data.children.length !== 0}
 			<TreeItem
 				{item}
-				class="group absolute! top-0 right-0 left-0 flex items-center p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300"
+				class="group absolute top-0 right-0 left-0 flex items-center p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300"
 				style="
 					height: {height}px;
 					transform: translateY({start}px);
