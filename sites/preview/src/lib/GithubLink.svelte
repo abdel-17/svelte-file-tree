@@ -1,14 +1,7 @@
 <script lang="ts">
 	import { GithubIcon } from "@lucide/svelte";
-	import type { Snippet } from "svelte";
 
-	const {
-		href,
-		children,
-	}: {
-		href: string;
-		children: Snippet;
-	} = $props();
+	const { href, label }: { href: string; label: string } = $props();
 </script>
 
 <a
@@ -18,5 +11,5 @@
 	class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#25292e] px-6 py-3 font-medium text-white transition-colors hover:bg-[#0d1117] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25292e] active:scale-95"
 >
 	<GithubIcon role="presentation" class="size-5" />
-	{@render children()}
+	{label}
 </a>

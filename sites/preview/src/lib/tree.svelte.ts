@@ -1,51 +1,17 @@
-import {
-	FileNode as BaseFileNode,
-	FileTree as BaseFileTree,
-	FolderNode as BaseFolderNode,
-	TreeItemState as BaseTreeItemState,
-} from "svelte-file-tree";
-
-function getTotalSize(nodes: Array<FileNode | FolderNode>) {
-	let result = 0;
-	for (const node of nodes) {
-		result += node.size;
-	}
-	return result;
-}
-
-export class FileTree extends BaseFileTree<FileNode | FolderNode> {
-	readonly size: number = $derived(getTotalSize(this.children));
-}
-
-export type FileNodeProps = {
-	id: string;
+export class Node {
+	id = crypto.randomUUID();
 	name: string;
-	size: number;
-};
+	children?: Node[];
 
-export class FileNode extends BaseFileNode {
-	readonly size: number;
+	constructor(name: string, children?: Node[]) {
+		this.name = name;
+		this.children = $state(children);
+	}
 
-	constructor(props: FileNodeProps) {
-		super(props);
-		this.size = props.size;
+	copy(): Node {
+		return new Node(
+			this.name,
+			this.children?.map((child) => child.copy()),
+		);
 	}
 }
-
-export type FolderNodeProps = {
-	id: string;
-	name: string;
-	children: Array<FileNode | FolderNode>;
-};
-
-export class FolderNode extends BaseFolderNode<FileNode | FolderNode> {
-	readonly size: number = $derived(getTotalSize(this.children));
-}
-
-export type FileTreeNode = FileNode | FolderNode;
-
-export type TreeItemState<TNode extends FileTreeNode = FileTreeNode> = BaseTreeItemState<
-	FileNode,
-	FolderNode,
-	TNode
->;

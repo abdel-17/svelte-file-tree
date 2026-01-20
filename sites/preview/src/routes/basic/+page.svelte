@@ -1,98 +1,161 @@
 <script lang="ts">
-	import Tree from "$lib/Tree.svelte";
-	import TreeItem from "$lib/TreeItem.svelte";
-	import { FileNode, FileTree, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
-
-	const KB = 1024;
-	const MB = 1024 * KB;
-	const GB = 1024 * MB;
-
-	function createFile(name: string, size: number) {
-		return new FileNode({
-			id: crypto.randomUUID(),
-			name,
-			size,
-		});
-	}
-
-	function createFolder(name: string, children: Array<FileTreeNode>) {
-		return new FolderNode({
-			id: crypto.randomUUID(),
-			name,
-			children,
-		});
-	}
+	import { Node } from "$lib/tree.svelte";
+	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
+	import { SvelteSet } from "svelte/reactivity";
+	import {
+		Tree,
+		TreeItem,
+		TreeItemData,
+		type OnCircularReferenceArgs,
+		type OnCopyArgs,
+		type OnMoveArgs,
+		type OnRemoveArgs,
+	} from "svelte-file-tree";
+	import { toast } from "svelte-sonner";
 
 	// prettier-ignore
-	const root = new FileTree([
-		createFolder("Applications", [
-			createFile("App Store.app", 50 * MB),
-			createFile("FaceTime.app", 30 * MB),
-			createFile("Mail.app", 20 * MB),
-			createFile("Messages.app", 35 * MB),
-			createFile("Music.app", 100 * MB),
-			createFile("Safari.app", 70 * MB),
+	const root = $state([
+		new Node("Applications", [
+			new Node("App Store.app"),
+			new Node("FaceTime.app"),
+			new Node("Mail.app"),
+			new Node("Messages.app"),
+			new Node("Music.app"),
+			new Node("Safari.app"),
 		]),
-		createFolder("Developer", [
-			createFolder("svelte-file-tree", [
-				createFolder("src", [
-					createFolder("components", [
-						createFile("Tree.svelte", 11 * KB),
-						createFile("TreeItem.svelte", 5 * KB),
-						createFile("VirtualList.svelte", 5 * KB),
-						createFile("types.ts", 3 * KB),
+		new Node("Developer", [
+			new Node("svelte-file-tree", [
+				new Node("src", [
+					new Node("components", [
+						new Node("Tree.svelte"),
+						new Node("TreeItem.svelte"),
+						new Node("types.ts"),
 					]),
-					createFile("index.ts", 900),
-					createFile("tree.svelte.ts", 7 * KB),
+					new Node("index.ts"),
+					new Node("tree.svelte.ts"),
 				]),
-				createFile("package.json", 10 * KB),
-				createFile("README.md", 15 * KB),
+				new Node("package.json"),
+				new Node("README.md"),
 			]),
-			createFolder("svelte-material-ripple", [
-				createFolder("src", [
-					createFile("Ripple.svelte", 5 * KB),
-					createFile("index.ts", 1 * KB),
+			new Node("svelte-material-ripple", [
+				new Node("src", [
+					new Node("Ripple.svelte"),
+					new Node("index.ts"),
 				]),
-				createFile("package.json", 12 * KB),
-				createFile("README.md", 18 * KB),
+				new Node("package.json"),
+				new Node("README.md"),
 			]),
 		]),
-		createFolder("Documents", [
-			createFolder("Project Planning", [
-				createFile("q1-goals.xlsx", 10 * MB),
-				createFile("timeline.pdf", 20 * MB),
+		new Node("Documents", [
+			new Node("Project Planning", [
+				new Node("q1-goals.xlsx"),
+				new Node("timeline.pdf"),
 			]),
-			createFile("meeting-notes.docx", 10 * MB),
-			createFile("resume.pdf", 10 * MB),
+			new Node("meeting-notes.docx"),
+			new Node("resume.pdf"),
 		]),
-		createFolder("Downloads", [
-			createFile("conference-slides.pptx", 33 * MB),
-			createFile("typescript-cheatsheet.pdf", 10 * MB),
+		new Node("Downloads", [
+			new Node("conference-slides.pptx"),
+			new Node("typescript-cheatsheet.pdf"),
 		]),
-		createFolder("Movies", [
-			createFile("Finding Nemo.mp4", 1.5 * GB),
-			createFile("Inside Out.mp4", 1 * GB),
-			createFile("Up.mp4", 2 * GB),
+		new Node("Movies", [
+			new Node("Finding Nemo.mp4"),
+			new Node("Inside Out.mp4"),
+			new Node("Up.mp4"),
 		]),
-		createFolder("Pictures", [
-			createFolder("Screenshots", [
-				createFile("bug-report.png", 1 * MB),
-				createFile("component-diagram.png", 3 * MB),	
-				createFile("design-mockup.png", 2 * MB),
+		new Node("Pictures", [
+			new Node("Screenshots", [
+				new Node("bug-report.png"),
+				new Node("component-diagram.png"),
+				new Node("design-mockup.png"),
 			]),
-			createFile("profile-photo.jpg", 6 * MB),
+			new Node("profile-photo.jpg"),
 		]),
-		createFolder("Videos", [
-			createFile("Family Trip.mp4", 300 * MB),
-			createFile("Finding Nemo.mp4", 1.5 * GB),
+		new Node("Videos", [
+			new Node("Family Trip.mp4"),
+			new Node("Finding Nemo.mp4"),
 		]),
 	]);
+
+	const expanded_ids = new SvelteSet<string>();
+
+	function on_circular_reference({ source }: OnCircularReferenceArgs<Node>) {
+		toast.error(`Cannot move "${source.data.name}" inside itself`);
+	}
+
+	function on_copy({ sources, destination }: OnCopyArgs<Node>) {
+		const destination_children = destination?.data.children ?? root;
+		for (const source of sources) {
+			const copy = source.data.copy();
+			destination_children.push(copy);
+		}
+	}
+
+	function on_move({ sources, destination }: OnMoveArgs<Node>) {
+		const destination_children = destination?.data.children ?? root;
+		for (const source of sources) {
+			const index = source.parentChildren.findIndex((data) => data.id === source.id);
+			source.parentChildren.splice(index, 1);
+			destination_children.push(source.data);
+		}
+	}
+
+	function on_remove({ removed, nearestRemaining }: OnRemoveArgs<Node>) {
+		for (const item of removed) {
+			const index = item.parentChildren.findIndex((data) => data.id === item.id);
+			item.parentChildren.splice(index, 1);
+		}
+
+		if (nearestRemaining !== undefined) {
+			document.getElementById(nearestRemaining.elementId)?.focus();
+		}
+	}
+
+	function on_toggle_click(event: MouseEvent, item: TreeItemData<Node>) {
+		if (item.expanded) {
+			expanded_ids.delete(item.id);
+		} else {
+			expanded_ids.add(item.id);
+		}
+		event.preventDefault();
+	}
 </script>
 
-<Tree {root} class="min-h-svh scroll-p-6 p-6">
-	{#snippet children({ visibleItems })}
-		{#each visibleItems as item, order (item.node.id)}
-			<TreeItem {item} {order} />
+<Tree
+	{root}
+	expandedIds={expanded_ids}
+	onCircularReference={on_circular_reference}
+	onCopy={on_copy}
+	onMove={on_move}
+	onRemove={on_remove}
+	class="py-6"
+>
+	{#snippet children({ items })}
+		{#each items as item (item.id)}
+			<TreeItem
+				{item}
+				class="group flex items-center p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300"
+				style="padding-inline-start: calc({3 + 6 * item.depth} * var(--spacing))"
+			>
+				<ChevronDownIcon
+					role="presentation"
+					data-visible={item.hasChildren}
+					class="size-6 p-0.5 transition-transform duration-200 group-aria-expanded:-rotate-90 data-[visible=false]:invisible"
+					onclick={(event) => on_toggle_click(event, item)}
+				/>
+
+				<div class="ps-1 pe-2">
+					{#if item.hasChildren && item.expanded}
+						<FolderOpenIcon role="presentation" class="fill-blue-300" />
+					{:else if item.hasChildren}
+						<FolderIcon role="presentation" class="fill-blue-300" />
+					{:else}
+						<FileIcon role="presentation" />
+					{/if}
+				</div>
+
+				<span class="select-none">{item.data.name}</span>
+			</TreeItem>
 		{/each}
 	{/snippet}
 </Tree>

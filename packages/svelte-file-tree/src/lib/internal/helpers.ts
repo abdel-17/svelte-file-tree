@@ -1,5 +1,5 @@
 /** @link https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples */
-export function isControlOrMeta(event: KeyboardEvent | MouseEvent) {
+export function is_control_or_meta(event: KeyboardEvent | MouseEvent) {
 	if (navigator.platform.startsWith("Mac") || navigator.platform === "iPhone") {
 		return event.metaKey;
 	}
@@ -7,11 +7,3 @@ export function isControlOrMeta(event: KeyboardEvent | MouseEvent) {
 }
 
 export function noop() {}
-
-export function falsePredicate() {
-	return false;
-}
-
-export function truePredicate() {
-	return true;
-}
