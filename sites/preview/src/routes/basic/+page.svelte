@@ -1,89 +1,89 @@
 <script lang="ts">
-	import { Node } from "$lib/tree.svelte";
+	import { TreeItemData } from "$lib/tree.svelte";
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import {
 		Tree,
 		TreeItem,
-		TreeItemData,
 		type OnCircularReferenceArgs,
 		type OnCopyArgs,
 		type OnMoveArgs,
 		type OnRemoveArgs,
+		type TreeItemState,
 	} from "svelte-file-tree";
 	import { toast } from "svelte-sonner";
 
 	// prettier-ignore
 	const root = $state([
-		new Node("Applications", [
-			new Node("App Store.app"),
-			new Node("FaceTime.app"),
-			new Node("Mail.app"),
-			new Node("Messages.app"),
-			new Node("Music.app"),
-			new Node("Safari.app"),
+		new TreeItemData("Applications", [
+			new TreeItemData("App Store.app"),
+			new TreeItemData("FaceTime.app"),
+			new TreeItemData("Mail.app"),
+			new TreeItemData("Messages.app"),
+			new TreeItemData("Music.app"),
+			new TreeItemData("Safari.app"),
 		]),
-		new Node("Developer", [
-			new Node("svelte-file-tree", [
-				new Node("src", [
-					new Node("components", [
-						new Node("Tree.svelte"),
-						new Node("TreeItem.svelte"),
-						new Node("types.ts"),
+		new TreeItemData("Developer", [
+			new TreeItemData("svelte-file-tree", [
+				new TreeItemData("src", [
+					new TreeItemData("components", [
+						new TreeItemData("Tree.svelte"),
+						new TreeItemData("TreeItem.svelte"),
+						new TreeItemData("types.ts"),
 					]),
-					new Node("index.ts"),
-					new Node("tree.svelte.ts"),
+					new TreeItemData("index.ts"),
+					new TreeItemData("tree.svelte.ts"),
 				]),
-				new Node("package.json"),
-				new Node("README.md"),
+				new TreeItemData("package.json"),
+				new TreeItemData("README.md"),
 			]),
-			new Node("svelte-material-ripple", [
-				new Node("src", [
-					new Node("Ripple.svelte"),
-					new Node("index.ts"),
+			new TreeItemData("svelte-material-ripple", [
+				new TreeItemData("src", [
+					new TreeItemData("Ripple.svelte"),
+					new TreeItemData("index.ts"),
 				]),
-				new Node("package.json"),
-				new Node("README.md"),
+				new TreeItemData("package.json"),
+				new TreeItemData("README.md"),
 			]),
 		]),
-		new Node("Documents", [
-			new Node("Project Planning", [
-				new Node("q1-goals.xlsx"),
-				new Node("timeline.pdf"),
+		new TreeItemData("Documents", [
+			new TreeItemData("Project Planning", [
+				new TreeItemData("q1-goals.xlsx"),
+				new TreeItemData("timeline.pdf"),
 			]),
-			new Node("meeting-notes.docx"),
-			new Node("resume.pdf"),
+			new TreeItemData("meeting-notes.docx"),
+			new TreeItemData("resume.pdf"),
 		]),
-		new Node("Downloads", [
-			new Node("conference-slides.pptx"),
-			new Node("typescript-cheatsheet.pdf"),
+		new TreeItemData("Downloads", [
+			new TreeItemData("conference-slides.pptx"),
+			new TreeItemData("typescript-cheatsheet.pdf"),
 		]),
-		new Node("Movies", [
-			new Node("Finding Nemo.mp4"),
-			new Node("Inside Out.mp4"),
-			new Node("Up.mp4"),
+		new TreeItemData("Movies", [
+			new TreeItemData("Finding Nemo.mp4"),
+			new TreeItemData("Inside Out.mp4"),
+			new TreeItemData("Up.mp4"),
 		]),
-		new Node("Pictures", [
-			new Node("Screenshots", [
-				new Node("bug-report.png"),
-				new Node("component-diagram.png"),
-				new Node("design-mockup.png"),
+		new TreeItemData("Pictures", [
+			new TreeItemData("Screenshots", [
+				new TreeItemData("bug-report.png"),
+				new TreeItemData("component-diagram.png"),
+				new TreeItemData("design-mockup.png"),
 			]),
-			new Node("profile-photo.jpg"),
+			new TreeItemData("profile-photo.jpg"),
 		]),
-		new Node("Videos", [
-			new Node("Family Trip.mp4"),
-			new Node("Finding Nemo.mp4"),
+		new TreeItemData("Videos", [
+			new TreeItemData("Family Trip.mp4"),
+			new TreeItemData("Finding Nemo.mp4"),
 		]),
 	]);
 
 	const expanded_ids = new SvelteSet<string>();
 
-	function on_circular_reference({ source }: OnCircularReferenceArgs<Node>) {
+	function on_circular_reference({ source }: OnCircularReferenceArgs<TreeItemData>) {
 		toast.error(`Cannot move "${source.data.name}" inside itself`);
 	}
 
-	function on_copy({ sources, destination }: OnCopyArgs<Node>) {
+	function on_copy({ sources, destination }: OnCopyArgs<TreeItemData>) {
 		const destination_children = destination?.data.children ?? root;
 		for (const source of sources) {
 			const copy = source.data.copy();
@@ -91,7 +91,7 @@
 		}
 	}
 
-	function on_move({ sources, destination }: OnMoveArgs<Node>) {
+	function on_move({ sources, destination }: OnMoveArgs<TreeItemData>) {
 		const destination_children = destination?.data.children ?? root;
 		for (const source of sources) {
 			const index = source.parentChildren.findIndex((data) => data.id === source.id);
@@ -100,7 +100,7 @@
 		}
 	}
 
-	function on_remove({ removed, nearestRemaining }: OnRemoveArgs<Node>) {
+	function on_remove({ removed, nearestRemaining }: OnRemoveArgs<TreeItemData>) {
 		for (const item of removed) {
 			const index = item.parentChildren.findIndex((data) => data.id === item.id);
 			item.parentChildren.splice(index, 1);
@@ -111,7 +111,7 @@
 		}
 	}
 
-	function on_toggle_click(event: MouseEvent, item: TreeItemData<Node>) {
+	function on_toggle_click(event: MouseEvent, item: TreeItemState<TreeItemData>) {
 		if (item.expanded) {
 			expanded_ids.delete(item.id);
 		} else {
@@ -132,6 +132,7 @@
 >
 	{#snippet children({ items })}
 		{#each items as item (item.id)}
+			{@const has_children = item.data.children !== undefined && item.data.children.length !== 0}
 			<TreeItem
 				{item}
 				class="group flex items-center p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300"
@@ -139,15 +140,15 @@
 			>
 				<ChevronDownIcon
 					role="presentation"
-					data-visible={item.hasChildren}
+					data-visible={has_children}
 					class="size-6 p-0.5 transition-transform duration-200 group-aria-expanded:-rotate-90 data-[visible=false]:invisible"
 					onclick={(event) => on_toggle_click(event, item)}
 				/>
 
 				<div class="ps-1 pe-2">
-					{#if item.hasChildren && item.expanded}
+					{#if has_children && item.expanded}
 						<FolderOpenIcon role="presentation" class="fill-blue-300" />
-					{:else if item.hasChildren}
+					{:else if has_children}
 						<FolderIcon role="presentation" class="fill-blue-300" />
 					{:else}
 						<FileIcon role="presentation" />

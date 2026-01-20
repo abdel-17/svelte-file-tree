@@ -1,15 +1,15 @@
-export class Node {
+export class TreeItemData {
 	id = crypto.randomUUID();
 	name: string;
-	children?: Node[];
+	children?: TreeItemData[];
 
-	constructor(name: string, children?: Node[]) {
+	constructor(name: string, children?: TreeItemData[]) {
 		this.name = name;
 		this.children = $state(children);
 	}
 
-	copy(): Node {
-		return new Node(
+	copy(): TreeItemData {
+		return new TreeItemData(
 			this.name,
 			this.children?.map((child) => child.copy()),
 		);

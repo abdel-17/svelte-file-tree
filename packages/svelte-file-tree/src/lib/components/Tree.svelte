@@ -20,13 +20,12 @@
 	const uid = $props.id();
 	let {
 		root,
-		getItemId = (data: any) => data.id,
-		getItemChildren = (data: any) => data.children,
+		getId = (data: any) => data.id,
+		getChildren = (data: any) => data.children,
 		hasChildren = (data) => {
-			const children = getItemChildren(data);
+			const children = getChildren(data);
 			return children !== undefined && children.length !== 0;
 		},
-		isItemDisabled = () => false,
 		defaultSelectedIds,
 		selectedIds = new SvelteSet(defaultSelectedIds),
 		defaultExpandedIds,
@@ -47,10 +46,9 @@
 	const tree_state = create_tree_state({
 		uid,
 		root: () => root,
-		get_item_id: (data) => getItemId(data),
-		get_item_children: (data) => getItemChildren(data),
+		get_id: (data) => getId(data),
+		get_children: (data) => getChildren(data),
 		has_children: (data) => hasChildren(data),
-		is_item_disabled: (data) => isItemDisabled(data),
 		selected_ids: () => selectedIds,
 		expanded_ids: () => expandedIds,
 		clipboard_ids: () => clipboardIds,
@@ -67,12 +65,12 @@
 	});
 	setContext(CONTEXT_KEY, tree_state);
 
-	export const items = tree_state.items;
+	export const getItems = tree_state.get_items;
 	export const getItem = tree_state.get_item;
 	export const remove = tree_state.remove;
 	export const paste = tree_state.paste;
 </script>
 
 <div {...rest} bind:this={ref} role="tree" aria-multiselectable="true">
-	{@render children?.({ items: tree_state.items() })}
+	{@render children?.({ items: getItems() })}
 </div>

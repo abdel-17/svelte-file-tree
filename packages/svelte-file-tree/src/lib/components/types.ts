@@ -1,40 +1,50 @@
-import type { TreeItemData } from "$lib/tree.svelte.js";
 import type { Snippet } from "svelte";
 import type { HTMLAttributes } from "svelte/elements";
 import type { SvelteSet } from "svelte/reactivity";
 
+export type TreeItemState<T> = {
+	id: string;
+	elementId: string;
+	data: T;
+	index: number;
+	depth: number;
+	parent: TreeItemState<T> | undefined;
+	parentChildren: T[];
+	indexInChildren: number;
+	expanded: boolean;
+};
+
 export type PasteOperation = "copy" | "cut";
 
 export type OnCircularReferenceArgs<T> = {
-	source: TreeItemData<T>;
-	destination: TreeItemData<T>;
+	source: TreeItemState<T>;
+	destination: TreeItemState<T>;
 };
 
 export type OnCopyArgs<T> = {
-	sources: TreeItemData<T>[];
-	destination: TreeItemData<T> | undefined;
+	sources: TreeItemState<T>[];
+	destination: TreeItemState<T> | undefined;
 };
 
 export type OnMoveArgs<T> = {
-	sources: TreeItemData<T>[];
-	destination: TreeItemData<T> | undefined;
+	sources: TreeItemState<T>[];
+	destination: TreeItemState<T> | undefined;
 };
 
 export type OnRemoveArgs<T> = {
-	removed: TreeItemData<T>[];
-	nearestRemaining: TreeItemData<T> | undefined;
+	removed: TreeItemState<T>[];
+	nearestRemaining: TreeItemState<T> | undefined;
 };
 
 export type TreeChildrenSnippetArgs<T> = {
-	items: TreeItemData<T>[];
+	items: TreeItemState<T>[];
 };
 
 export interface TreeProps<T> extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
 	root: T[];
-	getItemId?: (data: T) => string;
-	getItemChildren?: (data: T) => T[] | undefined;
+	getId?: (data: T) => string;
+	getChildren?: (data: T) => T[] | undefined;
 	hasChildren?: (data: T) => boolean;
-	isItemDisabled?: (data: T) => boolean;
 	defaultSelectedIds?: Iterable<string>;
 	selectedIds?: SvelteSet<string>;
 	defaultExpandedIds?: Iterable<string>;
@@ -43,7 +53,7 @@ export interface TreeProps<T> extends Omit<HTMLAttributes<HTMLDivElement>, "chil
 	clipboardIds?: SvelteSet<string>;
 	pasteOperation?: PasteOperation;
 	ref?: HTMLDivElement | null;
-	onFocus?: (item: TreeItemData<T>) => void;
+	onFocus?: (item: TreeItemState<T>) => void;
 	onCircularReference?: (args: OnCircularReferenceArgs<T>) => void;
 	onCopy?: (args: OnCopyArgs<T>) => void;
 	onMove?: (args: OnMoveArgs<T>) => void;
@@ -56,7 +66,8 @@ export type TreeRemoveMethodOptions = {
 };
 
 export interface TreeItemProps<T> extends HTMLAttributes<HTMLDivElement> {
-	item: TreeItemData<T>;
+	item: TreeItemState<T>;
+	disabled?: boolean;
 	ref?: HTMLDivElement | null;
 	children?: Snippet;
 }
