@@ -1,4 +1,5 @@
-name: Publish Approved Pull Requests
+name: Publish Pull Request
+
 on:
   pull_request:
 
@@ -21,5 +22,5 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      - name: Publish Preview
+      - name: Publish
         run: pnpm dlx pkg-pr-new publish packages/svelte-file-tree

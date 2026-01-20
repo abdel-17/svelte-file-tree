@@ -30,11 +30,11 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Run Svelte Check
+      - name: Svelte Check
         run: pnpm check
 
   lint:
-    name: Formatting
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,5 +52,5 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Run Prettier
+      - name: Check Formatting
         run: pnpm format:check
