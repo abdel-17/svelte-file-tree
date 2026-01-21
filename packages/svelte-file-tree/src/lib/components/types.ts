@@ -5,7 +5,7 @@ import type { SvelteSet } from "svelte/reactivity";
 export type TreeItemState<T> = {
 	id: string;
 	elementId: string;
-	data: T;
+	node: T;
 	index: number;
 	depth: number;
 	parent: TreeItemState<T> | undefined;
@@ -42,9 +42,9 @@ export type TreeChildrenSnippetArgs<T> = {
 
 export interface TreeProps<T> extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
 	root: T[];
-	getId?: (data: T) => string;
-	getChildren?: (data: T) => T[] | undefined;
-	hasChildren?: (data: T) => boolean;
+	getId?: (node: T) => string;
+	getChildren?: (node: T) => T[] | undefined;
+	hasChildren?: (node: T) => boolean;
 	defaultSelectedIds?: Iterable<string>;
 	selectedIds?: SvelteSet<string>;
 	defaultExpandedIds?: Iterable<string>;

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { TreeItemData } from "$lib/tree.svelte";
+	import { TreeNode } from "$lib/tree.svelte";
 	import {
 		elementScroll,
 		observeElementOffset,
@@ -21,7 +21,7 @@
 	} from "svelte-file-tree";
 	import { toast } from "svelte-sonner";
 
-	let tree: Tree<TreeItemData> | null = $state.raw(null);
+	let tree: Tree<TreeNode> | null = $state.raw(null);
 	const root = $state(
 		Array(10_000)
 			.fill(null)
@@ -30,9 +30,9 @@
 				if (i % 100 === 0) {
 					children = Array(1000)
 						.fill(null)
-						.map((_, j) => new TreeItemData(`Item ${i + 1}.${j + 1}`));
+						.map((_, j) => new TreeNode(`Item ${i + 1}.${j + 1}`));
 				}
-				return new TreeItemData(`Item ${i + 1}`, children);
+				return new TreeNode(`Item ${i + 1}`, children);
 			}),
 	);
 	const expanded_ids = new SvelteSet<string>();
@@ -40,7 +40,7 @@
 	let paste_operation: PasteOperation | undefined = $state.raw();
 
 	type VirtualItem = {
-		item: TreeItemState<TreeItemData>;
+		item: TreeItemState<TreeNode>;
 		start: number;
 		height: number;
 	};
@@ -84,7 +84,7 @@
 		virtualizer.measure();
 	});
 
-	function on_focus(item: TreeItemState<TreeItemData>) {
+	function on_focus(item: TreeItemState<TreeNode>) {
 		const element = document.getElementById(item.elementId);
 		if (element !== null) {
 			element.focus();
@@ -109,33 +109,33 @@
 		});
 	}
 
-	function on_circular_reference({ source }: OnCircularReferenceArgs<TreeItemData>) {
-		toast.error(`Cannot move "${source.data.name}" inside itself`);
+	function on_circular_reference({ source }: OnCircularReferenceArgs<TreeNode>) {
+		toast.error(`Cannot move "${source.node.name}" inside itself`);
 	}
 
-	function on_copy({ sources, destination }: OnCopyArgs<TreeItemData>) {
-		const destination_children = destination?.data.children ?? root;
+	function on_copy({ sources, destination }: OnCopyArgs<TreeNode>) {
+		const destination_children = destination?.node.children ?? root;
 		for (const source of sources) {
-			const copy = source.data.copy();
+			const copy = source.node.copy();
 			destination_children.push(copy);
 		}
 	}
 
-	function on_cut({ sources, destination }: OnCutArgs<TreeItemData>) {
-		const destination_children = destination?.data.children ?? root;
+	function on_cut({ sources, destination }: OnCutArgs<TreeNode>) {
+		const destination_children = destination?.node.children ?? root;
 		for (const source of sources) {
-			const index = source.parentChildren.findIndex((data) => data.id === source.id);
+			const index = source.parentChildren.findIndex((node) => node.id === source.id);
 			source.parentChildren.splice(index, 1);
-			destination_children.push(source.data);
+			destination_children.push(source.node);
 		}
 
 		clipboard_ids.clear();
 		paste_operation = undefined;
 	}
 
-	function on_remove({ removed, nearestRemaining }: OnRemoveArgs<TreeItemData>) {
+	function on_remove({ removed, nearestRemaining }: OnRemoveArgs<TreeNode>) {
 		for (const item of removed) {
-			const index = item.parentChildren.findIndex((data) => data.id === item.id);
+			const index = item.parentChildren.findIndex((node) => node.id === item.id);
 			item.parentChildren.splice(index, 1);
 		}
 
@@ -144,7 +144,7 @@
 		}
 	}
 
-	function on_toggle_click(event: MouseEvent, item: TreeItemState<TreeItemData>) {
+	function on_toggle_click(event: MouseEvent, item: TreeItemState<TreeNode>) {
 		if (item.expanded) {
 			expanded_ids.delete(item.id);
 		} else {
@@ -170,7 +170,7 @@
 		style="height: {tree_height}px;"
 	>
 		{#each virtual_items as { item, height, start } (item.id)}
-			{@const children = item.data.children}
+			{@const children = item.node.children}
 			<TreeItem
 				{item}
 				class="group absolute top-0 right-0 left-0 flex items-center p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300"
@@ -197,7 +197,7 @@
 					{/if}
 				</div>
 
-				<span class="select-none">{item.data.name}</span>
+				<span class="select-none">{item.node.name}</span>
 			</TreeItem>
 		{/each}
 	</Tree>

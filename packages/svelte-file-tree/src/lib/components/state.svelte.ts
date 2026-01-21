@@ -12,9 +12,9 @@ import type {
 export type TreeStateProps<T> = {
 	uid: string;
 	root: () => T[];
-	get_id: (data: T) => string;
-	get_children: (data: T) => T[] | undefined;
-	has_children: (data: T) => boolean;
+	get_id: (node: T) => string;
+	get_children: (node: T) => T[] | undefined;
+	has_children: (node: T) => boolean;
 	selected_ids: () => SvelteSet<string>;
 	expanded_ids: () => SvelteSet<string>;
 	clipboard_ids: () => SvelteSet<string>;
@@ -38,12 +38,12 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 		function flatten(children: T[], parent?: TreeItemState<T>) {
 			const depth = parent === undefined ? 0 : parent.depth + 1;
 			for (let i = 0; i < children.length; i++) {
-				const data = children[i];
-				const id = props.get_id(data);
+				const node = children[i];
+				const id = props.get_id(node);
 				const item: TreeItemState<T> = {
 					id,
 					elementId: `${props.uid}-${id}`,
-					data,
+					node,
 					index: result.length,
 					depth,
 					parent,
@@ -54,7 +54,7 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 				result.push(item);
 
 				if (item.expanded) {
-					const children = props.get_children(data);
+					const children = props.get_children(node);
 					if (children !== undefined) {
 						flatten(children, item);
 					}
@@ -113,7 +113,7 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 	}
 
 	function paste(destination?: TreeItemState<T>) {
-		if (destination !== undefined && !props.has_children(destination.data)) {
+		if (destination !== undefined && !props.has_children(destination.node)) {
 			return;
 		}
 

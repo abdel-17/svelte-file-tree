@@ -63,7 +63,7 @@
 
 		switch (event.key) {
 			case arrow_end: {
-				if (!tree_state.has_children(item.data)) {
+				if (!tree_state.has_children(item.node)) {
 					break;
 				}
 
@@ -236,7 +236,7 @@
 					break;
 				}
 
-				const destination = tree_state.has_children(item.data) ? item : item.parent;
+				const destination = tree_state.has_children(item.node) ? item : item.parent;
 				tree_state.paste(destination);
 				event.preventDefault();
 				break;
@@ -269,7 +269,7 @@
 	role="treeitem"
 	tabindex={tree_state.get_tabbable_id() === item.id ? 0 : -1}
 	aria-selected={selected}
-	aria-expanded={tree_state.has_children(item.data) ? item.expanded : undefined}
+	aria-expanded={tree_state.has_children(item.node) ? item.expanded : undefined}
 	aria-disabled={disabled}
 	aria-level={item.depth + 1}
 	aria-posinset={item.indexInChildren + 1}

@@ -20,10 +20,10 @@
 	const uid = $props.id();
 	let {
 		root,
-		getId = (data: any) => data.id,
-		getChildren = (data: any) => data.children,
-		hasChildren = (data) => {
-			const children = getChildren(data);
+		getId = (node: any) => node.id,
+		getChildren = (node: any) => node.children,
+		hasChildren = (node) => {
+			const children = getChildren(node);
 			return children !== undefined && children.length !== 0;
 		},
 		defaultSelectedIds,
@@ -46,9 +46,9 @@
 	const tree_state = create_tree_state({
 		uid,
 		root: () => root,
-		get_id: (data) => getId(data),
-		get_children: (data) => getChildren(data),
-		has_children: (data) => hasChildren(data),
+		get_id: (node) => getId(node),
+		get_children: (node) => getChildren(node),
+		has_children: (node) => hasChildren(node),
 		selected_ids: () => selectedIds,
 		expanded_ids: () => expandedIds,
 		clipboard_ids: () => clipboardIds,

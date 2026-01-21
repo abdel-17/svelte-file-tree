@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { TreeItemData } from "$lib/tree.svelte";
+	import { TreeNode } from "$lib/tree.svelte";
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import {
@@ -16,65 +16,65 @@
 
 	// prettier-ignore
 	const root = $state([
-		new TreeItemData("Applications", [
-			new TreeItemData("App Store.app"),
-			new TreeItemData("FaceTime.app"),
-			new TreeItemData("Mail.app"),
-			new TreeItemData("Messages.app"),
-			new TreeItemData("Music.app"),
-			new TreeItemData("Safari.app"),
+		new TreeNode("Applications", [
+			new TreeNode("App Store.app"),
+			new TreeNode("FaceTime.app"),
+			new TreeNode("Mail.app"),
+			new TreeNode("Messages.app"),
+			new TreeNode("Music.app"),
+			new TreeNode("Safari.app"),
 		]),
-		new TreeItemData("Developer", [
-			new TreeItemData("svelte-file-tree", [
-				new TreeItemData("src", [
-					new TreeItemData("components", [
-						new TreeItemData("Tree.svelte"),
-						new TreeItemData("TreeItem.svelte"),
-						new TreeItemData("types.ts"),
+		new TreeNode("Developer", [
+			new TreeNode("svelte-file-tree", [
+				new TreeNode("src", [
+					new TreeNode("components", [
+						new TreeNode("Tree.svelte"),
+						new TreeNode("TreeItem.svelte"),
+						new TreeNode("types.ts"),
 					]),
-					new TreeItemData("index.ts"),
-					new TreeItemData("tree.svelte.ts"),
+					new TreeNode("index.ts"),
+					new TreeNode("tree.svelte.ts"),
 				]),
-				new TreeItemData("package.json"),
-				new TreeItemData("README.md"),
+				new TreeNode("package.json"),
+				new TreeNode("README.md"),
 			]),
-			new TreeItemData("svelte-material-ripple", [
-				new TreeItemData("src", [
-					new TreeItemData("Ripple.svelte"),
-					new TreeItemData("index.ts"),
+			new TreeNode("svelte-material-ripple", [
+				new TreeNode("src", [
+					new TreeNode("Ripple.svelte"),
+					new TreeNode("index.ts"),
 				]),
-				new TreeItemData("package.json"),
-				new TreeItemData("README.md"),
+				new TreeNode("package.json"),
+				new TreeNode("README.md"),
 			]),
 		]),
-		new TreeItemData("Documents", [
-			new TreeItemData("Project Planning", [
-				new TreeItemData("q1-goals.xlsx"),
-				new TreeItemData("timeline.pdf"),
+		new TreeNode("Documents", [
+			new TreeNode("Project Planning", [
+				new TreeNode("q1-goals.xlsx"),
+				new TreeNode("timeline.pdf"),
 			]),
-			new TreeItemData("meeting-notes.docx"),
-			new TreeItemData("resume.pdf"),
+			new TreeNode("meeting-notes.docx"),
+			new TreeNode("resume.pdf"),
 		]),
-		new TreeItemData("Downloads", [
-			new TreeItemData("conference-slides.pptx"),
-			new TreeItemData("typescript-cheatsheet.pdf"),
+		new TreeNode("Downloads", [
+			new TreeNode("conference-slides.pptx"),
+			new TreeNode("typescript-cheatsheet.pdf"),
 		]),
-		new TreeItemData("Movies", [
-			new TreeItemData("Finding Nemo.mp4"),
-			new TreeItemData("Inside Out.mp4"),
-			new TreeItemData("Up.mp4"),
+		new TreeNode("Movies", [
+			new TreeNode("Finding Nemo.mp4"),
+			new TreeNode("Inside Out.mp4"),
+			new TreeNode("Up.mp4"),
 		]),
-		new TreeItemData("Pictures", [
-			new TreeItemData("Screenshots", [
-				new TreeItemData("bug-report.png"),
-				new TreeItemData("component-diagram.png"),
-				new TreeItemData("design-mockup.png"),
+		new TreeNode("Pictures", [
+			new TreeNode("Screenshots", [
+				new TreeNode("bug-report.png"),
+				new TreeNode("component-diagram.png"),
+				new TreeNode("design-mockup.png"),
 			]),
-			new TreeItemData("profile-photo.jpg"),
+			new TreeNode("profile-photo.jpg"),
 		]),
-		new TreeItemData("Videos", [
-			new TreeItemData("Family Trip.mp4"),
-			new TreeItemData("Finding Nemo.mp4"),
+		new TreeNode("Videos", [
+			new TreeNode("Family Trip.mp4"),
+			new TreeNode("Finding Nemo.mp4"),
 		]),
 	]);
 
@@ -82,33 +82,33 @@
 	const clipboard_ids = new SvelteSet<string>();
 	let paste_operation: PasteOperation | undefined = $state.raw();
 
-	function on_circular_reference({ source }: OnCircularReferenceArgs<TreeItemData>) {
-		toast.error(`Cannot move "${source.data.name}" inside itself`);
+	function on_circular_reference({ source }: OnCircularReferenceArgs<TreeNode>) {
+		toast.error(`Cannot move "${source.node.name}" inside itself`);
 	}
 
-	function on_copy({ sources, destination }: OnCopyArgs<TreeItemData>) {
-		const destination_children = destination?.data.children ?? root;
+	function on_copy({ sources, destination }: OnCopyArgs<TreeNode>) {
+		const destination_children = destination?.node.children ?? root;
 		for (const source of sources) {
-			const copy = source.data.copy();
+			const copy = source.node.copy();
 			destination_children.push(copy);
 		}
 	}
 
-	function on_cut({ sources, destination }: OnCutArgs<TreeItemData>) {
-		const destination_children = destination?.data.children ?? root;
+	function on_cut({ sources, destination }: OnCutArgs<TreeNode>) {
+		const destination_children = destination?.node.children ?? root;
 		for (const source of sources) {
-			const index = source.parentChildren.findIndex((data) => data.id === source.id);
+			const index = source.parentChildren.findIndex((node) => node.id === source.id);
 			source.parentChildren.splice(index, 1);
-			destination_children.push(source.data);
+			destination_children.push(source.node);
 		}
 
 		clipboard_ids.clear();
 		paste_operation = undefined;
 	}
 
-	function on_remove({ removed, nearestRemaining }: OnRemoveArgs<TreeItemData>) {
+	function on_remove({ removed, nearestRemaining }: OnRemoveArgs<TreeNode>) {
 		for (const item of removed) {
-			const index = item.parentChildren.findIndex((data) => data.id === item.id);
+			const index = item.parentChildren.findIndex((node) => node.id === item.id);
 			item.parentChildren.splice(index, 1);
 		}
 
@@ -117,7 +117,7 @@
 		}
 	}
 
-	function on_toggle_click(event: MouseEvent, item: TreeItemState<TreeItemData>) {
+	function on_toggle_click(event: MouseEvent, item: TreeItemState<TreeNode>) {
 		if (item.expanded) {
 			expanded_ids.delete(item.id);
 		} else {
@@ -140,7 +140,7 @@
 >
 	{#snippet children({ items })}
 		{#each items as item (item.id)}
-			{@const children = item.data.children}
+			{@const children = item.node.children}
 			<TreeItem
 				{item}
 				class="group flex items-center p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300"
@@ -163,7 +163,7 @@
 					{/if}
 				</div>
 
-				<span class="select-none">{item.data.name}</span>
+				<span class="select-none">{item.node.name}</span>
 			</TreeItem>
 		{/each}
 	{/snippet}
