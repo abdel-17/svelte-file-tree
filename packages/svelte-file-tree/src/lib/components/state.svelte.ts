@@ -2,7 +2,7 @@ import type { SvelteSet } from "svelte/reactivity";
 import type {
 	OnCircularReferenceArgs,
 	OnCopyArgs,
-	OnMoveArgs,
+	OnCutArgs,
 	OnRemoveArgs,
 	PasteOperation,
 	TreeItemState,
@@ -24,7 +24,7 @@ export type TreeStateProps<T> = {
 	on_focus: (item: TreeItemState<T>) => void;
 	on_circular_reference: (args: OnCircularReferenceArgs<T>) => void;
 	on_copy: (args: OnCopyArgs<T>) => void;
-	on_move: (args: OnMoveArgs<T>) => void;
+	on_cut: (args: OnCutArgs<T>) => void;
 	on_remove: (args: OnRemoveArgs<T>) => void;
 };
 
@@ -154,7 +154,7 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 				break;
 			}
 			case "cut": {
-				props.on_move({ sources, destination });
+				props.on_cut({ sources, destination });
 				break;
 			}
 		}

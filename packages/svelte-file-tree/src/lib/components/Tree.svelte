@@ -37,7 +37,7 @@
 		onFocus = (item) => document.getElementById(item.elementId)?.focus(),
 		onCircularReference = noop,
 		onCopy = noop,
-		onMove = noop,
+		onCut = noop,
 		onRemove = noop,
 		children,
 		...rest
@@ -60,7 +60,7 @@
 		on_focus: (args) => onFocus(args),
 		on_circular_reference: (args) => onCircularReference(args),
 		on_copy: (args) => onCopy(args),
-		on_move: (args) => onMove(args),
+		on_cut: (args) => onCut(args),
 		on_remove: (args) => onRemove(args),
 	});
 	setContext(CONTEXT_KEY, tree_state);

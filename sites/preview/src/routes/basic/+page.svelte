@@ -7,8 +7,9 @@
 		TreeItem,
 		type OnCircularReferenceArgs,
 		type OnCopyArgs,
-		type OnMoveArgs,
+		type OnCutArgs,
 		type OnRemoveArgs,
+		type PasteOperation,
 		type TreeItemState,
 	} from "svelte-file-tree";
 	import { toast } from "svelte-sonner";
@@ -78,6 +79,8 @@
 	]);
 
 	const expanded_ids = new SvelteSet<string>();
+	const clipboard_ids = new SvelteSet<string>();
+	let paste_operation: PasteOperation | undefined = $state.raw();
 
 	function on_circular_reference({ source }: OnCircularReferenceArgs<TreeItemData>) {
 		toast.error(`Cannot move "${source.data.name}" inside itself`);
@@ -91,13 +94,16 @@
 		}
 	}
 
-	function on_move({ sources, destination }: OnMoveArgs<TreeItemData>) {
+	function on_cut({ sources, destination }: OnCutArgs<TreeItemData>) {
 		const destination_children = destination?.data.children ?? root;
 		for (const source of sources) {
 			const index = source.parentChildren.findIndex((data) => data.id === source.id);
 			source.parentChildren.splice(index, 1);
 			destination_children.push(source.data);
 		}
+
+		clipboard_ids.clear();
+		paste_operation = undefined;
 	}
 
 	function on_remove({ removed, nearestRemaining }: OnRemoveArgs<TreeItemData>) {
@@ -124,9 +130,11 @@
 <Tree
 	{root}
 	expandedIds={expanded_ids}
+	clipboardIds={clipboard_ids}
+	bind:pasteOperation={paste_operation}
 	onCircularReference={on_circular_reference}
 	onCopy={on_copy}
-	onMove={on_move}
+	onCut={on_cut}
 	onRemove={on_remove}
 	class="py-6"
 >

@@ -26,7 +26,7 @@ export type OnCopyArgs<T> = {
 	destination: TreeItemState<T> | undefined;
 };
 
-export type OnMoveArgs<T> = {
+export type OnCutArgs<T> = {
 	sources: TreeItemState<T>[];
 	destination: TreeItemState<T> | undefined;
 };
@@ -56,7 +56,7 @@ export interface TreeProps<T> extends Omit<HTMLAttributes<HTMLDivElement>, "chil
 	onFocus?: (item: TreeItemState<T>) => void;
 	onCircularReference?: (args: OnCircularReferenceArgs<T>) => void;
 	onCopy?: (args: OnCopyArgs<T>) => void;
-	onMove?: (args: OnMoveArgs<T>) => void;
+	onCut?: (args: OnCutArgs<T>) => void;
 	onRemove?: (args: OnRemoveArgs<T>) => void;
 	children?: Snippet<[args: TreeChildrenSnippetArgs<T>]>;
 }
