@@ -166,13 +166,13 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 		}
 
 		const removed_item = items[index];
-		const removed: TreeItemState<T>[] = [];
+		const sources: TreeItemState<T>[] = [];
 		const selected_ids = props.selected_ids();
 		if (includeSelected) {
 			for (const id of selected_ids) {
 				const item = get_item(id);
 				if (item !== undefined && find_parent_in(selected_ids, item) === undefined) {
-					removed.push(item);
+					sources.push(item);
 				}
 			}
 
@@ -180,10 +180,10 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 				!selected_ids.has(removed_item.id) &&
 				find_parent_in(selected_ids, removed_item) === undefined
 			) {
-				removed.push(removed_item);
+				sources.push(removed_item);
 			}
 		} else {
-			removed.push(removed_item);
+			sources.push(removed_item);
 		}
 
 		function find_removed(item: TreeItemState<T> | undefined) {
@@ -238,7 +238,7 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 			}
 		}
 
-		props.on_remove({ removed, nearestRemaining: nearest_remaining });
+		props.on_remove({ sources, nearestRemaining: nearest_remaining });
 	}
 
 	return {

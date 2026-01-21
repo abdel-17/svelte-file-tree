@@ -32,7 +32,7 @@ export type OnCutArgs<T> = {
 };
 
 export type OnRemoveArgs<T> = {
-	removed: TreeItemState<T>[];
+	sources: TreeItemState<T>[];
 	nearestRemaining: TreeItemState<T> | undefined;
 };
 

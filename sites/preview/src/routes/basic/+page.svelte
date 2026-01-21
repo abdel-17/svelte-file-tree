@@ -106,10 +106,10 @@
 		paste_operation = undefined;
 	}
 
-	function on_remove({ removed, nearestRemaining }: OnRemoveArgs<TreeNode>) {
-		for (const item of removed) {
-			const index = item.parentChildren.findIndex((node) => node.id === item.id);
-			item.parentChildren.splice(index, 1);
+	function on_remove({ sources, nearestRemaining }: OnRemoveArgs<TreeNode>) {
+		for (const source of sources) {
+			const index = source.parentChildren.findIndex((node) => node.id === source.id);
+			source.parentChildren.splice(index, 1);
 		}
 
 		if (nearestRemaining !== undefined) {
