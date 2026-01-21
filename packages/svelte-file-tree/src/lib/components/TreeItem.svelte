@@ -241,9 +241,6 @@
 				event.preventDefault();
 				break;
 			}
-			default: {
-				return;
-			}
 		}
 	};
 
