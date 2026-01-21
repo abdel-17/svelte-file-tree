@@ -78,19 +78,9 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 		return lookup.get(id);
 	}
 
-	function find_selected_parent(item: TreeItemState<T>) {
-		const selected_ids = props.selected_ids();
+	function find_parent_in(ids: Set<string>, item: TreeItemState<T>) {
 		for (let parent = item.parent; parent !== undefined; parent = parent.parent) {
-			if (selected_ids.has(parent.id)) {
-				return parent;
-			}
-		}
-	}
-
-	function find_parent_in_clipboard(item: TreeItemState<T>) {
-		const clipboard_ids = props.clipboard_ids();
-		for (let parent = item.parent; parent !== undefined; parent = parent.parent) {
-			if (clipboard_ids.has(parent.id)) {
+			if (ids.has(parent.id)) {
 				return parent;
 			}
 		}
@@ -139,7 +129,7 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 				return;
 			}
 
-			const cut_parent = find_parent_in_clipboard(destination);
+			const cut_parent = find_parent_in(clipboard_ids, destination);
 			if (cut_parent !== undefined) {
 				props.on_circular_reference({ source: cut_parent, destination });
 				return;
@@ -149,7 +139,7 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 		const sources: TreeItemState<T>[] = [];
 		for (const id of clipboard_ids) {
 			const item = get_item(id);
-			if (item !== undefined && find_parent_in_clipboard(item) === undefined) {
+			if (item !== undefined && find_parent_in(clipboard_ids, item) === undefined) {
 				sources.push(item);
 			}
 		}
@@ -181,12 +171,15 @@ export function create_tree_state<T>(props: TreeStateProps<T>) {
 		if (includeSelected) {
 			for (const id of selected_ids) {
 				const item = get_item(id);
-				if (item !== undefined && find_selected_parent(item) === undefined) {
+				if (item !== undefined && find_parent_in(selected_ids, item) === undefined) {
 					removed.push(item);
 				}
 			}
 
-			if (!selected_ids.has(removed_item.id) && find_selected_parent(removed_item) === undefined) {
+			if (
+				!selected_ids.has(removed_item.id) &&
+				find_parent_in(selected_ids, removed_item) === undefined
+			) {
 				removed.push(removed_item);
 			}
 		} else {
