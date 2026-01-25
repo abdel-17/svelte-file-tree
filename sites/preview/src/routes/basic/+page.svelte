@@ -1,98 +1,126 @@
 <script lang="ts">
-	import Tree from "$lib/Tree.svelte";
-	import TreeItem from "$lib/TreeItem.svelte";
-	import { FileNode, FileTree, FolderNode, type FileTreeNode } from "$lib/tree.svelte.js";
+	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
+	import { SvelteSet } from "svelte/reactivity";
+	import { Tree, TreeItem, type TreeItemState } from "svelte-file-tree";
 
-	const KB = 1024;
-	const MB = 1024 * KB;
-	const GB = 1024 * MB;
+	type TreeNode = {
+		id: string;
+		name: string;
+		children?: TreeNode[];
+	};
 
-	function createFile(name: string, size: number) {
-		return new FileNode({
-			id: crypto.randomUUID(),
-			name,
-			size,
-		});
-	}
-
-	function createFolder(name: string, children: Array<FileTreeNode>) {
-		return new FolderNode({
-			id: crypto.randomUUID(),
-			name,
-			children,
-		});
+	function create_node(name: string, children?: TreeNode[]): TreeNode {
+		return { id: crypto.randomUUID(), name, children };
 	}
 
 	// prettier-ignore
-	const root = new FileTree([
-		createFolder("Applications", [
-			createFile("App Store.app", 50 * MB),
-			createFile("FaceTime.app", 30 * MB),
-			createFile("Mail.app", 20 * MB),
-			createFile("Messages.app", 35 * MB),
-			createFile("Music.app", 100 * MB),
-			createFile("Safari.app", 70 * MB),
+	const root = [
+		create_node("Applications", [
+			create_node("App Store.app"),
+			create_node("FaceTime.app"),
+			create_node("Mail.app"),
+			create_node("Messages.app"),
+			create_node("Music.app"),
+			create_node("Safari.app"),
 		]),
-		createFolder("Developer", [
-			createFolder("svelte-file-tree", [
-				createFolder("src", [
-					createFolder("components", [
-						createFile("Tree.svelte", 11 * KB),
-						createFile("TreeItem.svelte", 5 * KB),
-						createFile("VirtualList.svelte", 5 * KB),
-						createFile("types.ts", 3 * KB),
+		create_node("Developer", [
+			create_node("svelte-file-tree", [
+				create_node("src", [
+					create_node("components", [
+						create_node("Tree.svelte"),
+						create_node("TreeItem.svelte"),
+						create_node("types.ts"),
 					]),
-					createFile("index.ts", 900),
-					createFile("tree.svelte.ts", 7 * KB),
+					create_node("index.ts"),
+					create_node("tree.svelte.ts"),
 				]),
-				createFile("package.json", 10 * KB),
-				createFile("README.md", 15 * KB),
+				create_node("package.json"),
+				create_node("README.md"),
 			]),
-			createFolder("svelte-material-ripple", [
-				createFolder("src", [
-					createFile("Ripple.svelte", 5 * KB),
-					createFile("index.ts", 1 * KB),
+			create_node("svelte-material-ripple", [
+				create_node("src", [
+					create_node("Ripple.svelte"),
+					create_node("index.ts"),
 				]),
-				createFile("package.json", 12 * KB),
-				createFile("README.md", 18 * KB),
+				create_node("package.json"),
+				create_node("README.md"),
 			]),
 		]),
-		createFolder("Documents", [
-			createFolder("Project Planning", [
-				createFile("q1-goals.xlsx", 10 * MB),
-				createFile("timeline.pdf", 20 * MB),
+		create_node("Documents", [
+			create_node("Project Planning", [
+				create_node("q1-goals.xlsx"),
+				create_node("timeline.pdf"),
 			]),
-			createFile("meeting-notes.docx", 10 * MB),
-			createFile("resume.pdf", 10 * MB),
+			create_node("meeting-notes.docx"),
+			create_node("resume.pdf"),
 		]),
-		createFolder("Downloads", [
-			createFile("conference-slides.pptx", 33 * MB),
-			createFile("typescript-cheatsheet.pdf", 10 * MB),
+		create_node("Downloads", [
+			create_node("conference-slides.pptx"),
+			create_node("typescript-cheatsheet.pdf"),
 		]),
-		createFolder("Movies", [
-			createFile("Finding Nemo.mp4", 1.5 * GB),
-			createFile("Inside Out.mp4", 1 * GB),
-			createFile("Up.mp4", 2 * GB),
+		create_node("Movies", [
+			create_node("Finding Nemo.mp4"),
+			create_node("Inside Out.mp4"),
+			create_node("Up.mp4"),
 		]),
-		createFolder("Pictures", [
-			createFolder("Screenshots", [
-				createFile("bug-report.png", 1 * MB),
-				createFile("component-diagram.png", 3 * MB),	
-				createFile("design-mockup.png", 2 * MB),
+		create_node("Pictures", [
+			create_node("Screenshots", [
+				create_node("bug-report.png"),
+				create_node("component-diagram.png"),
+				create_node("design-mockup.png"),
 			]),
-			createFile("profile-photo.jpg", 6 * MB),
+			create_node("profile-photo.jpg"),
 		]),
-		createFolder("Videos", [
-			createFile("Family Trip.mp4", 300 * MB),
-			createFile("Finding Nemo.mp4", 1.5 * GB),
+		create_node("Videos", [
+			create_node("Family Trip.mp4"),
+			create_node("Finding Nemo.mp4"),
 		]),
-	]);
+	];
+
+	const expanded_ids = new SvelteSet<string>();
+
+	function on_toggle_click(event: MouseEvent, item: TreeItemState<TreeNode>) {
+		if (item.expanded) {
+			expanded_ids.delete(item.id);
+		} else {
+			expanded_ids.add(item.id);
+		}
+		event.preventDefault();
+	}
 </script>
 
-<Tree {root} class="min-h-svh scroll-p-6 p-6">
-	{#snippet children({ visibleItems })}
-		{#each visibleItems as item, order (item.node.id)}
-			<TreeItem {item} {order} />
+<Tree {root} expandedIds={expanded_ids} class="py-6">
+	{#snippet children({ items })}
+		{#each items as item (item.id)}
+			{@const children = item.node.children}
+			<TreeItem
+				{item}
+				class="group p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300"
+			>
+				<div
+					class="flex items-center"
+					style="padding-inline-start: calc({6 * item.depth} * var(--spacing))"
+				>
+					<ChevronDownIcon
+						role="presentation"
+						data-visible={children !== undefined && children.length !== 0}
+						class="size-6 p-0.5 transition-transform duration-200 group-aria-expanded:-rotate-90 data-[visible=false]:invisible"
+						onclick={(event) => on_toggle_click(event, item)}
+					/>
+
+					<div class="ps-1 pe-2">
+						{#if children !== undefined && item.expanded}
+							<FolderOpenIcon role="presentation" class="fill-blue-300" />
+						{:else if children !== undefined}
+							<FolderIcon role="presentation" class="fill-blue-300" />
+						{:else}
+							<FileIcon role="presentation" />
+						{/if}
+					</div>
+
+					<span class="select-none">{item.node.name}</span>
+				</div>
+			</TreeItem>
 		{/each}
 	{/snippet}
 </Tree>

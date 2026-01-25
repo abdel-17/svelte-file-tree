@@ -1,329 +1,245 @@
-<script
-	lang="ts"
-	generics="TFile extends FileNode = FileNode, TFolder extends FolderNode<TFile | TFolder> = DefaultTFolder<TFile>"
->
+<script lang="ts" generics="T">
+	import { is_control_or_meta } from "$lib/internal/helpers.js";
 	import type { EventHandler } from "svelte/elements";
-	import { isControlOrMeta } from "$lib/internal/helpers.js";
-	import type { DefaultTFolder, FileNode, FolderNode, TreeItemState } from "$lib/tree.svelte.js";
-	import { getTreeContext } from "./Tree.svelte";
+	import { get_tree_state } from "./Tree.svelte";
 	import type { TreeItemProps } from "./types.js";
 
-	const treeContext = getTreeContext<TFile, TFolder>();
-
 	let {
-		children,
 		item,
-		order,
+		disabled = false,
 		ref = $bindable(null),
+		children,
 		onfocusin,
 		onkeydown,
 		onclick,
 		...rest
-	}: TreeItemProps<TFile, TFolder> = $props();
+	}: TreeItemProps<T> = $props();
 
-	const tabindex = $derived.by(() => {
-		const tabbableId = treeContext.getTabbableId() ?? treeContext.getRoot().children[0]!.id;
-		return tabbableId === item.node.id ? 0 : -1;
+	const tree_state = get_tree_state<T>();
+	const selected = $derived(tree_state.get_selected_ids().has(item.id));
+
+	function toggle_selection() {
+		const selected_ids = tree_state.get_selected_ids();
+		if (selected) {
+			selected_ids.delete(item.id);
+		} else {
+			selected_ids.add(item.id);
+		}
+	}
+
+	$effect.pre(() => {
+		if (tree_state.get_tabbable_id() === undefined) {
+			tree_state.set_tabbable_id(item.id);
+		}
 	});
 
-	const handleFocusIn: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
+	$effect(() => {
+		return () => {
+			if (tree_state.get_tabbable_id() === item.id) {
+				tree_state.set_tabbable_id(undefined);
+			}
+		};
+	});
+
+	const handle_focusin: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
 		onfocusin?.(event);
-		treeContext.setTabbableId(item.node.id);
+		tree_state.set_tabbable_id(item.id);
 	};
 
-	const handleKeyDown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
+	const handle_keydown: EventHandler<KeyboardEvent, HTMLDivElement> = (event) => {
 		onkeydown?.(event);
-
-		if (event.defaultPrevented || event.target !== event.currentTarget || item.disabled) {
+		if (event.defaultPrevented || event.target !== event.currentTarget || disabled) {
 			return;
 		}
 
-		const isRtl = getComputedStyle(event.currentTarget).direction === "rtl";
-		const arrowRight = isRtl ? "ArrowLeft" : "ArrowRight";
-		const arrowLeft = isRtl ? "ArrowRight" : "ArrowLeft";
+		const { direction } = getComputedStyle(event.currentTarget);
+		const arrow_start = direction === "rtl" ? "ArrowRight" : "ArrowLeft";
+		const arrow_end = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
+
+		const selected_ids = tree_state.get_selected_ids();
+		const expanded_ids = tree_state.get_expanded_ids();
+		const items = tree_state.get_items();
 
 		switch (event.key) {
-			case arrowRight: {
-				if (item.node.type === "file") {
+			case arrow_end: {
+				if (!tree_state.has_children(item.node)) {
 					break;
 				}
 
 				if (!item.expanded) {
-					treeContext.getExpandedIds().add(item.node.id);
-					break;
-				}
-
-				const nextOrder = order + 1;
-				if (nextOrder < treeContext.getVisibleItems().length) {
-					treeContext.focusItem(nextOrder);
+					expanded_ids.add(item.id);
+					event.preventDefault();
+				} else if (item.index < items.length - 1) {
+					tree_state.on_focus(items[item.index + 1]);
+					event.preventDefault();
 				}
 				break;
 			}
-			case arrowLeft: {
-				if (item.node.type === "folder" && item.expanded) {
-					treeContext.getExpandedIds().delete(item.node.id);
-					break;
-				}
-
-				if (item.parent?.visible) {
-					const parentOrder = treeContext.getVisibleItems().indexOf(item.parent);
-					treeContext.focusItem(parentOrder);
+			case arrow_start: {
+				if (item.expanded) {
+					expanded_ids.delete(item.id);
+					event.preventDefault();
+				} else if (item.parent !== undefined) {
+					tree_state.on_focus(item.parent);
+					event.preventDefault();
 				}
 				break;
 			}
 			case "ArrowDown":
 			case "ArrowUp": {
-				const nextOrder = event.key === "ArrowDown" ? order + 1 : order - 1;
-				const next = treeContext.getVisibleItems()[nextOrder];
-				if (next === undefined) {
+				const next_index = event.key === "ArrowDown" ? item.index + 1 : item.index - 1;
+				if (next_index < 0 || next_index >= items.length) {
 					break;
 				}
 
+				const next = items[next_index];
 				if (event.shiftKey) {
-					treeContext.getSelectedIds().add(item.node.id).add(next.node.id);
-				} else if (!isControlOrMeta(event)) {
-					const selectedIds = treeContext.getSelectedIds();
-					selectedIds.clear();
-					selectedIds.add(next.node.id);
+					selected_ids.add(item.id).add(next.id);
+				} else if (!is_control_or_meta(event)) {
+					selected_ids.clear();
+					selected_ids.add(next.id);
 				}
 
-				treeContext.focusItem(nextOrder);
+				tree_state.on_focus(next);
+				event.preventDefault();
 				break;
 			}
 			case "PageDown":
 			case "PageUp": {
-				const visibleItems = treeContext.getVisibleItems();
-				const selectedIds = treeContext.getSelectedIds();
-
 				const offset = event.key === "PageDown" ? 1 : -1;
-				const shouldSelectMultiple = event.shiftKey && isControlOrMeta(event);
-
-				const maxScrollDistance = Math.min(
-					treeContext.getRef()!.clientHeight,
+				const max_scroll_distance = Math.min(
+					tree_state.get_ref()!.clientHeight,
 					document.documentElement.clientHeight,
 				);
-				const itemRect = event.currentTarget.getBoundingClientRect();
+				const item_rect = event.currentTarget.getBoundingClientRect();
 
-				let current = item;
-				let currentElement: HTMLElement = event.currentTarget;
-				for (let i = order + offset; 0 <= i && i < visibleItems.length; i += offset) {
-					const next = visibleItems[i]!;
-					const nextElement = treeContext.getItemElement(next.node.id);
-					if (nextElement === null) {
+				let found;
+				for (let i = item.index + offset; 0 <= i && i < items.length; i += offset) {
+					const next = items[i]!;
+					const next_element = document.getElementById(next.elementId);
+					if (next_element === null) {
 						break;
 					}
 
-					const nextRect = nextElement.getBoundingClientRect();
-					const distance = Math.abs(nextRect.top - itemRect.top);
-					if (distance > maxScrollDistance) {
+					const next_rect = next_element.getBoundingClientRect();
+					const distance = Math.abs(next_rect.top - item_rect.top);
+					if (distance > max_scroll_distance) {
 						break;
 					}
 
-					if (shouldSelectMultiple) {
-						selectedIds.add(current.node.id);
-					}
-
-					current = next;
-					currentElement = nextElement;
+					found = next;
 				}
 
-				if (current === item) {
+				if (found === undefined) {
 					break;
 				}
 
-				if (shouldSelectMultiple) {
-					selectedIds.add(current.node.id);
+				if (event.shiftKey && is_control_or_meta(event)) {
+					const stop_index = found.index + offset;
+					for (let i = item.index; i !== stop_index; i += offset) {
+						selected_ids.add(items[i].id);
+					}
 				} else {
-					selectedIds.clear();
-					selectedIds.add(current.node.id);
+					selected_ids.clear();
+					selected_ids.add(found.id);
 				}
 
-				currentElement.focus();
+				tree_state.on_focus(found);
+				event.preventDefault();
 				break;
 			}
 			case "Home":
 			case "End": {
-				const visibleItems = treeContext.getVisibleItems();
-				const lastOrder = event.key === "End" ? visibleItems.length - 1 : 0;
-				const last = visibleItems[lastOrder]!;
+				const last_index = event.key === "End" ? items.length - 1 : 0;
+				const last = items[last_index];
 				if (item === last) {
 					break;
 				}
 
-				if (event.shiftKey && isControlOrMeta(event)) {
-					const selectedIds = treeContext.getSelectedIds();
+				if (event.shiftKey && is_control_or_meta(event)) {
 					const offset = event.key === "End" ? 1 : -1;
-					for (let i = order; 0 <= i && i < visibleItems.length; i += offset) {
-						selectedIds.add(visibleItems[i]!.node.id);
+					for (let i = item.index; 0 <= i && i < items.length; i += offset) {
+						selected_ids.add(items[i].id);
 					}
 				} else {
-					const selectedIds = treeContext.getSelectedIds();
-					selectedIds.clear();
-					selectedIds.add(last.node.id);
+					selected_ids.clear();
+					selected_ids.add(last.id);
 				}
 
-				treeContext.focusItem(lastOrder);
+				tree_state.on_focus(last);
+				event.preventDefault();
 				break;
 			}
 			case " ": {
 				if (event.shiftKey) {
-					treeContext.selectUntil(order);
+					tree_state.select_until(item.index);
 				} else {
-					treeContext.toggleSelection(item);
+					toggle_selection();
 				}
+				event.preventDefault();
 				break;
 			}
 			case "Escape": {
-				treeContext.getSelectedIds().clear();
-				treeContext.getClipboardIds().clear();
-				treeContext.setPasteOperation(undefined);
+				selected_ids.clear();
+				event.preventDefault();
 				break;
 			}
 			case "*": {
-				const expandedIds = treeContext.getExpandedIds();
-				const owner = item.parent?.node ?? treeContext.getRoot();
-				for (const child of owner.children) {
-					if (child.type === "folder") {
-						expandedIds.add(child.id);
+				for (const sibling of item.parentChildren) {
+					if (tree_state.has_children(sibling)) {
+						expanded_ids.add(tree_state.get_id(sibling));
 					}
 				}
-				break;
-			}
-			case "Delete": {
-				treeContext.remove(order);
+				event.preventDefault();
 				break;
 			}
 			case "a": {
-				if (!isControlOrMeta(event)) {
+				if (!is_control_or_meta(event)) {
 					break;
 				}
 
-				const selectedIds = treeContext.getSelectedIds();
-				for (const item of treeContext.getVisibleItems()) {
-					selectedIds.add(item.node.id);
+				for (const item of items) {
+					selected_ids.add(item.id);
 				}
+				event.preventDefault();
 				break;
-			}
-			case "c":
-			case "x": {
-				if (!isControlOrMeta(event)) {
-					break;
-				}
-
-				const clipboardIds = treeContext.getClipboardIds();
-				clipboardIds.clear();
-				for (const id of treeContext.getSelectedIds()) {
-					clipboardIds.add(id);
-				}
-				clipboardIds.add(item.node.id);
-
-				treeContext.setPasteOperation(event.key === "c" ? "copy" : "cut");
-				break;
-			}
-			case "v":
-			case "V": {
-				if (!isControlOrMeta(event)) {
-					break;
-				}
-
-				const pasteOperation = treeContext.getPasteOperation();
-				if (pasteOperation === undefined) {
-					break;
-				}
-
-				let destination;
-				switch (item.node.type) {
-					case "file": {
-						destination = item.parent;
-						break;
-					}
-					case "folder": {
-						if (event.shiftKey) {
-							destination = item.parent;
-						} else {
-							destination = item as TreeItemState<TFile, TFolder, TFolder>;
-						}
-						break;
-					}
-				}
-
-				if (pasteOperation === "cut") {
-					let nearestCopied;
-					for (let item = destination; item !== undefined; item = item.parent) {
-						if (item.inClipboard) {
-							nearestCopied = item;
-							break;
-						}
-					}
-
-					if (destination !== undefined && nearestCopied !== undefined) {
-						treeContext.onCircularReference({
-							source: nearestCopied,
-							destination: destination,
-						});
-						break;
-					}
-				}
-
-				treeContext.paste(destination).then((didPaste) => {
-					if (didPaste && item.visible) {
-						treeContext.focusItem(order);
-					}
-				});
-				break;
-			}
-			default: {
-				return;
 			}
 		}
-
-		event.preventDefault();
 	};
 
-	const handleClick: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
+	const handle_click: EventHandler<MouseEvent, HTMLDivElement> = (event) => {
 		onclick?.(event);
-
-		if (event.defaultPrevented || item.disabled) {
+		if (event.defaultPrevented || disabled) {
 			return;
 		}
 
 		if (event.shiftKey) {
-			treeContext.selectUntil(order);
-		} else if (isControlOrMeta(event)) {
-			treeContext.toggleSelection(item);
+			tree_state.select_until(item.index);
+		} else if (is_control_or_meta(event)) {
+			toggle_selection();
 		} else {
-			const selectedIds = treeContext.getSelectedIds();
-			selectedIds.clear();
-			selectedIds.add(item.node.id);
+			const selected_ids = tree_state.get_selected_ids();
+			selected_ids.clear();
+			selected_ids.add(item.id);
 		}
 	};
-
-	$effect(() => {
-		return () => {
-			if (treeContext.getTabbableId() === item.node.id) {
-				treeContext.setTabbableId(undefined);
-			}
-		};
-	});
 </script>
 
 <div
 	{...rest}
 	bind:this={ref}
-	id={treeContext.getItemElementId(item.node.id)}
+	id={item.elementId}
 	role="treeitem"
-	aria-selected={item.selected}
-	aria-expanded={item.node.type === "folder" && item.node.children.length !== 0
-		? item.expanded
-		: undefined}
+	tabindex={tree_state.get_tabbable_id() === item.id ? 0 : -1}
+	aria-selected={selected}
+	aria-expanded={tree_state.has_children(item.node) ? item.expanded : undefined}
+	aria-disabled={disabled}
 	aria-level={item.depth + 1}
-	aria-posinset={item.nodeIndex + 1}
-	aria-setsize={item.parent?.node.children.length ?? treeContext.getRoot().children.length}
-	aria-disabled={item.disabled}
-	{tabindex}
-	onfocusin={handleFocusIn}
-	onkeydown={handleKeyDown}
-	onclick={handleClick}
+	aria-posinset={item.indexInChildren + 1}
+	aria-setsize={item.parentChildren.length}
+	onfocusin={handle_focusin}
+	onkeydown={handle_keydown}
+	onclick={handle_click}
 >
-	{@render children()}
+	{@render children?.()}
 </div>

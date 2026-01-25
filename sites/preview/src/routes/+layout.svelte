@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Toaster } from "svelte-sonner";
 	import "../app.css";
 
 	const { children } = $props();
@@ -14,5 +13,6 @@
 	/>
 </svelte:head>
 
-<Toaster richColors />
-{@render children()}
+<main class="mx-auto max-w-6xl px-6">
+	{@render children()}
+</main>
