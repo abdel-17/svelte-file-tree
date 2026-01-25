@@ -14,28 +14,6 @@ export type TreeItemState<T> = {
 	expanded: boolean;
 };
 
-export type PasteOperation = "copy" | "cut";
-
-export type OnCircularReferenceArgs<T> = {
-	source: TreeItemState<T>;
-	destination: TreeItemState<T>;
-};
-
-export type OnCopyArgs<T> = {
-	sources: TreeItemState<T>[];
-	destination: TreeItemState<T> | undefined;
-};
-
-export type OnCutArgs<T> = {
-	sources: TreeItemState<T>[];
-	destination: TreeItemState<T> | undefined;
-};
-
-export type OnRemoveArgs<T> = {
-	sources: TreeItemState<T>[];
-	nearestRemaining: TreeItemState<T> | undefined;
-};
-
 export type TreeChildrenSnippetArgs<T> = {
 	items: TreeItemState<T>[];
 };
@@ -49,21 +27,10 @@ export interface TreeProps<T> extends Omit<HTMLAttributes<HTMLDivElement>, "chil
 	selectedIds?: SvelteSet<string>;
 	defaultExpandedIds?: Iterable<string>;
 	expandedIds?: SvelteSet<string>;
-	defaultClipboardIds?: Iterable<string>;
-	clipboardIds?: SvelteSet<string>;
-	pasteOperation?: PasteOperation;
 	ref?: HTMLDivElement | null;
 	onFocus?: (item: TreeItemState<T>) => void;
-	onCircularReference?: (args: OnCircularReferenceArgs<T>) => void;
-	onCopy?: (args: OnCopyArgs<T>) => void;
-	onCut?: (args: OnCutArgs<T>) => void;
-	onRemove?: (args: OnRemoveArgs<T>) => void;
 	children?: Snippet<[args: TreeChildrenSnippetArgs<T>]>;
 }
-
-export type TreeRemoveMethodOptions = {
-	includeSelected?: boolean;
-};
 
 export interface TreeItemProps<T> extends HTMLAttributes<HTMLDivElement> {
 	item: TreeItemState<T>;

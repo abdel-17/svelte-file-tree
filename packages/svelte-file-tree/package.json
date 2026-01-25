@@ -32,7 +32,6 @@
 		"svelte": "^5.31.0"
 	},
 	"dependencies": {
-		"@tanstack/virtual-core": "^3.13.18",
 		"esm-env": "^1.2.2"
 	},
 	"devDependencies": {

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { TreeNode } from "$lib/tree.svelte";
 	import {
 		elementScroll,
 		observeElementOffset,
@@ -9,35 +8,31 @@
 	} from "@tanstack/virtual-core";
 	import { ChevronDownIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@lucide/svelte";
 	import { SvelteSet } from "svelte/reactivity";
-	import {
-		Tree,
-		TreeItem,
-		type OnCircularReferenceArgs,
-		type OnCopyArgs,
-		type OnCutArgs,
-		type OnRemoveArgs,
-		type PasteOperation,
-		type TreeItemState,
-	} from "svelte-file-tree";
-	import { toast } from "svelte-sonner";
+	import { Tree, TreeItem, type TreeItemState } from "svelte-file-tree";
 
-	let tree: Tree<TreeNode> | null = $state.raw(null);
-	const root = $state(
-		Array(10_000)
-			.fill(null)
-			.map((_, i) => {
-				let children;
-				if (i % 100 === 0) {
-					children = Array(1000)
-						.fill(null)
-						.map((_, j) => new TreeNode(`Item ${i + 1}.${j + 1}`));
-				}
-				return new TreeNode(`Item ${i + 1}`, children);
-			}),
-	);
+	type TreeNode = {
+		id: string;
+		name: string;
+		children?: TreeNode[];
+	};
+
+	function create_node(name: string, children?: TreeNode[]): TreeNode {
+		return { id: crypto.randomUUID(), name, children };
+	}
+
+	const root = Array(10_000)
+		.fill(null)
+		.map((_, i) => {
+			let children;
+			if (i % 100 === 0) {
+				children = Array(1000)
+					.fill(null)
+					.map((_, j) => create_node(`Item ${i + 1}.${j + 1}`));
+			}
+			return create_node(`Item ${i + 1}`, children);
+		});
+
 	const expanded_ids = new SvelteSet<string>();
-	const clipboard_ids = new SvelteSet<string>();
-	let paste_operation: PasteOperation | undefined = $state.raw();
 
 	type VirtualItem = {
 		item: TreeItemState<TreeNode>;
@@ -46,6 +41,7 @@
 	};
 
 	let scroll_element: HTMLDivElement | null = $state.raw(null);
+	let tree: Tree<TreeNode> | null = $state.raw(null);
 	let tree_height = $state.raw(0);
 	let virtual_items: VirtualItem[] = $state.raw([]);
 
@@ -109,41 +105,6 @@
 		});
 	}
 
-	function on_circular_reference({ source }: OnCircularReferenceArgs<TreeNode>) {
-		toast.error(`Cannot move "${source.node.name}" inside itself`);
-	}
-
-	function on_copy({ sources, destination }: OnCopyArgs<TreeNode>) {
-		const destination_children = destination?.node.children ?? root;
-		for (const source of sources) {
-			const copy = source.node.copy();
-			destination_children.push(copy);
-		}
-	}
-
-	function on_cut({ sources, destination }: OnCutArgs<TreeNode>) {
-		const destination_children = destination?.node.children ?? root;
-		for (const source of sources) {
-			const index = source.parentChildren.findIndex((node) => node.id === source.id);
-			source.parentChildren.splice(index, 1);
-			destination_children.push(source.node);
-		}
-
-		clipboard_ids.clear();
-		paste_operation = undefined;
-	}
-
-	function on_remove({ sources, nearestRemaining }: OnRemoveArgs<TreeNode>) {
-		for (const source of sources) {
-			const index = source.parentChildren.findIndex((node) => node.id === source.id);
-			source.parentChildren.splice(index, 1);
-		}
-
-		if (nearestRemaining !== undefined) {
-			on_focus(nearestRemaining);
-		}
-	}
-
 	function on_toggle_click(event: MouseEvent, item: TreeItemState<TreeNode>) {
 		if (item.expanded) {
 			expanded_ids.delete(item.id);
@@ -159,13 +120,7 @@
 		bind:this={tree}
 		{root}
 		expandedIds={expanded_ids}
-		clipboardIds={clipboard_ids}
-		bind:pasteOperation={paste_operation}
 		onFocus={on_focus}
-		onCircularReference={on_circular_reference}
-		onCopy={on_copy}
-		onCut={on_cut}
-		onRemove={on_remove}
 		class="relative"
 		style="height: {tree_height}px;"
 	>
@@ -173,31 +128,32 @@
 			{@const children = item.node.children}
 			<TreeItem
 				{item}
-				class="group absolute top-0 right-0 left-0 flex items-center p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300"
-				style="
-					height: {height}px;
-					transform: translateY({start}px);
-					padding-inline-start: calc({3 + 6 * item.depth} * var(--spacing));
-				"
+				class="group absolute top-0 right-0 left-0 p-3 hover:bg-neutral-200 focus:outline-2 focus:-outline-offset-2 focus:outline-current active:bg-neutral-300 aria-selected:bg-blue-200 aria-selected:text-blue-900 aria-selected:active:bg-blue-300"
+				style="height: {height}px; transform: translateY({start}px);"
 			>
-				<ChevronDownIcon
-					role="presentation"
-					data-visible={children !== undefined && children.length !== 0}
-					class="size-6 p-0.5 transition-transform duration-200 group-aria-expanded:-rotate-90 data-[visible=false]:invisible"
-					onclick={(event) => on_toggle_click(event, item)}
-				/>
+				<div
+					class="flex items-center"
+					style="padding-inline-start: calc({6 * item.depth} * var(--spacing))"
+				>
+					<ChevronDownIcon
+						role="presentation"
+						data-visible={children !== undefined && children.length !== 0}
+						class="size-6 p-0.5 transition-transform duration-200 group-aria-expanded:-rotate-90 data-[visible=false]:invisible"
+						onclick={(event) => on_toggle_click(event, item)}
+					/>
 
-				<div class="ps-1 pe-2">
-					{#if children !== undefined && item.expanded}
-						<FolderOpenIcon role="presentation" class="fill-blue-300" />
-					{:else if children !== undefined}
-						<FolderIcon role="presentation" class="fill-blue-300" />
-					{:else}
-						<FileIcon role="presentation" />
-					{/if}
+					<div class="ps-1 pe-2">
+						{#if children !== undefined && item.expanded}
+							<FolderOpenIcon role="presentation" class="fill-blue-300" />
+						{:else if children !== undefined}
+							<FolderIcon role="presentation" class="fill-blue-300" />
+						{:else}
+							<FileIcon role="presentation" />
+						{/if}
+					</div>
+
+					<span class="select-none">{item.node.name}</span>
 				</div>
-
-				<span class="select-none">{item.node.name}</span>
 			</TreeItem>
 		{/each}
 	</Tree>

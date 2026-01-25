@@ -14,9 +14,6 @@ importers:
 
   packages/svelte-file-tree:
     dependencies:
-      '@tanstack/virtual-core':
-        specifier: ^3.13.18
-        version: 3.13.18
       esm-env:
         specifier: ^1.2.2
         version: 1.2.2
@@ -90,9 +87,6 @@ importers:
       svelte-file-tree:
         specifier: workspace:^
         version: link:../../packages/svelte-file-tree
-      svelte-sonner:
-        specifier: ^1.0.7
-        version: 1.0.7(svelte@5.46.4)
       tailwindcss:
         specifier: 4.1.18
         version: 4.1.18
@@ -1156,11 +1150,6 @@ packages:
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
 
-  runed@0.28.0:
-    resolution: {integrity: sha512-k2xx7RuO9hWcdd9f+8JoBeqWtYrm5CALfgpkg2YDB80ds/QE4w0qqu34A7fqiAwiBBSBQOid7TLxwxVC27ymWQ==}
-    peerDependencies:
-      svelte: ^5.7.0
-
   sade@1.8.1:
     resolution: {integrity: sha512-xal3CZX1Xlo/k4ApwCFrHVACi9fBqJ7V+mwhBsuf/1IOKbBy098Fex+Wa/5QMubw09pSZ/u8EY8PWgevJsXp1A==}
     engines: {node: '>=6'}
@@ -1221,11 +1210,6 @@ packages:
     peerDependencies:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: '>=5.0.0'
-
-  svelte-sonner@1.0.7:
-    resolution: {integrity: sha512-1EUFYmd7q/xfs2qCHwJzGPh9n5VJ3X6QjBN10fof2vxgy8fYE7kVfZ7uGnd7i6fQaWIr5KvXcwYXE/cmTEjk5A==}
-    peerDependencies:
-      svelte: ^5.0.0
 
   svelte2tsx@0.7.42:
     resolution: {integrity: sha512-PSNrKS16aVdAajoFjpF5M0t6TA7ha7GcKbBajD9RG3M+vooAuvLnWAGUSC6eJL4zEOVbOWKtcS2BuY4rxPljoA==}
@@ -2253,11 +2237,6 @@ snapshots:
     dependencies:
       queue-microtask: 1.2.3
 
-  runed@0.28.0(svelte@5.46.4):
-    dependencies:
-      esm-env: 1.2.2
-      svelte: 5.46.4
-
   sade@1.8.1:
     dependencies:
       mri: 1.2.0
@@ -2310,11 +2289,6 @@ snapshots:
       typescript: 5.8.2
     transitivePeerDependencies:
       - picomatch
-
-  svelte-sonner@1.0.7(svelte@5.46.4):
-    dependencies:
-      runed: 0.28.0(svelte@5.46.4)
-      svelte: 5.46.4
 
   svelte2tsx@0.7.42(svelte@5.46.4)(typescript@5.8.2):
     dependencies:

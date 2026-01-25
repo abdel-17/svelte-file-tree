@@ -26,7 +26,6 @@
 		"svelte": "5.46.4",
 		"svelte-check": "^4.3.5",
 		"svelte-file-tree": "workspace:^",
-		"svelte-sonner": "^1.0.7",
 		"tailwindcss": "4.1.18",
 		"vite": "^7.3.1"
 	}

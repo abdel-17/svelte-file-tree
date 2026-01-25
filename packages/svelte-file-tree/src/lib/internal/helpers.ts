@@ -5,5 +5,3 @@ export function is_control_or_meta(event: KeyboardEvent | MouseEvent) {
 	}
 	return event.ctrlKey;
 }
-
-export function noop() {}

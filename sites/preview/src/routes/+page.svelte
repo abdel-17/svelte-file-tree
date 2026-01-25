@@ -1,5 +1,5 @@
 <script lang="ts">
-	import GithubLink from "$lib/GithubLink.svelte";
+	import { GithubIcon } from "@lucide/svelte";
 
 	const shortcuts = [
 		{
@@ -55,24 +55,8 @@
 			description: "Select all visible items",
 		},
 		{
-			keys: ["ControlOrCommand", "c"],
-			description: "Copy to clipboard",
-		},
-		{
-			keys: ["ControlOrCommand", "x"],
-			description: "Cut to clipboard",
-		},
-		{
-			keys: ["ControlOrCommand", "v"],
-			description: "Paste",
-		},
-		{
 			keys: ["Escape"],
-			description: "Clear selection and clipboard",
-		},
-		{
-			keys: ["Delete"],
-			description: "Delete",
+			description: "Clear selection",
 		},
 	];
 
@@ -95,8 +79,6 @@
 				return "*";
 			case "ControlOrCommand":
 				return is_mac() ? "⌘" : "Ctrl";
-			case "Delete":
-				return "Del";
 			case "Escape":
 				return "Esc";
 			case "HomeOrEnd":
@@ -140,6 +122,18 @@
 		},
 	];
 </script>
+
+{#snippet github_link(href: string, label: string)}
+	<a
+		{href}
+		target="_blank"
+		rel="noopener noreferrer"
+		class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#25292e] px-6 py-3 font-medium text-white transition-colors hover:bg-[#0d1117] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25292e] active:scale-95"
+	>
+		<GithubIcon role="presentation" class="size-5" />
+		{label}
+	</a>
+{/snippet}
 
 <div class="space-y-10 py-16">
 	<section>
@@ -201,10 +195,10 @@
 							View Example
 						</a>
 
-						<GithubLink
-							href="https://github.com/abdel-17/svelte-file-tree/tree/master/sites/preview/src/routes{example.href}/+page.svelte"
-							label="View Code"
-						/>
+						{@render github_link(
+							`https://github.com/abdel-17/svelte-file-tree/tree/master/sites/preview/src/routes${example.href}/+page.svelte`,
+							"View Code",
+						)}
 					</div>
 				</section>
 			{/each}
@@ -212,6 +206,6 @@
 	</section>
 
 	<section class="text-center">
-		<GithubLink href="https://github.com/abdel-17/svelte-file-tree" label="View on GitHub" />
+		{@render github_link("https://github.com/abdel-17/svelte-file-tree", "View on GitHub")}
 	</section>
 </div>

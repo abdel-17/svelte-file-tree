@@ -1,8 +1,8 @@
 <script lang="ts" generics="T">
+	import { is_control_or_meta } from "$lib/internal/helpers.js";
 	import type { EventHandler } from "svelte/elements";
 	import { get_tree_state } from "./Tree.svelte";
 	import type { TreeItemProps } from "./types.js";
-	import { is_control_or_meta } from "$lib/internal/helpers.js";
 
 	let {
 		item,
@@ -58,7 +58,6 @@
 
 		const selected_ids = tree_state.get_selected_ids();
 		const expanded_ids = tree_state.get_expanded_ids();
-		const clipboard_ids = tree_state.get_clipboard_ids();
 		const items = tree_state.get_items();
 
 		switch (event.key) {
@@ -182,8 +181,6 @@
 			}
 			case "Escape": {
 				selected_ids.clear();
-				clipboard_ids.clear();
-				tree_state.set_paste_operation(undefined);
 				event.preventDefault();
 				break;
 			}
@@ -196,11 +193,6 @@
 				event.preventDefault();
 				break;
 			}
-			case "Delete": {
-				tree_state.remove(item.index, { includeSelected: selected });
-				event.preventDefault();
-				break;
-			}
 			case "a": {
 				if (!is_control_or_meta(event)) {
 					break;
@@ -209,35 +201,6 @@
 				for (const item of items) {
 					selected_ids.add(item.id);
 				}
-				event.preventDefault();
-				break;
-			}
-			case "c":
-			case "x": {
-				if (!is_control_or_meta(event)) {
-					break;
-				}
-
-				clipboard_ids.clear();
-				if (selected) {
-					for (const id of selected_ids) {
-						clipboard_ids.add(id);
-					}
-				} else {
-					clipboard_ids.add(item.id);
-				}
-
-				tree_state.set_paste_operation(event.key === "c" ? "copy" : "cut");
-				event.preventDefault();
-				break;
-			}
-			case "v": {
-				if (!is_control_or_meta(event)) {
-					break;
-				}
-
-				const destination = tree_state.has_children(item.node) ? item : item.parent;
-				tree_state.paste(destination);
 				event.preventDefault();
 				break;
 			}
