@@ -1,4 +1,5 @@
-node_modules
-
-# OS Files
+.svelte-kit/
+build/
+dist/
+node_modules/
 .DS_Store

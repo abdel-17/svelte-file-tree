@@ -10,37 +10,32 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   release:
     name: Release
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     permissions:
       contents: write      # to create release (changesets/action)
       pull-requests: write # to create pull request (changesets/action)
       id-token: write      # to generate OIDC token
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: pnpm/setup@v3
         with:
-          node-version: 24
-          cache: pnpm
+          version: 12
+          runtime: node@24
+          cache: true
 
       # Ensure npm 11.5.1 or later is installed for OIDC
       - name: Update npm
         run: npm install -g npm@latest
 
-      - name: Install Dependencies
-        run: pnpm install
-
       - name: Create Release Pull Request or Publish to npm
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
-          commit: "chore(release): version package"
-          title: "chore(release): version package"
-          publish: pnpm ci:publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(release): version package"
+          pr-title: "chore(release): version package"
+          publish-script: pnpm ci:publish
+          github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,3 +1,6 @@
+allowBuilds:
+  esbuild: false
+
 packages:
-  - packages/*
-  - sites/*
+  - package
+  - preview

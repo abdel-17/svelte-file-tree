@@ -8,5 +8,6 @@ Unstyled file tree component library for Svelte.
 npm install svelte-file-tree
 ```
 
+- [Source Code](./package)
 - [Preview](https://svelte-file-tree.pages.dev)
-- [Package](./packages/svelte-file-tree)
+- [Preview Source Code](./preview)
