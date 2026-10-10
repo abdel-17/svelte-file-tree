@@ -154,7 +154,6 @@
 <style>
 	.dropzone {
 		height: 100svh;
-		padding-block: 24px;
 
 		& :global(.tree) {
 			height: 100%;
