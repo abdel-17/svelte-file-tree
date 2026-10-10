@@ -3,6 +3,13 @@
 	--color-blue-100: oklch(93.2% 0.032 255.585);
 	--color-neutral-100: oklch(97% 0 none);
 	--color-neutral-200: oklch(92.2% 0 none);
+	--color-neutral-300: oklch(87% 0 0);
+}
+
+*,
+*:before,
+*:after {
+	box-sizing: border-box;
 }
 
 :root {
@@ -10,7 +17,10 @@
 }
 
 body {
-	margin-block: 0;
+	margin: 0;
+}
+
+.container {
 	margin-inline: auto;
 	max-width: 800px;
 	padding: 24px;
@@ -25,6 +35,11 @@ body {
 
 	&:hover {
 		background-color: var(--color-neutral-100);
+	}
+
+	&:focus {
+		outline: 2px solid currentColor;
+		outline-offset: -2px;
 	}
 
 	&:active {

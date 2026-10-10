@@ -1,15 +1,12 @@
-export function get_nearest_treeitem(element: unknown): HTMLElement | null {
+export function get_closest_treeitem(element: unknown): HTMLDivElement | null {
 	if (element instanceof Element) {
-		const treeitem = element.closest("[role=treeitem]");
-		if (treeitem instanceof HTMLElement) {
-			return treeitem;
-		}
+		return element.closest("div[role=treeitem]");
 	}
 	return null;
 }
 
-export function is_treeitem(element: unknown): element is HTMLElement {
-	return element instanceof HTMLElement && element.role === "treeitem";
+export function is_treeitem(element: unknown): element is HTMLDivElement {
+	return element instanceof HTMLDivElement && element.role === "treeitem";
 }
 
 /** @link https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples */

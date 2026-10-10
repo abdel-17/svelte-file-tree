@@ -3,7 +3,7 @@
 	import type { EventHandler, HTMLAttributes } from "svelte/elements";
 	import type { SvelteSet } from "svelte/reactivity";
 	import type { FlatTreeItem } from "./flat-tree.js";
-	import { get_nearest_treeitem, is_control_or_meta, is_treeitem, set_toggle } from "./helpers.js";
+	import { get_closest_treeitem, is_control_or_meta, is_treeitem, set_toggle } from "./helpers.js";
 
 	export type TreeOnFocusItemArgs<T> = {
 		item: FlatTreeItem<T>,
@@ -114,7 +114,7 @@
 		if (event.defaultPrevented) {
 			return;
 		}
-		const treeitem = get_nearest_treeitem(event.target);
+		const treeitem = get_closest_treeitem(event.target);
 		if (treeitem === null || treeitem.ariaDisabled === "true") {
 			return;
 		}
@@ -136,7 +136,7 @@
 
 	const handle_focusin: EventHandler<FocusEvent, HTMLDivElement> = (event) => {
 		onfocusin?.(event);
-		const treeitem = get_nearest_treeitem(event.target);
+		const treeitem = get_closest_treeitem(event.target);
 		if (treeitem === null) {
 			return;
 		}

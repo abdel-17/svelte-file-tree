@@ -1,0 +1,130 @@
+[
+	{
+		"id": "1",
+		"name": "Applications",
+		"children": [
+			{
+				"id": "2",
+				"name": "App Store.app"
+			},
+			{
+				"id": "3",
+				"name": "FaceTime.app"
+			},
+			{
+				"id": "4",
+				"name": "Mail.app"
+			},
+			{
+				"id": "5",
+				"name": "Messages.app"
+			},
+			{
+				"id": "6",
+				"name": "Music.app"
+			},
+			{
+				"id": "7",
+				"name": "Safari.app"
+			}
+		]
+	},
+	{
+		"id": "8",
+		"name": "Documents",
+		"children": [
+			{
+				"id": "9",
+				"name": "Project Planning",
+				"children": [
+					{
+						"id": "10",
+						"name": "Q1 Goals.xlsx"
+					},
+					{
+						"id": "11",
+						"name": "Timeline.pdf"
+					}
+				]
+			},
+			{
+				"id": "12",
+				"name": "Meeting Notes.docx"
+			},
+			{
+				"id": "13",
+				"name": "Resume.pdf"
+			}
+		]
+	},
+	{
+		"id": "14",
+		"name": "Downloads",
+		"children": [
+			{
+				"id": "15",
+				"name": "Conference Slides.pptx"
+			},
+			{
+				"id": "16",
+				"name": "TypeScript Cheatsheet.pdf"
+			}
+		]
+	},
+	{
+		"id": "17",
+		"name": "Movies",
+		"children": [
+			{
+				"id": "18",
+				"name": "Finding Nemo.mp4"
+			},
+			{
+				"id": "19",
+				"name": "Inside Out.mp4"
+			},
+			{
+				"id": "20",
+				"name": "Up.mp4"
+			}
+		]
+	},
+	{
+		"id": "21",
+		"name": "Pictures",
+		"children": [
+			{
+				"id": "22",
+				"name": "Screenshots",
+				"children": [
+					{
+						"id": "23",
+						"name": "Bug Report.png"
+					},
+					{
+						"id": "24",
+						"name": "Component Diagram.png"
+					},
+					{
+						"id": "25",
+						"name": "Design Mockup.png"
+					}
+				]
+			},
+			{
+				"id": "26",
+				"name": "Profile Photo.jpg"
+			}
+		]
+	},
+	{
+		"id": "27",
+		"name": "Videos",
+		"children": [
+			{
+				"id": "28",
+				"name": "Family Trip.mp4"
+			}
+		]
+	}
+]
